@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+  SlateClub design tokens — cinema-grade dark.
+  Pill taxonomy is a silent grammar: every chip's colour
+  tells the user its category without a label.
+*/
+:root {
+  /* Surfaces */
+  --bg-screening: #0A0A0B;
+  --bg-card: #111114;
+  --bg-elevated: #1A1A1F;
+  --bg-overlay: rgba(10, 10, 11, 0.72);
+
+  /* Text */
+  --text-primary: #FAFAF7;
+  --text-muted: #9A9AA0;
+  --text-faint: #6A6A70;
+
+  /* Pill taxonomy — categorical colour grammar */
+  --pill-mood: #E0A050;        /* amber */
+  --pill-genre: #5CA572;       /* green */
+  --pill-language: #B8956A;    /* tan */
+  --pill-platform: #8B6FB5;    /* purple */
+  --pill-era: #6E5BA8;         /* violet */
+  --pill-neutral: #3A3A42;     /* graphite */
+
+  /* Action / nav */
+  --cta-primary: #5CA572;      /* green primary */
+  --cta-primary-hover: #6FB585;
+  --nav-active: #C4716E;       /* coral */
+  --signal-warning: #E0A050;
+  --signal-error: #C4716E;
+
+  /* Legacy aliases — kept while we migrate */
+  --background: var(--bg-screening);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-background: var(--bg-screening);
+  --color-foreground: var(--text-primary);
+  --color-bg-screening: var(--bg-screening);
+  --color-bg-card: var(--bg-card);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-pill-mood: var(--pill-mood);
+  --color-pill-genre: var(--pill-genre);
+  --color-pill-language: var(--pill-language);
+  --color-pill-platform: var(--pill-platform);
+  --color-pill-era: var(--pill-era);
+  --color-pill-neutral: var(--pill-neutral);
+  --color-cta: var(--cta-primary);
+  --color-cta-hover: var(--cta-primary-hover);
+  --color-nav-active: var(--nav-active);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-geist-sans);
+}
+
+body {
+  background: var(--bg-screening);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Hide scrollbar for horizontal rails */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Ambient backdrop — fixed under the hero stack */
+.ambient-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  transition: background 1200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}

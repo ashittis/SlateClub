@@ -1,0 +1,25 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/slateclub"
+    JWT_SECRET: str = "dev-secret-change-me"
+    JWT_REFRESH_SECRET: str = "dev-refresh-secret-change-me"
+    JWT_ACCESS_EXPIRE_MINUTES: int = 15
+    JWT_REFRESH_EXPIRE_DAYS: int = 7
+    TMDB_API_KEY: str = ""
+    TMDB_BASE_URL: str = "https://api.themoviedb.org/3"
+    FRONTEND_URL: str = "http://localhost:3000"
+    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_USER: str = "neo4j"
+    NEO4J_PASSWORD: str = "password"
+    ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_EMBED_MODEL: str = "gemini-embedding-001"
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
