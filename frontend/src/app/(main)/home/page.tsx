@@ -16,6 +16,7 @@ import AmbientBackdrop from "@/components/ui/AmbientBackdrop";
 import ActivityFeed from "@/components/social/ActivityFeed";
 import MovieSearchBar from "@/components/feed/MovieSearchBar";
 import BrowseGrid from "@/components/feed/BrowseGrid";
+import ForYouGrid from "@/components/feed/ForYouGrid";
 import type { ActivityEvent } from "@/types/social";
 
 interface TwinNowItem {
@@ -108,9 +109,16 @@ export default function HomePage() {
               <HeroFan data={heroQuery.data} />
             ) : null}
 
+            {/* Personalised feed — taste engine picks for this user.
+                Renders nothing if the engine returns empty, so BrowseGrid
+                below always acts as a fallback. */}
+            <div className="mt-8">
+              <ForYouGrid />
+            </div>
+
             {/* Always-on browseable catalog — clicks land on /film/{tmdbId}
                 where ratings, reviews, slates, and discussion live. */}
-            <div className="mt-8">
+            <div className="mt-2">
               <BrowseGrid />
             </div>
 

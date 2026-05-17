@@ -18,6 +18,7 @@ from ..models.actions import Rating, WatchHistory, WatchlistItem
 from ..models.social import MicroFeedback
 from ..models.onboarding import (
     FavoriteMovie,
+    FavoritePerson,
     LanguageSelection,
     OnboardingSignals,
 )
@@ -100,6 +101,18 @@ async def load_user_priors(user_id: str, db: AsyncSession) -> dict:
         ).all()
     ]
 
+    favorite_directors = [
+        r[0].lower()
+        for r in (
+            await db.execute(
+                select(FavoritePerson.name).where(
+                    FavoritePerson.user_id == user_id
+                )
+            )
+        ).all()
+        if r[0]
+    ]
+
     # Resolve cached embeddings for poster_picks + origin + favourites.
     needed_ids = list(
         {*poster_picks, *favourite_tmdb_ids, *([origin_id] if origin_id else [])}
@@ -150,6 +163,7 @@ async def load_user_priors(user_id: str, db: AsyncSession) -> dict:
         "taste_embedding": (
             taste_state.taste_embedding if taste_state is not None else None
         ),
+        "favorite_directors": favorite_directors,
     }
 
 
@@ -275,10 +289,14 @@ async def for_you(
     )
     watchlist = watchlist_result.all()
 
+    # Join FavoriteMovie with Movie table so we get real genres/metadata.
+    # Without this, onboarding movie picks produce a zero-genre taste vector.
     fav_movies_result = await db.execute(
-        select(FavoriteMovie).where(FavoriteMovie.user_id == user.id)
+        select(FavoriteMovie, Movie)
+        .outerjoin(Movie, Movie.tmdb_id == FavoriteMovie.tmdb_id)
+        .where(FavoriteMovie.user_id == user.id)
     )
-    fav_movies = fav_movies_result.scalars().all()
+    fav_movies_rows = fav_movies_result.all()
 
     # Build interaction list for taste vector
     interactions = []
@@ -297,9 +315,14 @@ async def for_you(
             "created_at": wl_item.created_at,
         })
 
-    for fav in fav_movies:
-        interactions.append({
-            "movie_data": {
+    for fav, fav_movie in fav_movies_rows:
+        movie_data = (
+            _movie_to_dict(fav_movie)
+            if fav_movie is not None
+            else {
+                # Movie not yet cached locally — use sparse placeholder.
+                # Genres/language will be blank but the "favorite" signal weight
+                # still nudges vote_average/popularity dims of the taste vector.
                 "id": f"fav_{fav.tmdb_id}",
                 "genres": [],
                 "vote_average": 8.0,
@@ -307,7 +330,10 @@ async def for_you(
                 "runtime": 120,
                 "release_date": "",
                 "original_language": "en",
-            },
+            }
+        )
+        interactions.append({
+            "movie_data": movie_data,
             "signal_type": "favorite",
             "created_at": fav.created_at,
         })
@@ -459,6 +485,18 @@ async def debug(
         )
     ).scalar_one() or 0
 
+    fav_directors = [
+        r[0]
+        for r in (
+            await db.execute(
+                select(FavoritePerson.name).where(
+                    FavoritePerson.user_id == user.id
+                )
+            )
+        ).all()
+        if r[0]
+    ]
+
     # Cache count by language — what the pipeline can actually rank.
     lang_counts = {
         r[0] or "unknown": r[1]
@@ -501,6 +539,7 @@ async def debug(
         "onboarding": {
             "languages": languages,
             "favouriteMovieCount": fav_count,
+            "favouriteDirectors": fav_directors,
             "originFilmTmdbId": signals.origin_film_tmdb_id if signals else None,
             "moodPacing": signals.mood_pacing if signals else None,
             "moodTone": signals.mood_tone if signals else None,
@@ -516,6 +555,8 @@ async def debug(
             "persistentMood": priors["persistent_mood"],
             "seedPriorNonZero": seed_prior_norm > 0,
             "seedPriorNorm": round(seed_prior_norm, 4),
+            "favoriteDirectors": priors.get("favorite_directors", []),
+            "favoriteDirectorCount": len(priors.get("favorite_directors") or []),
         },
         "interactions": {
             "ratings": n_ratings,
@@ -566,6 +607,14 @@ def _diagnose(
         msgs.append(
             "Seed prior is empty — onboarding signals didn't produce a vector. "
             "Re-check the mood sliders and language picks."
+        )
+
+    fav_directors = priors.get("favorite_directors") or []
+    if fav_directors:
+        msgs.append(
+            f"Favourite directors active: {', '.join(fav_directors)}. "
+            "Their films get a 50% score boost in Stage 3. "
+            "Boost only fires when movies have credits data — run TMDB enrichment if missing."
         )
 
     if not msgs:

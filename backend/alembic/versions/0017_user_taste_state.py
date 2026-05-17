@@ -17,21 +17,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "user_taste_state",
-        sa.Column(
-            "user_id",
-            sa.String(),
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
-            primary_key=True,
-        ),
-        sa.Column("taste_statement", sa.Text(), nullable=True),
-        sa.Column("taste_embedding", sa.LargeBinary(), nullable=True),
-        sa.Column("tone_axes", sa.JSON(), nullable=True),
-        sa.Column("last_drift_score", sa.Float(), nullable=True),
-        sa.Column("last_computed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-    )
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS user_taste_state (
+            user_id VARCHAR NOT NULL PRIMARY KEY,
+            taste_statement TEXT,
+            taste_embedding BYTEA,
+            tone_axes JSON,
+            last_drift_score FLOAT,
+            last_computed_at TIMESTAMP WITH TIME ZONE,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    """)
 
 
 def downgrade() -> None:

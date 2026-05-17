@@ -205,6 +205,27 @@ class RecommendationPipeline:
                 for m in lang_movies[:50]:
                     per_lang_ids.add(m["id"])
 
+        # Director affinity candidates — explicitly pull every film in the
+        # catalog by a director the user named during onboarding. Without
+        # this, director films only get a post-rank boost but may never
+        # enter the candidate pool at all (content/ALS/trending might not
+        # surface them, especially for arthouse / non-English directors).
+        director_ids: set[str] = set()
+        fav_directors = {
+            d.lower()
+            for d in ((priors or {}).get("favorite_directors") or [])
+        }
+        if fav_directors:
+            for m in all_movies:
+                credits = m.get("credits") or {}
+                director_name = (
+                    credits.get("director", {}).get("name")
+                    if isinstance(credits, dict)
+                    else None
+                )
+                if director_name and director_name.lower() in fav_directors:
+                    director_ids.add(m["id"])
+
         # Merge all candidates
         all_candidate_ids = (
             set(content_map.keys())
@@ -212,6 +233,7 @@ class RecommendationPipeline:
             | set(semantic_map.keys())
             | trending_ids
             | per_lang_ids
+            | director_ids
         )
         movie_lookup = {m["id"]: m for m in all_movies}
 
@@ -388,6 +410,24 @@ class RecommendationPipeline:
         # Sort by rank score descending
         candidates.sort(key=lambda c: -c["_rank_score"])
 
+        # Director affinity boost: 50% lift for movies by a director the user
+        # explicitly named during onboarding. Applied before diversity penalty
+        # so a single favourite-director film still surfaces near the top.
+        fav_directors = {
+            d.lower()
+            for d in ((priors or {}).get("favorite_directors") or [])
+        }
+        if fav_directors:
+            for c in candidates:
+                credits = c.get("credits") or {}
+                director = (
+                    credits.get("director", {}).get("name")
+                    if isinstance(credits, dict)
+                    else None
+                )
+                if director and director.lower() in fav_directors:
+                    c["_rank_score"] = c.get("_rank_score", 0) * 1.5
+
         # Diversity penalty: demote 3rd+ same-director film in top 10
         seen_directors = {}
         for i, c in enumerate(candidates[:10]):
@@ -399,7 +439,7 @@ class RecommendationPipeline:
                 if count >= 3:
                     c["_rank_score"] *= 0.5
 
-        # Re-sort after penalty
+        # Re-sort after boost + penalty
         candidates.sort(key=lambda c: -c["_rank_score"])
 
         return candidates

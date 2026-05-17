@@ -35,8 +35,20 @@ SIGNAL_WEIGHTS = {
 DECAY_LAMBDA = 0.003  # half-life ~230 days; tuned for sparse-interaction users.
 # Ramp toward 0.01 (half-life ~70d) once typical users have >50 interactions.
 
-SEED_PRIOR_ANCHOR_WEIGHT = 0.3  # Onboarding stays anchored, never decays.
-# Revealed signals dominate (70%) but the prior never erodes to zero.
+_SEED_PRIOR_ANCHOR_MIN = 0.30   # floor once user has ≥ 20 interactions
+_SEED_PRIOR_ANCHOR_MAX = 0.85   # ceiling at 0 interactions (cold-start)
+_SEED_PRIOR_RAMP_INTERACTIONS = 20  # linearly ramp from max → min over this many
+
+
+def _seed_anchor_weight(n_interactions: int) -> float:
+    """Return the onboarding anchor weight for this interaction count.
+
+    Ramps from 0.85 (cold-start) down to 0.30 (established user) over the
+    first 20 interactions. Below 20 the onboarding prior dominates; above 20
+    revealed preferences take over but the prior never fully disappears.
+    """
+    t = min(n_interactions, _SEED_PRIOR_RAMP_INTERACTIONS) / _SEED_PRIOR_RAMP_INTERACTIONS
+    return _SEED_PRIOR_ANCHOR_MAX - t * (_SEED_PRIOR_ANCHOR_MAX - _SEED_PRIOR_ANCHOR_MIN)
 
 
 def movie_to_embedding(movie_data: dict) -> np.ndarray:
@@ -132,14 +144,15 @@ def compute_user_taste_vector(
     if total_weight > 0:
         weighted_sum /= total_weight
 
-    # Blend in the onboarding prior at a fixed anchor weight so the
-    # declared taste keeps influencing recs even at high interaction
-    # counts. With sparse signals the revealed component is itself
-    # near-zero, so the prior naturally dominates cold-start anyway.
+    # Blend in the onboarding prior with a weight that scales with how many
+    # interactions the user has. Cold-start (0–5 interactions): prior
+    # dominates at 0.85. Established user (≥20): prior settles to 0.30.
+    # This closes the cliff-edge between n=0 (100% prior) and n=1 (30% prior).
     if seed_prior is not None and np.any(seed_prior):
+        anchor = _seed_anchor_weight(len(interactions))
         weighted_sum = (
-            (1 - SEED_PRIOR_ANCHOR_WEIGHT) * weighted_sum
-            + SEED_PRIOR_ANCHOR_WEIGHT * seed_prior.astype(np.float32)
+            (1 - anchor) * weighted_sum
+            + anchor * seed_prior.astype(np.float32)
         )
         weighted_sum = _normalize(weighted_sum)
 

@@ -18,25 +18,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "movies",
-        sa.Column("identityJson", postgresql.JSON(), nullable=True),
-    )
-    op.add_column(
-        "movies",
-        sa.Column("identityEmbedding", sa.LargeBinary(), nullable=True),
-    )
-    op.add_column(
-        "movies",
-        sa.Column("identityUpdatedAt", sa.DateTime(timezone=True), nullable=True),
-    )
-    # Partial index to make "movies needing extraction" cheap to query.
-    op.create_index(
-        "ix_movies_identity_pending",
-        "movies",
-        ["id"],
-        postgresql_where=sa.text('"identityJson" IS NULL'),
-    )
+    # Use raw SQL with IF NOT EXISTS so re-running after a partial rollback is safe.
+    op.execute('ALTER TABLE movies ADD COLUMN IF NOT EXISTS "identityJson" JSON')
+    op.execute('ALTER TABLE movies ADD COLUMN IF NOT EXISTS "identityEmbedding" BYTEA')
+    op.execute('ALTER TABLE movies ADD COLUMN IF NOT EXISTS "identityUpdatedAt" TIMESTAMP WITH TIME ZONE')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_movies_identity_pending ON movies (id) WHERE "identityJson" IS NULL')
 
 
 def downgrade() -> None:
