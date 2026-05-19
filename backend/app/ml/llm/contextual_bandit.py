@@ -7,8 +7,12 @@ The bandit adjusts blend weights per user segment.
 Reward = 0.4 × CTR + 0.4 × watch_through_rate + 0.2 × post_watch_rating
 """
 
+import json
+import os
 import random
 from dataclasses import dataclass, field
+
+_STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bandit_state.json")
 
 
 @dataclass
@@ -39,6 +43,36 @@ class ContextualBandit:
         self.epsilon = epsilon
         # Per-segment arm stats
         self.arms: dict[str, dict[str, ArmStats]] = {}
+        self._load_state()
+
+    def _load_state(self) -> None:
+        try:
+            if os.path.exists(_STATE_PATH):
+                with open(_STATE_PATH) as f:
+                    data = json.load(f)
+                for segment, sources in data.items():
+                    self.arms[segment] = {}
+                    for source, stats in sources.items():
+                        self.arms[segment][source] = ArmStats(
+                            pulls=stats.get("pulls", 0),
+                            total_reward=stats.get("total_reward", 0.0),
+                        )
+        except Exception:
+            pass
+
+    def _save_state(self) -> None:
+        try:
+            data = {
+                segment: {
+                    source: {"pulls": arm.pulls, "total_reward": arm.total_reward}
+                    for source, arm in sources.items()
+                }
+                for segment, sources in self.arms.items()
+            }
+            with open(_STATE_PATH, "w") as f:
+                json.dump(data, f)
+        except Exception:
+            pass
 
     def classify_user(
         self,
@@ -101,6 +135,7 @@ class ContextualBandit:
 
         self.arms[segment][source].pulls += 1
         self.arms[segment][source].total_reward += reward
+        self._save_state()
 
     def get_stats(self, segment: str) -> dict:
         """Get current arm stats for a segment."""

@@ -33,6 +33,7 @@ class XGBoostRanker:
             "language_match",
             "mood_alignment",
             "semantic_similarity",
+            "completion_pct_avg",
         ]
 
     def train(self, features: np.ndarray, labels: np.ndarray):
@@ -71,7 +72,9 @@ class XGBoostRanker:
             #   recency, genre_overlap, language_match, mood_alignment,
             #   semantic_similarity
             weights = np.array(
-                [0.20, 0.10, 0.15, 0.00, 0.05, 0.05, 0.05, 0.05, 0.10, 0.05, 0.20],
+                # taste, cf, content, two_tower, trending, pop, recency,
+                # genre_overlap, lang_match, mood, semantic, completion
+                [0.17, 0.10, 0.15, 0.00, 0.05, 0.05, 0.05, 0.05, 0.10, 0.05, 0.20, 0.03],
                 dtype=np.float32,
             )
             n_feat = features.shape[1]

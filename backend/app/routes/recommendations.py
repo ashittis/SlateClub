@@ -359,11 +359,44 @@ async def for_you(
     all_movies_result = await db.execute(select(Movie))
     all_movies = [_movie_to_dict(m) for m in all_movies_result.scalars().all()]
 
-    # 4. Get watched & dismissed IDs
-    watched_result = await db.execute(
-        select(WatchHistory.movie_id).where(WatchHistory.user_id == user.id)
+    # 4. Get watched history with completion signals
+    watch_history_result = await db.execute(
+        select(WatchHistory, Movie)
+        .join(Movie, WatchHistory.movie_id == Movie.id)
+        .where(WatchHistory.user_id == user.id)
     )
-    watched_ids = {r[0] for r in watched_result.all()}
+    watch_history_rows = watch_history_result.all()
+    watched_ids = {wh.movie_id for wh, _ in watch_history_rows}
+
+    # Build genre→avg_completion map for XGBoost 12th feature (0–100 scale)
+    _genre_completion_buckets: dict[int, list[float]] = {}
+    for wh, movie in watch_history_rows:
+        pct = wh.completion_pct or 0.0
+        for g in (movie.genres or []):
+            gid = g.get("id") if isinstance(g, dict) else g
+            if gid:
+                _genre_completion_buckets.setdefault(int(gid), []).append(pct)
+    genre_completion_map = {
+        gid: sum(pcts) / len(pcts)
+        for gid, pcts in _genre_completion_buckets.items()
+    }
+
+    # Add watch history to interactions with completion-based signal types
+    for wh, movie in watch_history_rows:
+        pct = wh.completion_pct or 0.0
+        if pct >= 90:
+            sig = "watched"
+        elif pct >= 70:
+            sig = "watched_partial"
+        elif pct < 30:
+            sig = "abandoned"
+        else:
+            continue  # 30–69%: too ambiguous
+        interactions.append({
+            "movie_data": _movie_to_dict(movie),
+            "signal_type": sig,
+            "created_at": wh.watched_at,
+        })
 
     # MicroFeedback feeds two paths: dismissed_ids (Stage 2 filter) and
     # the interactions list (Stage 1 taste vector — negative signals
@@ -382,6 +415,17 @@ async def for_you(
             "signal_type": fb.type,
             "created_at": fb.created_at,
         })
+
+    # 4c. Inject completion map + graph candidates into priors so the pipeline
+    #     can use them without being made async.
+    user_priors["genre_completion_map"] = genre_completion_map
+
+    try:
+        from ..ml.graph.graph_recommend import get_graph_candidates
+        user_priors["graph_candidates"] = await get_graph_candidates(user.id, limit=100)
+    except Exception as exc:
+        print(f"[for-you] graph candidates failed: {exc}")
+        user_priors["graph_candidates"] = []
 
     # 5. Run pipeline
     mood = session_mood if session_mood and session_mood != "skip" else None

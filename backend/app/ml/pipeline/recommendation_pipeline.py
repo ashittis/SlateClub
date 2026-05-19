@@ -226,6 +226,32 @@ class RecommendationPipeline:
                 if director_name and director_name.lower() in fav_directors:
                     director_ids.add(m["id"])
 
+        # Graph candidates (pre-fetched in the route via get_graph_candidates
+        # to keep the pipeline synchronous; passed in via priors).
+        graph_results = (priors or {}).get("graph_candidates") or []
+        graph_map: dict[str, float] = {
+            gc["movie_id"]: gc.get("score", 0.5)
+            for gc in graph_results
+            if gc.get("movie_id")
+        }
+
+        # Source map: first pool that produced the movie wins.
+        source_map: dict[str, str] = {}
+        for mid in content_map:
+            source_map[mid] = "content"
+        for mid in als_map:
+            source_map.setdefault(mid, "als")
+        for mid in semantic_map:
+            source_map.setdefault(mid, "semantic")
+        for mid in trending_ids:
+            source_map.setdefault(mid, "trending")
+        for mid in per_lang_ids:
+            source_map.setdefault(mid, "per_lang")
+        for mid in director_ids:
+            source_map.setdefault(mid, "director")
+        for mid in graph_map:
+            source_map.setdefault(mid, "graph")
+
         # Merge all candidates
         all_candidate_ids = (
             set(content_map.keys())
@@ -234,6 +260,7 @@ class RecommendationPipeline:
             | trending_ids
             | per_lang_ids
             | director_ids
+            | set(graph_map.keys())
         )
         movie_lookup = {m["id"]: m for m in all_movies}
 
@@ -242,13 +269,16 @@ class RecommendationPipeline:
             movie = movie_lookup.get(mid)
             if not movie:
                 continue
+            # Graph score blends into cf_score so no extra XGBoost feature needed.
+            blended_als = max(als_map.get(mid, 0), graph_map.get(mid, 0) * 0.8)
             candidates.append({
                 **movie,
                 "_content_score": content_map.get(mid, 0),
-                "_als_score": als_map.get(mid, 0),
+                "_als_score": blended_als,
                 "_tt_score": tt_map.get(mid, 0),
                 "_semantic_score": semantic_map.get(mid, 0),
                 "_is_trending": mid in trending_ids,
+                "_source": source_map.get(mid, "content"),
             })
 
         return candidates
@@ -344,6 +374,13 @@ class RecommendationPipeline:
 
         languages = set((priors or {}).get("languages") or [])
         mood_pacing = (priors or {}).get("mood_pacing") or 0.0
+        genre_completion_map: dict[int, float] = (priors or {}).get("genre_completion_map") or {}
+
+        # Pre-compute user genre set once (used for overlap feature)
+        user_genres: set = set()
+        for inter in user_interactions:
+            for g in (inter.get("movie_data", {}).get("genres") or []):
+                user_genres.add(g.get("id") if isinstance(g, dict) else g)
 
         # Build feature matrix for ranker
         features = []
@@ -352,11 +389,7 @@ class RecommendationPipeline:
             taste_sim = cosine_similarity(taste_vec, movie_emb)
 
             # Genre overlap count
-            user_genres = set()
-            for inter in user_interactions:
-                for g in (inter.get("movie_data", {}).get("genres") or []):
-                    user_genres.add(g.get("id") if isinstance(g, dict) else g)
-            movie_genres = set()
+            movie_genres: set = set()
             for g in (c.get("genres") or []):
                 movie_genres.add(g.get("id") if isinstance(g, dict) else g)
             genre_overlap = len(user_genres & movie_genres)
@@ -383,6 +416,17 @@ class RecommendationPipeline:
                 abs(runtime - target_runtime) / 90.0, 1.0
             )
 
+            # completion_pct_avg: avg completion % (0–1) across watched films
+            # in any genre this candidate shares. 0.5 when no watch data.
+            genre_comps = [
+                genre_completion_map[gid]
+                for gid in movie_genres
+                if gid in genre_completion_map
+            ]
+            completion_pct_avg = (
+                sum(genre_comps) / len(genre_comps) / 100.0 if genre_comps else 0.5
+            )
+
             features.append([
                 taste_sim,
                 c.get("_als_score", 0),
@@ -398,6 +442,7 @@ class RecommendationPipeline:
                 # vs movie identity embedding). 0 when the user or the
                 # movie hasn't been processed yet.
                 max(0.0, float(c.get("_semantic_score", 0))),
+                completion_pct_avg,
             ])
 
         feature_matrix = np.array(features, dtype=np.float32)

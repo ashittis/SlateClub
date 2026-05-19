@@ -47,6 +47,7 @@ async def log_impressions(
                 position=position,
                 rank_score=item.get("_rank_score"),
                 session_id=session_id,
+                source=item.get("_source"),
                 shown_at=now,
             )
         )

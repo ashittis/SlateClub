@@ -67,6 +67,7 @@ class Impression(Base):
     position: Mapped[int] = mapped_column(Integer)
     rank_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    source: Mapped[str | None] = mapped_column(String, nullable=True)  # content | als | semantic | trending | graph | per_lang | director
     shown_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (

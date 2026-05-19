@@ -26,6 +26,9 @@ SIGNAL_WEIGHTS = {
     "watched": 0.6,
     "watchlisted": 0.3,
     "favorite": 0.9,
+    # Partial / abandoned watch signals derived from completion_pct.
+    "watched_partial": 0.4,   # 70–89% completion
+    "abandoned": -0.4,        # < 30% completion
     # Negative signals — push the taste vector AWAY from these movies.
     # Normalization uses |w| so negatives subtract without inverting scale.
     "not_for_me": -0.6,
