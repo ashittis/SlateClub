@@ -11,6 +11,7 @@ from .users import router as users_router
 from .watch_history import router as watch_history_router
 from .watchlist import router as watchlist_router
 from .recommendations import router as recommendations_router
+from .anchors import router as anchors_router
 from .tribes import router as tribes_router
 from .taste import router as taste_router
 from .taste_engine import router as taste_engine_router
@@ -44,6 +45,7 @@ all_routers = [
     activity_router,
     feedback_router,
     recommendations_router,
+    anchors_router,
     tribes_router,
     taste_router,
     taste_engine_router,

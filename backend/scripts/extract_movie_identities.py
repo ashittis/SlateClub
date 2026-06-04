@@ -15,8 +15,8 @@ Idempotent: skips movies that already have an identity unless
 --refresh-older-than is given.
 
 Cost note: each movie ≈ 1 LLM call (~3k tokens) + 1 embedding call.
-With Gemini 2.5 Flash this is ~$0.005/movie at paid tier; free tier
-covers smoke tests.
+With gpt-5.5 + text-embedding-3-large this runs ~$0.01–$0.03/movie at
+list pricing. Adjust OPENAI_LLM_MODEL/EMBED_MODEL in .env to control cost.
 """
 
 from __future__ import annotations
@@ -29,8 +29,30 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
-from app.ml.llm import gemini_client
+from app.ml.llm import openai_client as llm
 from app.ml.llm.movie_identity import extract_and_embed, now_utc
+
+# Import every model module so SQLAlchemy can resolve string-named
+# relationships (e.g. Movie -> Rating) when it compiles the first query.
+from app.models import (  # noqa: F401
+    user,
+    movie,
+    actions,
+    social,
+    onboarding,
+    taste_engine,
+    slates,
+    discourse,
+    notifications,
+    artists,
+    releases,
+    cultural,
+    festivals,
+    theatres,
+    watch_parties,
+    circles,
+    chapters,
+)
 from app.models.movie import Movie
 
 
@@ -61,8 +83,8 @@ async def _process_one(session: AsyncSession, movie: Movie) -> bool:
 
 
 async def run(*, limit: int | None, refresh_older_than: int | None) -> None:
-    if not gemini_client.is_available():
-        print("[extract] GEMINI_API_KEY is not set — aborting.")
+    if not llm.is_available():
+        print("[extract] OPENAI_API_KEY is not set — aborting.")
         return
 
     engine = create_async_engine(settings.DATABASE_URL)

@@ -1,12 +1,12 @@
 """LLM Semantic Taste Alignment — Layer 4 (ARCHITECTURE.md Section 1.3)
 
-Uses Gemini to generate natural-language taste descriptions and
+Uses OpenAI to generate natural-language taste descriptions and
 extract cinematic tone tags.
 """
 
 from __future__ import annotations
 
-from . import gemini_client
+from . import openai_client as llm
 
 
 _TONE_AXES_SCHEMA: dict = {
@@ -45,10 +45,10 @@ async def generate_taste_description(
 ) -> str:
     """Generate a 2-3 sentence taste description.
 
-    Returns a fallback string if Gemini is unavailable so callers
+    Returns a fallback string if OpenAI is unavailable so callers
     never have to special-case the no-key path.
     """
-    if not gemini_client.is_available():
+    if not llm.is_available():
         return "Not enough data to generate a taste description yet."
 
     review_texts = "\n".join(
@@ -68,7 +68,7 @@ async def generate_taste_description(
         f"Favorite directors: {', '.join(favorite_directors[:5]) if favorite_directors else 'Unknown'}\n"
     )
 
-    text = await gemini_client.generate_text(
+    text = await llm.generate_text(
         prompt, temperature=0.5, max_output_tokens=220
     )
     return text or "Not enough data to generate a taste description yet."
@@ -80,8 +80,8 @@ async def extract_tone_tags(
     genres: list[str],
 ) -> dict:
     """Classify a film on 5 cinematic dimensions. Returns the default
-    tag set if Gemini is unavailable or the call fails."""
-    if not gemini_client.is_available():
+    tag set if OpenAI is unavailable or the call fails."""
+    if not llm.is_available():
         return dict(_DEFAULT_TONE_TAGS)
 
     prompt = (
@@ -99,7 +99,7 @@ async def extract_tone_tags(
         "- emotional_register: cathartic | unsettling | contemplative | exhilarating\n"
     )
 
-    out = await gemini_client.generate_json(
+    out = await llm.generate_json(
         prompt, response_schema=_TONE_AXES_SCHEMA, temperature=0.2
     )
     if not isinstance(out, dict):
@@ -114,7 +114,7 @@ async def extract_tone_tags(
 async def embed_taste_statement(statement: str):
     """Embed a user's taste statement so it can be cosine-matched
     against movie identity embeddings at request time. Returns the
-    np.ndarray or None when Gemini is unavailable."""
-    if not statement or not gemini_client.is_available():
+    np.ndarray or None when OpenAI is unavailable."""
+    if not statement or not llm.is_available():
         return None
-    return await gemini_client.embed(statement, task_type="RETRIEVAL_QUERY")
+    return await llm.embed(statement, task_type="RETRIEVAL_QUERY")

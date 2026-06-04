@@ -143,7 +143,7 @@ async def load_user_priors(user_id: str, db: AsyncSession) -> dict:
         language_codes=languages or None,
     )
 
-    # LLM-derived taste embedding (Gemini). Stays None until the
+    # LLM-derived taste embedding (OpenAI). Stays None until the
     # taste_describer + embed pipeline has run for this user. The
     # recommendation pipeline gates the semantic candidate gen on its
     # presence, so this is safe to leave empty.
@@ -683,7 +683,7 @@ def _movie_to_dict(movie: Movie) -> dict:
         "original_language": movie.original_language,
         "genres": movie.genres,
         "credits": movie.credits,
-        # Pass through Gemini-extracted identity + embedding for the
+        # Pass through OpenAI-extracted identity + embedding for the
         # recommendation pipeline's semantic candidate gen. Stays None
         # for any movie that hasn't been processed by
         # scripts/extract_movie_identities.py yet.

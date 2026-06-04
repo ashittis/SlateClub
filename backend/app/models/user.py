@@ -46,7 +46,7 @@ class UserTasteState(Base):
     # Natural-language description, e.g. "Gravitates toward slow,
     # emotionally restrained films about memory and longing."
     taste_statement: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Gemini embedding of the taste statement (float32, packed bytes).
+    # OpenAI embedding of the taste statement (float32, packed bytes).
     # Cosine-matched against movie identity embeddings at request time.
     taste_embedding: Mapped[bytes | None] = mapped_column(
         LargeBinary, nullable=True

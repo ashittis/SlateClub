@@ -14,7 +14,7 @@ Layer 1 – Candidate generation  (~10 000 → 500)
   ✓ Content-based           genre-vector cosine similarity (top 200)
   ✓ ALS collaborative       implicit-feedback matrix factorisation, 64 factors
                              (untrained until data is available; returns [] gracefully)
-  ✓ Semantic candidates     Gemini taste-embedding ↔ movie identity-embedding
+  ✓ Semantic candidates     OpenAI taste-embedding ↔ movie identity-embedding
                              cosine similarity (top 300, gates on embeddings present)
   ✓ Trending                top 50 by TMDB popularity
   ✓ Per-language pool       top 50 popular per user-selected language so
@@ -49,9 +49,9 @@ Layer 4 – Contextualisation  (30 → final feed)
                              might_surprise_you
   ✓ Explanation generation  human-readable reason string per result
 
-LLM layer (Gemini)
-  ✓ gemini_client           generate_json / embed / serialize / deserialize
-  ✓ movie_identity          Gemini-extracted MovieIdentity JSON + embedding
+LLM layer (OpenAI)
+  ✓ openai_client           generate_json / embed / serialize / deserialize
+  ✓ movie_identity          OpenAI-extracted MovieIdentity JSON + embedding
                              (offline script: scripts/extract_movie_identities.py)
   ✓ taste_describer         LLM-generated taste statement + tone-tag extraction
   ✓ taste_identity          Primary axes, genre blend, director affinities,

@@ -1,6 +1,6 @@
 """Taste embedding refresh service.
 
-Generates and stores a user's Gemini taste statement + embedding.
+Generates and stores a user's OpenAI taste statement + embedding.
 Triggered after the 5th rating and after drift events.
 """
 
@@ -13,7 +13,7 @@ from ..models.actions import Rating, Review
 from ..models.movie import Movie
 from ..models.onboarding import FavoritePerson
 from ..models.user import UserTasteState
-from ..ml.llm import gemini_client
+from ..ml.llm import openai_client as llm
 from ..ml.llm.taste_describer import embed_taste_statement, generate_taste_description
 
 
@@ -24,7 +24,7 @@ async def refresh_taste_embedding(user_id: str, db: AsyncSession) -> bool:
     Silently swallows all exceptions so callers never break on this.
     """
     try:
-        if not gemini_client.is_available():
+        if not llm.is_available():
             return False
 
         top_rated = (
@@ -81,7 +81,7 @@ async def refresh_taste_embedding(user_id: str, db: AsyncSession) -> bool:
         if vec is None:
             return False
 
-        embedding_bytes = gemini_client.serialize_embedding(vec)
+        embedding_bytes = llm.serialize_embedding(vec)
 
         state = (
             await db.execute(

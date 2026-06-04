@@ -14,9 +14,9 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "password"
     ANTHROPIC_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
-    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
-    GEMINI_EMBED_MODEL: str = "gemini-embedding-001"
+    OPENAI_API_KEY: str = ""
+    OPENAI_LLM_MODEL: str = "gpt-5.5"
+    OPENAI_EMBED_MODEL: str = "text-embedding-3-large"
 
     class Config:
         env_file = ".env"

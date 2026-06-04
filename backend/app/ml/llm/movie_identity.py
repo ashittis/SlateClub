@@ -1,63 +1,89 @@
-"""Movie Understanding extractor.
+"""Affect-first movie identity extractor.
 
-Turns TMDB metadata (plot, cast, genres, etc.) into a structured
-`MovieIdentity` via Gemini, then embeds the identity summary so movies
-become searchable in semantic space.
+Turns TMDB metadata into a structured identity that captures *what it feels
+like to watch the film* — not what it's about. Two films can share zero
+genre/director/cast and still feel identical to sit through (The Social
+Network and Uncut Gems both run on relentless, escalating, anxious
+loss-of-control). The 9-axis affect rubric below captures that, and the
+embedding text leads with and repeats a second-person experiential paragraph
+so the resulting vector is dominated by viewing-experience rather than topic.
 
-A7a scope: TMDB-only inputs. Reddit/Letterboxd ingestion is left as a
-clearly-marked extension point (`_external_sources_for`) so plugging
-those in later is a one-file change.
+Public surface (kept stable so scripts/extract_movie_identities.py doesn't
+change):
+  - IDENTITY_SCHEMA, extract_identity(movie_dict),
+    extract_and_embed(movie_dict) -> (dict, bytes), now_utc()
 
-Run offline via scripts/extract_movie_identities.py — never on the
-request path.
+Returned identity dict additionally carries:
+  - "affect_vector": list[float]  (9 floats in [-1, 1], order = AFFECT_KEYS)
+Downstream code (the anchors endpoint, the Stage-3 ranker) reads this field.
+
+Run offline via scripts/extract_movie_identities.py — never on the request path.
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
-from . import gemini_client
+from . import openai_client as llm
 
 
-# Output shape we ask Gemini to produce. Kept stable so the embedding
-# input + downstream code can rely on the same fields.
+# 9 axes that separate films by *experience*, not topic. Each is float in
+# [-1, 1]. The order here defines the layout of affect_vector.
+AFFECT_AXES: list[dict] = [
+    {"key": "tension",    "neg": "serene, relaxed",            "pos": "white-knuckle, anxious"},
+    {"key": "propulsion", "neg": "languid, drifting",          "pos": "relentless, driving"},
+    {"key": "control",    "neg": "grounded, stable",           "pos": "spiraling out of control"},
+    {"key": "valence",    "neg": "despairing, bleak",          "pos": "euphoric, uplifting"},
+    {"key": "texture",    "neg": "clean, composed",            "pos": "abrasive, overstimulating"},
+    {"key": "scale",      "neg": "claustrophobic, intimate",   "pos": "expansive, epic"},
+    {"key": "cognition",  "neg": "effortless, easy to follow", "pos": "demanding, puzzle-like"},
+    {"key": "resolution", "neg": "cathartic release",          "pos": "unresolved, lingering dread"},
+    {"key": "warmth",     "neg": "cold, clinical",             "pos": "tender, humane"},
+]
+AFFECT_KEYS: list[str] = [a["key"] for a in AFFECT_AXES]
+
+
 IDENTITY_SCHEMA: dict = {
     "type": "object",
     "properties": {
-        "vibe": {"type": "string"},
-        "themes": {"type": "array", "items": {"type": "string"}},
-        "audience": {"type": "string"},
-        "comparable_films": {"type": "array", "items": {"type": "string"}},
-        "tone_axes": {
-            "type": "object",
-            "properties": {
-                "pace": {"type": "number"},
-                "realism": {"type": "number"},
-                "emotional_register": {"type": "string"},
-            },
+        "experiential_paragraph": {
+            "type": "string",
+            "description": (
+                "2-3 sentences, SECOND PERSON, describing the bodily/"
+                "emotional experience of watching this film. Focus on how "
+                "it makes the viewer FEEL moment to moment, not the plot. "
+                "e.g. 'Your stomach stays clenched the whole way; every "
+                "scene tightens the screw a little further.'"
+            ),
         },
-        "audience_warnings": {"type": "array", "items": {"type": "string"}},
-        "summary_paragraph": {"type": "string"},
+        "vibe": {"type": "string"},
+        "affect_axes": {
+            "type": "object",
+            "properties": {k: {"type": "number"} for k in AFFECT_KEYS},
+            "required": AFFECT_KEYS,
+        },
+        "themes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "3-5 semantic noun phrases (content, not feeling).",
+        },
+        "comparable_by_feel": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "3-5 real film titles that produce a SIMILAR VIEWING "
+                "EXPERIENCE, even if they share no genre/director/cast."
+            ),
+        },
     },
     "required": [
+        "experiential_paragraph",
         "vibe",
+        "affect_axes",
         "themes",
-        "audience",
-        "comparable_films",
-        "summary_paragraph",
+        "comparable_by_feel",
     ],
 }
-
-
-def _external_sources_for(movie: dict) -> str:
-    """Hook for Reddit/Letterboxd/critic ingestion (A7b).
-
-    Returns extra grounding text appended to the Gemini prompt. Today
-    this is a stub that returns "" — the architecture is ready for
-    plugging in scrapers without changing the extractor or schema.
-    """
-    return ""
 
 
 def _build_prompt(movie: dict) -> str:
@@ -68,9 +94,7 @@ def _build_prompt(movie: dict) -> str:
     lang = movie.get("original_language") or "en"
 
     genres = movie.get("genres") or []
-    genre_names = [
-        g.get("name") for g in genres if isinstance(g, dict) and g.get("name")
-    ]
+    genre_names = [g.get("name") for g in genres if isinstance(g, dict) and g.get("name")]
 
     credits = movie.get("credits") or {}
     director = ""
@@ -84,7 +108,9 @@ def _build_prompt(movie: dict) -> str:
             if isinstance(member, dict) and member.get("name"):
                 cast_names.append(member["name"])
 
-    extras = _external_sources_for(movie)
+    axes_doc = "\n".join(
+        f"  - {a['key']}: -1 = {a['neg']}  ...  +1 = {a['pos']}" for a in AFFECT_AXES
+    )
 
     sections = [
         f"Title: {title} ({release})" if release else f"Title: {title}",
@@ -95,79 +121,83 @@ def _build_prompt(movie: dict) -> str:
         f"Cast: {', '.join(cast_names)}" if cast_names else None,
         f"Plot: {overview}" if overview else None,
     ]
-    sections = [s for s in sections if s]
-    movie_block = "\n".join(sections)
+    movie_block = "\n".join(s for s in sections if s)
 
     return (
-        "You are a film-literate editor profiling movies for a "
-        "recommendation engine. Read the metadata below and produce a "
-        "structured identity that captures the film's essence beyond "
-        "its genre tags. Be specific. Avoid generic phrases.\n\n"
-        "Fields:\n"
-        "- vibe: 1 line describing the film's overall feel (e.g. \"slow, "
-        "melancholic, introspective\").\n"
-        "- themes: 3-5 short noun phrases (e.g. \"grief\", \"memory\").\n"
-        "- audience: 1 line describing who would love this film, "
-        "framed in terms of other films/directors they like.\n"
-        "- comparable_films: 3-5 actual films a fan of this would "
-        "also enjoy. Use exact titles.\n"
-        "- tone_axes: pace (0=glacial, 1=breakneck), realism (0=stylised, "
-        "1=grounded), emotional_register (one word: e.g. \"subdued\", "
-        "\"euphoric\", \"dread\").\n"
-        "- audience_warnings: short notes for viewers (\"slow first act\", "
-        "\"non-linear\"). Keep it short or empty.\n"
-        "- summary_paragraph: 2-3 sentences capturing what makes this "
-        "film distinctive. Used as the embedded representation, so "
-        "pack it with semantic signal.\n\n"
-        f"Movie:\n{movie_block}\n"
-        + (f"\nAdditional context:\n{extras}\n" if extras else "")
+        "You are a film phenomenologist. Describe the EXPERIENCE of watching "
+        "this film, not its plot or pedigree. Two films can share zero "
+        "genre/director/cast and still feel identical to sit through "
+        "(e.g. The Social Network and Uncut Gems both run on relentless, "
+        "escalating, anxious loss-of-control). Capture THAT.\n\n"
+        "Rate these affect axes, each a float in [-1, 1]:\n"
+        f"{axes_doc}\n\n"
+        f"Movie:\n{movie_block}\n\n"
+        "Return ONLY JSON matching the provided schema. No prose, no "
+        "markdown fences."
     )
 
 
-def _embedding_input(identity: dict) -> str:
-    """Build the text we feed to the embedding model.
+def _embedding_text(identity: dict) -> str:
+    """Compose the text we embed.
 
-    Concatenating the high-signal fields gives much richer semantic
-    matching than the summary paragraph alone.
+    Affect leads and repeats so the resulting vector is dominated by
+    viewing-experience rather than subject matter. Themes and comparables
+    come last as light context.
     """
-    parts = [
-        identity.get("summary_paragraph") or "",
-        f"Vibe: {identity.get('vibe', '')}",
-        f"Themes: {', '.join(identity.get('themes') or [])}",
-        f"Audience: {identity.get('audience', '')}",
-        f"Comparable films: {', '.join(identity.get('comparable_films') or [])}",
-    ]
-    return "\n".join(p for p in parts if p.strip())
+    para = identity.get("experiential_paragraph", "")
+    vibe = identity.get("vibe", "")
+    themes = ", ".join(identity.get("themes") or [])
+    comps = ", ".join(identity.get("comparable_by_feel") or [])
+    return (
+        f"{para}\n{vibe}\n{para}\n"
+        f"Feels like: {comps}.\n"
+        f"Themes: {themes}."
+    )
+
+
+def _pack_affect_floats(affect_axes: dict) -> list[float]:
+    """9 floats clipped to [-1, 1] in the canonical AFFECT_KEYS order."""
+    out: list[float] = []
+    for k in AFFECT_KEYS:
+        try:
+            v = float(affect_axes.get(k, 0.0))
+        except (TypeError, ValueError):
+            v = 0.0
+        out.append(max(-1.0, min(1.0, v)))
+    return out
 
 
 async def extract_identity(movie: dict) -> dict | None:
-    """Extract MovieIdentity for one movie. Returns the dict or None
-    if Gemini is unavailable or the call failed."""
-    if not gemini_client.is_available():
+    """Extract MovieIdentity for one movie. Returns the dict or None if
+    OpenAI is unavailable or the call failed."""
+    if not llm.is_available():
         return None
     prompt = _build_prompt(movie)
-    return await gemini_client.generate_json(
-        prompt, response_schema=IDENTITY_SCHEMA
-    )
+    return await llm.generate_json(prompt, response_schema=IDENTITY_SCHEMA)
 
 
 async def extract_and_embed(movie: dict) -> tuple[dict | None, bytes | None]:
-    """Run extraction + embedding for one movie. Returns
-    (identity_json, embedding_bytes). Either may be None on failure;
-    the caller should persist what it can."""
+    """Run extraction + embedding for one movie.
+
+    Returns (identity_json, embedding_bytes). Either may be None on failure;
+    the caller should persist what it can. The returned identity dict
+    additionally contains "affect_vector": list[float] (9 floats).
+    """
     identity = await extract_identity(movie)
     if identity is None:
         return None, None
 
-    embed_text = _embedding_input(identity)
-    if not embed_text:
+    identity["affect_vector"] = _pack_affect_floats(identity.get("affect_axes") or {})
+
+    embed_text = _embedding_text(identity)
+    if not embed_text.strip():
         return identity, None
 
-    vec = await gemini_client.embed(embed_text, task_type="RETRIEVAL_DOCUMENT")
+    vec = await llm.embed(embed_text, task_type="RETRIEVAL_DOCUMENT")
     if vec is None:
         return identity, None
 
-    return identity, gemini_client.serialize_embedding(vec)
+    return identity, llm.serialize_embedding(vec)
 
 
 def now_utc() -> datetime:

@@ -25,8 +25,8 @@ class Movie(Base):
     original_language: Mapped[str | None] = mapped_column("originalLanguage", String, nullable=True)
     genres: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     credits: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Gemini-extracted MovieIdentity (vibe, themes, audience, comparable
-    # films, summary_paragraph). See app/ml/llm/movie_identity.py.
+    # OpenAI-extracted MovieIdentity (vibe, themes, experiential_paragraph,
+    # affect_axes, affect_vector, comparable_by_feel). See app/ml/llm/movie_identity.py.
     identity_json: Mapped[dict | None] = mapped_column("identityJson", JSON, nullable=True)
     # Float32 embedding of the identity summary, packed via numpy.tobytes().
     # NULL until the extraction job has run for this movie.

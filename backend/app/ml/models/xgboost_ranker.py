@@ -63,7 +63,7 @@ class XGBoostRanker:
             # two_tower weight is 0 — the model is an untrained random
             # projection (Phase 5 PyTorch training pending), so any
             # nonzero weight injects correlated noise into rankings.
-            # semantic_similarity gets 0.20 because the Gemini-embedded
+            # semantic_similarity gets 0.20 because the OpenAI-embedded
             # taste statement vs MovieIdentity match is the strongest
             # signal we have at low data; reclaimed from popularity
             # and recency where appropriate.

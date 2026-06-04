@@ -18,7 +18,7 @@ from ..embeddings.taste_vector import (
     movie_to_embedding,
 )
 from typing import Any
-from ..llm.gemini_client import deserialize_embedding
+from ..llm.openai_client import deserialize_embedding
 from ..models.als import ALSModel
 from ..models.content_based import ContentBasedModel
 from ..models.two_tower import TwoTowerModel
@@ -173,7 +173,7 @@ class RecommendationPipeline:
         tt_map: dict[str, float] = {}
 
         # Semantic candidates — cosine similarity between the user's
-        # Gemini-embedded taste statement and each movie's
+        # OpenAI-embedded taste statement and each movie's
         # identity_embedding. Active only when both sides exist; until
         # the catalog is processed by extract_movie_identities the
         # `semantic_map` stays empty and we fall back to the existing
@@ -438,7 +438,7 @@ class RecommendationPipeline:
                 min(genre_overlap / 5.0, 1.0),
                 language_match,
                 mood_alignment,
-                # Semantic similarity (Gemini-embedded taste statement
+                # Semantic similarity (OpenAI-embedded taste statement
                 # vs movie identity embedding). 0 when the user or the
                 # movie hasn't been processed yet.
                 max(0.0, float(c.get("_semantic_score", 0))),
