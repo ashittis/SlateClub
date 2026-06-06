@@ -16,8 +16,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
 from ..models.releases import Release
+from ..services.releases import upcoming_calendar
 
 router = APIRouter(prefix="/api/releases", tags=["releases"])
+
+
+@router.get("/calendar")
+async def calendar(db: AsyncSession = Depends(get_db)):
+    """Upcoming theatrical releases (next ~month) across ALL languages,
+    grouped by release date. Powers the Releases page calendar + the
+    Upcoming/Biggies × Week/Month panel (derived client-side)."""
+    return await upcoming_calendar(db)
 
 
 @router.get("/upcoming")

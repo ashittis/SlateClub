@@ -55,6 +55,17 @@ async def discover_movies(params: dict | None = None) -> dict:
     return await _fetch("/discover/movie", p)
 
 
+async def get_movie_recommendations(tmdb_id: int, page: int = 1) -> dict:
+    """TMDB's own 'watch next' recommendations for a film — language-diverse,
+    so a Hollywood seed yields Hollywood neighbours."""
+    return await _fetch(f"/movie/{tmdb_id}/recommendations", {"page": page})
+
+
+async def get_movie_similar(tmdb_id: int, page: int = 1) -> dict:
+    """TMDB's similarity graph for a film (keyword/genre based)."""
+    return await _fetch(f"/movie/{tmdb_id}/similar", {"page": page})
+
+
 # ─── People ──────────────────────────────────────────────────
 
 async def search_people(query: str, page: int = 1) -> dict:

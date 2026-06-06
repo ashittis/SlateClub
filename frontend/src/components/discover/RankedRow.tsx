@@ -49,7 +49,7 @@ export default function RankedRow({ items }: Props) {
             </div>
             <RankedOverlay rank={it.rank} />
             <p
-              className="mt-3 ml-1 text-sm font-medium truncate"
+              className="mt-3 pl-10 pr-1 text-right text-sm font-medium truncate"
               style={{ color: "var(--text-primary)" }}
             >
               {it.title}

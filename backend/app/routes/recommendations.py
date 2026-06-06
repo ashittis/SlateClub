@@ -193,7 +193,13 @@ async def hydrate_catalog_for_languages(
 
     Defensive: each upsert is a savepoint; failures don't sink the call.
     """
-    langs = [l for l in (languages or []) if l and l != "en"]
+    # Keep every language the user actually selected (including English), and
+    # always fold in an English + Hindi baseline so the catalogue is never
+    # mono-lingual — otherwise a user who picked only South-Indian languages
+    # would never see a single Hollywood/Bollywood film anywhere.
+    _BASELINE_LANGS = ("en", "hi")
+    selected = [l for l in (languages or []) if l]
+    langs = list(dict.fromkeys([*selected, *_BASELINE_LANGS]))
     if not langs:
         return 0
 

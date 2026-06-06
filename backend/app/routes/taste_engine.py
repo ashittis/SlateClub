@@ -18,7 +18,7 @@ Endpoints:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -32,6 +32,7 @@ from ..integrations import tmdb
 from ..models.movie import Movie
 from ..models.taste_engine import TastePreset
 from ..models.user import User
+from ..services.similar_films import find_similar_films
 from .movies import _upsert_movie
 
 router = APIRouter(prefix="/api/taste-engine", tags=["taste-engine"])
@@ -61,6 +62,7 @@ _LANGUAGE_OPTIONS = [
     {"key": "ta", "label": "Tamil"},
     {"key": "te", "label": "Telugu"},
     {"key": "ml", "label": "Malayalam"},
+    {"key": "kn", "label": "Kannada"},
     {"key": "ko", "label": "Korean"},
     {"key": "ja", "label": "Japanese"},
     {"key": "fr", "label": "French"},
@@ -383,6 +385,26 @@ async def query(
         )
 
     return {"results": out, "matchedCount": len(out)}
+
+
+# ── Movies like X ─────────────────────────────────────────────
+
+
+class SimilarRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    tmdb_id: Annotated[int, Field(alias="tmdbId")]
+    limit: Annotated[int, Field(default=30, ge=4, le=60)]
+
+
+@router.post("/similar")
+async def similar(
+    body: SimilarRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Essence-reasoned 'movies like X' — one broad, language-diverse set the
+    client filters locally. Public, like /query."""
+    return await find_similar_films(db, body.tmdb_id, body.limit)
 
 
 # ── Presets ───────────────────────────────────────────────────

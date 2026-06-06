@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import Section from "@/components/discover/Section";
@@ -22,6 +22,15 @@ import SentenceBuilder, {
 import BubbleConstellation, {
   type ConstellationFilm,
 } from "@/components/taste-engine/BubbleConstellation";
+import MoviesLikeBuilder, {
+  type PickedFilm,
+} from "@/components/taste-engine/MoviesLikeBuilder";
+import SimilarResultsGrid, {
+  type SimilarResponse,
+} from "@/components/discover/SimilarResultsGrid";
+import MovieFilterModal, {
+  languageLabel,
+} from "@/components/discover/MovieFilterModal";
 import { useMutation } from "@tanstack/react-query";
 
 const EMPTY: Sentence = {
@@ -31,6 +40,9 @@ const EMPTY: Sentence = {
   platform: null,
   era: null,
 };
+
+// sessionStorage key for the "movies like" seed + language filter (survives refresh).
+const LIKE_KEY = "discover.moviesLike";
 
 function toQuery(s: Sentence): string {
   const params = new URLSearchParams();
@@ -68,8 +80,93 @@ export default function DiscoverPage() {
       }),
   });
 
+  // "Show me movies like ___" — ONE essence call fetches a broad, language-diverse
+  // set; the language filter narrows it client-side. Seed + results are cached to
+  // sessionStorage so a browser refresh restores instantly (no LLM re-call).
+  const queryClient = useQueryClient();
+  const [seedFilm, setSeedFilm] = useState<PickedFilm | null>(null);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  // Restore after a refresh: pre-seed the query cache with the saved response so
+  // the query renders immediately and does not refetch (staleTime: Infinity).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(LIKE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        seed: PickedFilm;
+        languages?: string[];
+        data?: SimilarResponse;
+      };
+      if (!saved?.seed) return;
+      if (saved.data) {
+        queryClient.setQueryData(["movies-like", saved.seed.id], saved.data);
+      }
+      setSeedFilm(saved.seed);
+      setLanguages(saved.languages ?? []);
+    } catch {
+      /* ignore malformed storage */
+    }
+  }, [queryClient]);
+
+  const similarQuery = useQuery<SimilarResponse>({
+    queryKey: ["movies-like", seedFilm?.id ?? null],
+    queryFn: () =>
+      apiFetch("/api/taste-engine/similar", {
+        method: "POST",
+        body: JSON.stringify({ tmdbId: seedFilm!.id, limit: 30 }),
+      }),
+    enabled: !!seedFilm,
+    staleTime: Infinity,
+  });
+
+  // Persist the seed + filter + the full response so a refresh restores it all.
+  useEffect(() => {
+    if (seedFilm && similarQuery.data) {
+      sessionStorage.setItem(
+        LIKE_KEY,
+        JSON.stringify({ seed: seedFilm, languages, data: similarQuery.data }),
+      );
+    }
+  }, [seedFilm, languages, similarQuery.data]);
+
+  // Client-side language filter over the single fetched set (no re-call).
+  const fullResults = similarQuery.data?.results ?? [];
+  const presentLanguages = useMemo(
+    () => [...new Set(fullResults.map((f) => f.originalLanguage).filter(Boolean))] as string[],
+    [fullResults],
+  );
+  const similarDisplay: SimilarResponse | undefined = useMemo(() => {
+    if (!similarQuery.data) return undefined;
+    const filtered = languages.length
+      ? fullResults.filter(
+          (f) => f.originalLanguage && languages.includes(f.originalLanguage),
+        )
+      : fullResults;
+    return {
+      ...similarQuery.data,
+      results: filtered.slice(0, 18), // ~3 rows
+      creatorRow: languages.length ? null : similarQuery.data.creatorRow,
+    };
+  }, [similarQuery.data, fullResults, languages]);
+
+  function runSimilar(film: PickedFilm) {
+    setSeedFilm(film);
+    setLanguages([]);
+  }
+
+  function clearSimilar() {
+    setSeedFilm(null);
+    setLanguages([]);
+    sessionStorage.removeItem(LIKE_KEY);
+  }
+
   // Sectioned data
-  const trending = useQuery<{ items: TrendingItem[] }>({
+  const trending = useQuery<{
+    theatrical: TrendingItem[];
+    ott: TrendingItem[];
+  }>({
     queryKey: ["discover-trending"],
     queryFn: () => apiFetch("/api/discover/trending"),
   });
@@ -159,16 +256,77 @@ export default function DiscoverPage() {
         )}
       </div>
 
+      {/* OR divider — second way into the Taste Engine. */}
+      <div className="my-6 flex items-center gap-4" aria-hidden>
+        <span
+          className="h-px flex-1"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+        <span
+          className="text-xs uppercase tracking-[0.3em]"
+          style={{ color: "var(--text-faint)" }}
+        >
+          or
+        </span>
+        <span
+          className="h-px flex-1"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+      </div>
+
+      {/* Show me movies like ___ */}
+      <div>
+        <MoviesLikeBuilder
+          onSubmit={(film) => runSimilar(film)}
+          pending={similarQuery.isFetching}
+          value={seedFilm}
+          onClear={clearSimilar}
+        />
+        <SimilarResultsGrid
+          data={similarDisplay}
+          loading={similarQuery.isLoading && !!seedFilm}
+          languageLabel={languages.length ? languageLabel(languages) : undefined}
+          onOpenFilter={
+            similarQuery.data && seedFilm
+              ? () => setFilterOpen(true)
+              : undefined
+          }
+        />
+        <MovieFilterModal
+          open={filterOpen}
+          initial={languages}
+          available={presentLanguages}
+          onClose={() => setFilterOpen(false)}
+          onApply={(codes) => {
+            setFilterOpen(false);
+            setLanguages(codes); // client-side filter — no re-fetch
+          }}
+        />
+      </div>
+
       <Section
-        title="Trending now"
-        hint="What the platform is leaning into this week."
+        title="In theatres now"
+        hint="Recent theatrical releases across industries."
       >
         {trending.isLoading ? (
           <p className="text-xs" style={{ color: "var(--text-faint)" }}>
             Loading…
           </p>
         ) : (
-          <RankedRow items={trending.data?.items ?? []} />
+          <RankedRow items={trending.data?.theatrical ?? []} />
+        )}
+      </Section>
+
+      <Section
+        title="New on OTT"
+        hint="Just landed on streaming."
+      >
+        {trending.isLoading ? (
+          <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+            Loading…
+          </p>
+        ) : (
+          <RankedRow items={trending.data?.ott ?? []} />
         )}
       </Section>
 

@@ -324,16 +324,16 @@ class RecommendationPipeline:
         dismissed_ids: set[str],
         priors: dict[str, Any] | None = None,
     ) -> list[dict]:
-        """Remove watched/dismissed and (when set) language-mismatched."""
-        languages = (priors or {}).get("languages") or []
-        # Only apply the language filter when the user explicitly picked
-        # something other than just English. Otherwise it would be too
-        # restrictive on a Eurocentric default catalogue.
-        non_default_lang_filter = bool(
-            languages and not (len(languages) == 1 and languages[0] == "en")
-        )
-        lang_set = set(languages)
+        """Remove watched/dismissed candidates.
 
+        Language is intentionally NOT a hard filter here. A hard veto made the
+        feed collapse to the user's languages and hid every Hollywood/Bollywood
+        film. Language is now a *soft* preference, applied downstream where it
+        belongs: Stage 3's `language_match` feature (user-language films score
+        higher) and Stage 4's language interleave (user languages lead the final
+        order). Non-user-language films can surface when they genuinely rank
+        well, but the user's languages still dominate the top.
+        """
         filtered = []
         for c in candidates:
             mid = c["id"]
@@ -341,20 +341,7 @@ class RecommendationPipeline:
                 continue
             if mid in dismissed_ids:
                 continue
-            if non_default_lang_filter:
-                lang = c.get("original_language") or "en"
-                if lang not in lang_set:
-                    continue
             filtered.append(c)
-
-        # If the language filter wiped out everything, fall back to
-        # unfiltered (better to recommend something than nothing).
-        if non_default_lang_filter and not filtered:
-            for c in candidates:
-                mid = c["id"]
-                if mid in watched_ids or mid in dismissed_ids:
-                    continue
-                filtered.append(c)
 
         return filtered
 

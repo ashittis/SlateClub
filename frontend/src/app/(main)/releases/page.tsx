@@ -1,138 +1,141 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch, tmdbImage } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import Pill from "@/components/ui/Pill";
+import ReleaseCarousel from "@/components/releases/ReleaseCarousel";
+import ReleaseCalendar from "@/components/releases/ReleaseCalendar";
+import type { CalendarResponse, ReleaseFilm } from "@/components/releases/types";
 
-interface ReleaseItem {
-  id: string;
-  tmdbId: number;
-  title: string | null;
-  posterPath: string | null;
-  platform: string;
-  releaseDate: string;
-  daysUntil: number;
+type Category = "upcoming" | "biggies";
+type Range = "week" | "month";
+
+function daysUntil(iso: string): number {
+  const d = new Date(iso + "T00:00:00");
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - now.getTime()) / 86_400_000);
 }
 
 export default function ReleasesPage() {
-  const list = useQuery<{ items: ReleaseItem[] }>({
-    queryKey: ["releases-upcoming"],
-    queryFn: () => apiFetch("/api/releases/upcoming?days=60"),
+  const cal = useQuery<CalendarResponse>({
+    queryKey: ["releases-calendar"],
+    queryFn: () => apiFetch("/api/releases/calendar"),
   });
 
-  // Group by date for the calendar feel
-  const byDate = (list.data?.items ?? []).reduce<Record<string, ReleaseItem[]>>(
-    (acc, r) => {
-      const key = r.releaseDate.slice(0, 10);
-      (acc[key] ||= []).push(r);
-      return acc;
-    },
-    {},
+  const [category, setCategory] = useState<Category>("upcoming");
+  const [range, setRange] = useState<Range>("week");
+
+  const allFilms: ReleaseFilm[] = useMemo(
+    () => (cal.data?.days ?? []).flatMap((d) => d.films),
+    [cal.data],
   );
 
-  const dateKeys = Object.keys(byDate).sort();
+  // Derive the panel set client-side — instant toggles, no refetch.
+  const panel = useMemo(() => {
+    const horizon = range === "week" ? 7 : 31;
+    const within = allFilms.filter((f) => {
+      const du = daysUntil(f.releaseDate);
+      return du >= 0 && du <= horizon;
+    });
+    const sorted =
+      category === "biggies"
+        ? [...within].sort((a, b) => b.popularity - a.popularity)
+        : [...within].sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
+    // De-dupe by tmdbId (a film can appear via multiple discover passes).
+    const seen = new Set<number>();
+    return sorted.filter((f) =>
+      seen.has(f.tmdbId) ? false : (seen.add(f.tmdbId), true),
+    ).slice(0, 15);
+  }, [allFilms, category, range]);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 lg:px-6 pt-6 pb-24">
+    <div className="mx-auto max-w-6xl px-4 lg:px-6 pt-6 pb-24">
       <h1
-        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-2"
+        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-1"
         style={{ color: "var(--text-primary)" }}
       >
         Releases
       </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-        What&apos;s coming to theatres and streaming, next 60 days.
+      <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
+        What&apos;s hitting screens — across every language.
       </p>
 
-      {list.isLoading && (
-        <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-          Loading…
-        </p>
-      )}
+      {/* Panel — Upcoming/Biggies × Week/Month toggles + CoverFlow carousel */}
+      <div
+        className="rounded-2xl p-4 lg:p-5"
+        style={{
+          background: "rgba(17,17,20,0.6)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <ToggleGroup
+            options={[
+              { key: "upcoming", label: "Upcoming Movies" },
+              { key: "biggies", label: "Biggies" },
+            ]}
+            value={category}
+            onChange={(v) => setCategory(v as Category)}
+          />
+          <ToggleGroup
+            options={[
+              { key: "week", label: "This Week" },
+              { key: "month", label: "This Month" },
+            ]}
+            value={range}
+            onChange={(v) => setRange(v as Range)}
+          />
+        </div>
 
-      {!list.isLoading && dateKeys.length === 0 && (
-        <p
-          className="text-sm rounded-xl p-6 text-center"
-          style={{
-            color: "var(--text-faint)",
-            background: "var(--bg-card)",
-            border: "1px dashed rgba(255,255,255,0.06)",
-          }}
-        >
-          No upcoming releases tracked yet. Once the TMDB ingest job runs,
-          this fills with theatre + OTT drops in your region.
-        </p>
-      )}
-
-      <div className="space-y-6">
-        {dateKeys.map((dateKey) => {
-          const items = byDate[dateKey];
-          const d = new Date(dateKey);
-          return (
-            <section key={dateKey}>
-              <div
-                className="flex items-baseline gap-3 mb-3 sticky top-0 py-2"
-                style={{ background: "var(--bg-screening)" }}
-              >
-                <p
-                  className="display text-base font-semibold"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {d.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-                  {items[0].daysUntil === 0
-                    ? "today"
-                    : `in ${items[0].daysUntil} day${items[0].daysUntil === 1 ? "" : "s"}`}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {items.map((r) => (
-                  <Link
-                    key={r.id}
-                    href={`/film/${r.tmdbId}`}
-                    className="rounded-xl overflow-hidden flex"
-                    style={{
-                      background: "var(--bg-card)",
-                      border: "1px solid rgba(255,255,255,0.05)",
-                    }}
-                  >
-                    <div
-                      className="w-16 aspect-[2/3] shrink-0"
-                      style={{ background: "var(--bg-elevated)" }}
-                    >
-                      {r.posterPath && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={tmdbImage(r.posterPath, "w200")}
-                          alt={r.title ?? ""}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 p-3 flex flex-col gap-1.5">
-                      <p
-                        className="text-sm font-semibold leading-tight"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {r.title ?? `tmdb:${r.tmdbId}`}
-                      </p>
-                      <Pill kind="platform" size="sm" interactive={false}>
-                        {r.platform}
-                      </Pill>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+        {cal.isLoading ? (
+          <div
+            className="mt-4 h-[440px] rounded-2xl animate-pulse"
+            style={{ background: "var(--bg-card)" }}
+          />
+        ) : (
+          <ReleaseCarousel films={panel} />
+        )}
       </div>
+
+      {/* Calendar */}
+      <div className="mt-10">
+        {cal.isLoading ? (
+          <p className="text-sm" style={{ color: "var(--text-faint)" }}>
+            Loading calendar…
+          </p>
+        ) : (
+          <ReleaseCalendar days={cal.data?.days ?? []} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ToggleGroup({
+  options,
+  value,
+  onChange,
+}: {
+  options: { key: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {options.map((o) => (
+        <Pill
+          key={o.key}
+          kind="genre"
+          size="md"
+          active={value === o.key}
+          onClick={() => onChange(o.key)}
+        >
+          {o.label}
+        </Pill>
+      ))}
     </div>
   );
 }
