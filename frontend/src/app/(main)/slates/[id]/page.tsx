@@ -1,9 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, tmdbImage } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import SlateFilmRow from "@/components/slates/SlateFilmRow";
 import SlateRoom from "@/components/slates/SlateRoom";
@@ -36,6 +36,36 @@ export default function SlateDetailPage({ params }: PageProps) {
     mutationFn: (tmdbId: number) =>
       apiFetch(`/api/slates/${id}/films/${tmdbId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["slate", id] }),
+  });
+
+  const addFilmMut = useMutation({
+    mutationFn: (tmdbId: number) =>
+      apiFetch(`/api/slates/${id}/films`, {
+        method: "POST",
+        body: JSON.stringify({ tmdbId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["slate", id] });
+      setFilmSearch("");
+      setFilmDebounced("");
+    },
+  });
+
+  const [filmSearchOpen, setFilmSearchOpen] = useState(false);
+  const [filmSearch, setFilmSearch] = useState("");
+  const [filmDebounced, setFilmDebounced] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setFilmDebounced(filmSearch.trim()), 250);
+    return () => clearTimeout(t);
+  }, [filmSearch]);
+
+  const filmResults = useQuery<{ results: { id: number; title: string; poster_path: string | null; release_date: string | null }[] }>({
+    queryKey: ["film-search", filmDebounced],
+    queryFn: () => apiFetch(`/api/movies/search?q=${encodeURIComponent(filmDebounced)}`),
+    enabled: filmDebounced.length >= 2,
+    staleTime: 60_000,
   });
 
   if (isLoading || !data) {
@@ -111,6 +141,19 @@ export default function SlateDetailPage({ params }: PageProps) {
               >
                 {roomOpen ? "Hide Slate Room" : "Discuss this Slate"}
               </button>
+              {isCreator && (
+                <button
+                  onClick={() => setFilmSearchOpen((v) => !v)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold"
+                  style={{
+                    background: filmSearchOpen ? "var(--cta-primary)" : "var(--bg-elevated)",
+                    color: filmSearchOpen ? "var(--bg-screening)" : "var(--text-primary)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  + Add a film
+                </button>
+              )}
               <button
                 onClick={() => navigator.share?.({ url: window.location.href })}
                 className="px-4 py-2 rounded-full text-xs font-semibold"
@@ -124,6 +167,81 @@ export default function SlateDetailPage({ params }: PageProps) {
               </button>
             </div>
           </div>
+
+          {/* Inline film search — creator only */}
+          <AnimatePresence>
+            {filmSearchOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4 overflow-hidden"
+              >
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filmSearch}
+                    onChange={(e) => setFilmSearch(e.target.value)}
+                    onFocus={() => setDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setDropdownOpen(false), 180)}
+                    placeholder="Search for a film to add…"
+                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    style={{
+                      background: "var(--bg-card)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  {filmResults.isFetching && (
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs" style={{ color: "var(--text-faint)" }}>…</span>
+                  )}
+                  <AnimatePresence>
+                    {dropdownOpen && filmDebounced.length >= 2 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 right-0 z-30 mt-2 rounded-xl overflow-hidden"
+                        style={{
+                          background: "var(--bg-card)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          boxShadow: "0 24px 60px -16px rgba(0,0,0,0.7)",
+                        }}
+                      >
+                        {!filmResults.isFetching && (filmResults.data?.results ?? []).length === 0 && (
+                          <p className="px-4 py-4 text-sm" style={{ color: "var(--text-faint)" }}>No films found.</p>
+                        )}
+                        {(filmResults.data?.results ?? []).slice(0, 6).map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => addFilmMut.mutate(m.id)}
+                            disabled={addFilmMut.isPending}
+                            className="flex w-full items-center gap-3 px-3 py-2 text-left hover:opacity-80 transition-opacity"
+                          >
+                            <div className="w-9 aspect-[2/3] rounded shrink-0 overflow-hidden" style={{ background: "var(--bg-elevated)" }}>
+                              {m.poster_path && (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={tmdbImage(m.poster_path, "w200")} alt={m.title} className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.title}</p>
+                              <p className="text-xs" style={{ color: "var(--text-faint)" }}>{m.release_date?.slice(0, 4) ?? ""}</p>
+                            </div>
+                            <span className="text-xs font-semibold shrink-0" style={{ color: "var(--cta-primary)" }}>Add</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="space-y-3">
             {data.films.length === 0 ? (

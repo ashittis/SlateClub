@@ -30,6 +30,7 @@ from .circles import router as circles_router
 from .chapters import router as chapters_router
 from .critics import router as critics_router
 from .imports import router as imports_router
+from .posts import router as posts_router
 
 all_routers = [
     auth_router,
@@ -64,4 +65,5 @@ all_routers = [
     chapters_router,
     critics_router,
     imports_router,
+    posts_router,
 ]

@@ -4,11 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import HotTakeComposer from "@/components/discourse/HotTakeComposer";
-import HotTakeCard from "@/components/discourse/HotTakeCard";
-import PollCard from "@/components/discourse/PollCard";
+import PostComposer from "@/components/community/PostComposer";
+import PostCard from "@/components/community/PostCard";
 import Pill from "@/components/ui/Pill";
-import type { HotTake, Poll } from "@/types/discourse";
+import type { Post } from "@/types/posts";
 
 interface ActiveFestival {
   slug: string;
@@ -22,15 +21,10 @@ type Feed = "world" | "network";
 export default function CommunityPage() {
   const [feed, setFeed] = useState<Feed>("world");
 
-  const takes = useQuery<{ items: HotTake[] }>({
-    queryKey: ["hot-takes", feed],
-    queryFn: () => apiFetch(`/api/hot-takes?feed=${feed}`),
+  const posts = useQuery<{ items: Post[] }>({
+    queryKey: ["posts", feed],
+    queryFn: () => apiFetch(`/api/posts?feed=${feed}`),
     refetchInterval: 30_000,
-  });
-
-  const polls = useQuery<{ items: Poll[] }>({
-    queryKey: ["polls"],
-    queryFn: () => apiFetch("/api/polls"),
   });
 
   const festivals = useQuery<{ items: ActiveFestival[] }>({
@@ -41,15 +35,16 @@ export default function CommunityPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 lg:px-6 pt-6 pb-24">
       <h1
-        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-2"
+        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-1"
         style={{ color: "var(--text-primary)" }}
       >
         Community
       </h1>
       <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
-        Hot takes, polls, threads. Cinema as conversation.
+        Posts, questions, discussions. Cinema as conversation.
       </p>
 
+      {/* live festivals */}
       {festivals.data && festivals.data.items.length > 0 && (
         <div className="space-y-2 mb-5">
           {festivals.data.items.map((f) => (
@@ -63,33 +58,25 @@ export default function CommunityPage() {
               }}
             >
               <div>
-                <p
-                  className="display text-sm font-semibold"
-                  style={{ color: "var(--text-primary)" }}
-                >
+                <p className="display text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                   {f.name}
                 </p>
                 {f.city && (
-                  <p
-                    className="text-xs"
-                    style={{ color: "var(--text-faint)" }}
-                  >
-                    {f.city}
-                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-faint)" }}>{f.city}</p>
                 )}
               </div>
-              <Pill kind="mood" size="sm" interactive={false}>
-                Live now
-              </Pill>
+              <Pill kind="mood" size="sm" interactive={false}>Live now</Pill>
             </Link>
           ))}
         </div>
       )}
 
+      {/* composer */}
       <div className="mb-5">
-        <HotTakeComposer />
+        <PostComposer />
       </div>
 
+      {/* feed toggle */}
       <div
         className="inline-flex rounded-full p-1 gap-1 mb-5"
         style={{
@@ -115,33 +102,12 @@ export default function CommunityPage() {
         })}
       </div>
 
-      {polls.data && polls.data.items.length > 0 && (
-        <section className="mb-6 space-y-3">
-          <h2
-            className="display text-sm font-semibold uppercase tracking-wider"
-            style={{ color: "var(--text-faint)" }}
-          >
-            Polls
-          </h2>
-          {polls.data.items.slice(0, 3).map((p) => (
-            <PollCard key={p.id} poll={p} />
-          ))}
-        </section>
-      )}
-
+      {/* posts feed */}
       <section className="space-y-3">
-        <h2
-          className="display text-sm font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-faint)" }}
-        >
-          Hot takes
-        </h2>
-        {takes.isLoading && (
-          <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-            Loading…
-          </p>
+        {posts.isLoading && (
+          <p className="text-sm" style={{ color: "var(--text-faint)" }}>Loading…</p>
         )}
-        {takes.data && takes.data.items.length === 0 && (
+        {posts.data?.items.length === 0 && (
           <p
             className="text-sm rounded-xl p-6 text-center"
             style={{
@@ -151,11 +117,11 @@ export default function CommunityPage() {
             }}
           >
             {feed === "network"
-              ? "Follow people to see their takes."
-              : "Quiet right now. Be the first."}
+              ? "Follow people to see their posts."
+              : "Nothing yet. Start the conversation."}
           </p>
         )}
-        {takes.data?.items.map((t) => <HotTakeCard key={t.id} take={t} />)}
+        {posts.data?.items.map((p) => <PostCard key={p.id} post={p} />)}
       </section>
     </div>
   );

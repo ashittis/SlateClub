@@ -16,12 +16,6 @@ import AwardRow, { type AwardItem } from "@/components/discover/AwardTile";
 import TwinRail, { type TwinNowItem } from "@/components/discover/TwinRail";
 import SlateCard from "@/components/slates/SlateCard";
 import type { SlateCard as SlateCardType } from "@/types/slates";
-import SentenceBuilder, {
-  type Sentence,
-} from "@/components/taste-engine/SentenceBuilder";
-import BubbleConstellation, {
-  type ConstellationFilm,
-} from "@/components/taste-engine/BubbleConstellation";
 import MoviesLikeBuilder, {
   type PickedFilm,
 } from "@/components/taste-engine/MoviesLikeBuilder";
@@ -31,55 +25,10 @@ import SimilarResultsGrid, {
 import MovieFilterModal, {
   languageLabel,
 } from "@/components/discover/MovieFilterModal";
-import { useMutation } from "@tanstack/react-query";
-
-const EMPTY: Sentence = {
-  mood: null,
-  genre: null,
-  language: null,
-  platform: null,
-  era: null,
-};
-
 // sessionStorage key for the "movies like" seed + language filter (survives refresh).
 const LIKE_KEY = "discover.moviesLike";
 
-function toQuery(s: Sentence): string {
-  const params = new URLSearchParams();
-  (Object.keys(s) as (keyof Sentence)[]).forEach((k) => {
-    const v = s[k];
-    if (v) params.set(k, v);
-  });
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-}
-
 export default function DiscoverPage() {
-  // Inline Taste Engine — collapsed pill on mobile, expanded panel on desktop.
-  const [sentence, setSentence] = useState<Sentence>(EMPTY);
-  const [debouncedSentence, setDebouncedSentence] = useState<Sentence>(EMPTY);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSentence(sentence), 250);
-    return () => clearTimeout(t);
-  }, [sentence]);
-
-  const countQuery = useQuery<{ count: number }>({
-    queryKey: ["taste-engine-count", debouncedSentence],
-    queryFn: () =>
-      apiFetch(`/api/taste-engine/match-count${toQuery(debouncedSentence)}`),
-  });
-  const queryMutation = useMutation<
-    { results: ConstellationFilm[]; matchedCount: number },
-    Error,
-    Sentence
-  >({
-    mutationFn: (s) =>
-      apiFetch("/api/taste-engine/query", {
-        method: "POST",
-        body: JSON.stringify(s),
-      }),
-  });
-
   // "Show me movies like ___" — ONE essence call fetches a broad, language-diverse
   // set; the language filter narrows it client-side. Seed + results are cached to
   // sessionStorage so a browser refresh restores instantly (no LLM re-call).
@@ -216,63 +165,6 @@ export default function DiscoverPage() {
       >
         Discover
       </h1>
-
-      {/* Taste Engine — full sentence builder + inline constellation on desktop. */}
-      <div className="mt-5">
-        <SentenceBuilder
-          value={sentence}
-          onChange={setSentence}
-          onSubmit={() => queryMutation.mutate(sentence)}
-          matchCount={countQuery.data?.count ?? null}
-          loadingCount={countQuery.isLoading || countQuery.isFetching}
-        />
-        {queryMutation.isPending && (
-          <p
-            className="text-sm text-center mt-4"
-            style={{ color: "var(--text-faint)" }}
-          >
-            Tuning the constellation…
-          </p>
-        )}
-        {queryMutation.data && queryMutation.data.results.length === 0 && (
-          <p
-            className="text-sm text-center mt-4 rounded-xl p-4"
-            style={{
-              color: "var(--text-faint)",
-              background: "var(--bg-card)",
-              border: "1px dashed rgba(255,255,255,0.06)",
-            }}
-          >
-            No films match — try removing a pill.
-          </p>
-        )}
-        {queryMutation.data && queryMutation.data.results.length > 0 && (
-          <div className="mt-4">
-            <BubbleConstellation
-              films={queryMutation.data.results}
-              height={520}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* OR divider — second way into the Taste Engine. */}
-      <div className="my-6 flex items-center gap-4" aria-hidden>
-        <span
-          className="h-px flex-1"
-          style={{ background: "rgba(255,255,255,0.06)" }}
-        />
-        <span
-          className="text-xs uppercase tracking-[0.3em]"
-          style={{ color: "var(--text-faint)" }}
-        >
-          or
-        </span>
-        <span
-          className="h-px flex-1"
-          style={{ background: "rgba(255,255,255,0.06)" }}
-        />
-      </div>
 
       {/* Show me movies like ___ */}
       <div>

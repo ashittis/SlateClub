@@ -25,6 +25,7 @@ from .models import (  # noqa: F401
     watch_parties,
     circles,
     chapters,
+    posts,
 )
 
 
