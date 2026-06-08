@@ -78,7 +78,7 @@ export default function MainLayout({
                 href={item.href}
                 className="flex flex-col items-center gap-0.5 px-3 py-2.5 text-xs font-medium transition-colors"
                 style={{
-                  color: isActive ? "var(--nav-active)" : "var(--text-faint)",
+                  color: isActive ? "var(--cta-primary)" : "var(--text-faint)",
                 }}
               >
                 {MOBILE_ICONS[item.href] ?? null}

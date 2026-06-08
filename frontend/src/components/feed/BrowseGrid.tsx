@@ -32,6 +32,7 @@ export default function BrowseGrid() {
   const { data, isLoading } = useQuery<{ results: TmdbMovie[] }>({
     queryKey: ["browse", source],
     queryFn: () => apiFetch(`/api/movies/${source}`),
+    staleTime: 5 * 60 * 1000,
   });
 
   const items = data?.results ?? [];

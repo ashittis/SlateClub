@@ -1,410 +1,255 @@
-Here’s a grounded breakdown of your current system (based on your SlateClub MVP) and how it should evolve without over-engineering too early.
+The biggest mistake when prompting Claude Code is saying:
+
+> "Make it look like this image."
+
+That produces an approximation.
+
+Instead, tell Claude to **reverse engineer the visual system** and recreate the exact design language.
+
+Here's the prompt I would give Claude Code:
+
+You are not designing a new screen.
+
+You are recreating the visual language of the attached reference exactly, but for the Slate movie app onboarding/login screen.
+
+ANALYZE FIRST, THEN IMPLEMENT.
+
+Break the reference down into:
+
+1. Typography
+2. Layout
+3. Gradient system
+4. Lighting system
+5. Texture system
+6. Depth system
+7. CTA styling
+8. Motion system
+
+Do not approximate.
+
+Do not redesign.
+
+Do not use generic SaaS onboarding patterns.
+
+The final result should feel visually identical to the reference.
 
 ---
 
-# 1) Likely Current Structure (what you actually have)
+LAYOUT
 
-From your doc, the system is already **beyond a simple rules engine**, but still behaves like a **single-user, semi-static hybrid recommender**:
+Use a full-screen mobile onboarding page.
 
-### Core structure today
+Background:
 
-* **Seed personalization**
+* Pure black (#000000)
+* No cards
+* No containers
+* No glassmorphism
 
-  * Onboarding → taste vector (25-dim)
-* **Content-based similarity**
+Everything should feel printed directly onto darkness.
 
-  * cosine(user_vector, movie_embedding)
-* **Light collaborative signals**
+Content alignment:
 
-  * ALS + two-tower (but weak with 1 user)
-* **Heuristic boosts**
+* Left aligned
+* Large headline occupying roughly 40% of screen height
+* CTA section anchored near bottom
 
-  * trending, popularity, recency, language, mood
-* **Final ranking**
-
-  * XGBoost (or fallback weighted sum)
-* **Catalog hydration**
-
-  * Pulls TMDB to avoid empty results
-
-👉 So technically advanced, but **data-starved in reality**.
+Spacing should feel luxurious and cinematic.
 
 ---
 
-# 2) Main Limitations (right now)
-
-## A. Cold-start (biggest issue)
-
-* No real interaction data → over-reliance on onboarding
-* Taste vector = **declared taste, not revealed taste**
-* ALS / two-tower = basically noise
-
-👉 Result:
-
-* Feels “generic but themed”
-* Not deeply personal yet
-
----
-
-## B. Low-data regime (1–10 users)
-
-* Collaborative filtering collapses
-* Twin system is weak (Jaccard on tiny sets)
-* Trends dominate too much
-
-👉 Result:
-
-* Everyone sees similar “good films”
-* No real differentiation
-
----
-
-## C. New content problem
-
-* New films = no interactions → low scores
-* Only enters via:
-
-  * trending boost
-  * TMDB popularity
-
-👉 Result:
-
-* System is **slow to discover hidden gems**
-* Bias toward already popular content
-
----
-
-## D. Overfitting to onboarding
-
-* Poster picks + favorites strongly shape vector
-* Hard to “escape” initial taste
-
-👉 Result:
-
-* Recommendation loop becomes narrow early
-
----
-
-## E. Over-engineering vs data reality
-
-* You have:
-
-  * ALS
-  * Two-tower
-  * XGBoost
-    But:
-* Data is too small to justify them
-
-👉 Result:
-
-* Complexity without real signal gain
-
----
-
-# 3) How It Should Evolve by Scale
-
----
-
-# Stage 1: **1–10 users (current phase)**
-
-### Strategy: **LLM + content-first system**
-
-Forget collaborative filtering.
-
-### Core signals:
-
-* Onboarding (explicit)
-* Content metadata (genre, language, director, mood)
-* Embeddings (semantic similarity)
-* Popularity + recency
-
-### What to do:
-
-* Replace heavy ML ranking with:
-
-```text
-Score = 
-  0.5 * embedding_similarity
-+ 0.2 * metadata_match
-+ 0.2 * popularity
-+ 0.1 * recency
-```
-
-### Add:
-
-* LLM-generated:
-
-  * “taste summary”
-  * “why recommended”
-
-👉 Focus = **feel smart, not statistically optimal**
-
----
-
-# Stage 2: **10–100 users**
-
-### Strategy: **weak collaborative + clustering**
-
-Now patterns start emerging.
-
-### Add:
-
-* User clustering (k-means on taste vectors)
-* “People like you watched”
-* Lightweight co-occurrence:
-
-  * If A liked X → suggest Y
-
-### Balance:
-
-```text
-Score =
-  0.4 personalization (embedding)
-+ 0.2 cluster similarity
-+ 0.2 popularity
-+ 0.2 recency
-```
-
-### Key idea:
-
-👉 Not true CF — just **pattern borrowing**
-
----
-
-# Stage 3: **100–1,000+ users**
-
-### Strategy: **real hybrid recommender**
-
-Now your existing pipeline becomes useful.
-
-### Activate:
-
-* ALS (finally meaningful)
-* Two-tower (learning user-item interaction)
-* Social graph (twins, circles)
-
-### Balance:
-
-```text
-Score =
-  0.35 personalization (embedding)
-+ 0.25 collaborative filtering
-+ 0.15 social signals (twins)
-+ 0.15 popularity
-+ 0.10 recency
-```
-
-### Add:
-
-* Exploration vs exploitation tuning
-* Diversity constraints (already partially done)
-
----
-
-# 4) Cold-Start & Low-Data Strategy (IMPORTANT)
-
-Skip heavy CF. Use these 3 instead:
-
----
-
-## 1. Onboarding (you already do well)
-
-Your system is strong here:
-
-* Posters → implicit taste
-* Mood sliders → behavioral signal
-* Language → hard constraint
-
-👉 Improve:
-
-* Ask **contrast questions**
-
-  * “slow vs fast”
-  * “realistic vs surreal”
-* Ask **dislikes** (very important)
-
----
-
-## 2. Content metadata (high leverage)
+TYPOGRAPHY
 
 Use:
+font-family: Inter
 
-* Genre
-* Director
-* Runtime
-* Language
-* Era
+Weights:
 
-👉 Build:
+* Logo: Medium (500)
+* Headline: Bold (700)
+* Supporting text: Regular (400)
 
-* “taste fingerprint” rules like:
+Headline characteristics:
 
-  * Likes slow + realism → boost drama, reduce action
+* Extremely large
+* Tight line-height (~0.92)
+* Negative letter spacing
+* White (#FFFFFF)
 
----
+Example:
 
-## 3. LLM embeddings (your biggest advantage)
+Discover.
+Track.
+Remember.
 
-Instead of:
+or
 
-> “user likes movie X”
+Movies That
+Stay With
+You.
 
-Represent:
-
-> “user likes introspective, slow, emotional films”
-
-Then match with:
-
-* plot summaries
-* reviews
-* tags
-
-👉 This solves:
-
-* cold start
-* new content
-* niche discovery
+Text should dominate the screen.
 
 ---
 
-# 5) Simple Scoring Logic (practical version)
+CENTER SHADER EFFECT
 
-Keep it clean early:
+This is the most important part.
 
-```python
-score = (
-    w1 * embedding_similarity +
-    w2 * metadata_match +
-    w3 * popularity_norm +
-    w4 * recency_norm +
-    w5 * exploration_boost
+The orange glow is NOT a gradient.
+
+It is a layered lighting system.
+
+Create:
+
+Layer 1:
+Background radial glow
+
+radial-gradient(
+circle at center,
+rgba(255,140,0,0.35),
+transparent 60%
 )
-```
 
-### Suggested weights (early stage):
+Layer 2:
+Vertical ribbed light texture
 
-* embedding_similarity → 0.4
-* metadata_match → 0.2
-* popularity → 0.2
-* recency → 0.1
-* exploration → 0.1
+Use repeating-linear-gradient
 
----
+repeating-linear-gradient(
+90deg,
+rgba(255,180,80,0.12) 0px,
+rgba(255,180,80,0.12) 8px,
+transparent 8px,
+transparent 16px
+)
 
-### Add constraints:
+Layer 3:
+Orange sunset overlay
 
-* Already watched → remove
-* Language mismatch → penalize heavily
-* Diversity → penalize repetition
+linear-gradient(
+180deg,
+#ff8a00 0%,
+#ff5e00 40%,
+#5c1200 100%
+)
 
----
+Layer 4:
+Strong vignette
 
-# 6) Handling New Content
+darken edges heavily.
 
-Instead of waiting for data:
+Center should be bright.
 
-### Use:
+Edges almost black.
 
-* Metadata similarity
-* LLM embedding similarity
-* Director/actor overlap
-
-### Boost:
-
-```text
-if new_movie:
-    score += 0.15 (exploration boost)
-```
-
-👉 This prevents “only old popular films” problem
+Result:
+The light appears to emerge from darkness and fade away naturally.
 
 ---
 
-# 7) Evaluation Plan (low traffic beta)
+TEXTURE
 
-You don’t need A/B testing yet.
+Add subtle film-grain.
 
-### Use **qualitative + lightweight metrics**
+Opacity:
+2-4%
 
----
+Blend mode:
+overlay
 
-## 1. Explicit feedback
+No obvious noise.
 
-* “Was this useful?” 👍👎
-* Micro-feedback (you already have)
-
----
-
-## 2. Behavioral signals
-
-* Click → good
-* Watchlist → strong
-* Watch → strongest
-* Skip → negative
+Should only be visible on close inspection.
 
 ---
 
-## 3. Session metrics
+BUTTON
 
-* Time spent browsing
-* Depth of scroll
-* # of interactions
+Primary CTA:
 
----
+Height:
+56px
 
-## 4. Small-scale experiments
+Radius:
+9999px
 
-With 10–50 users:
+Gradient:
 
-* Show 2 variants manually:
+#ff4d00
+→
+#ff9800
 
-  * more popular vs more personalized
-* Compare engagement
+No shadow.
 
----
+Only a subtle glow:
 
-## 5. Debug endpoint (you already have)
+0 0 40px rgba(255,120,0,0.25)
 
-Leverage:
-
-* `/recommendations/debug`
-
-👉 Add:
-
-* “why this was recommended”
-* feature contribution breakdown
+Text:
+white
+semibold
 
 ---
 
-# 8) Key Strategic Insight (important for you)
+ANIMATION
 
-Your system should evolve like this:
+Use GSAP.
 
-| Stage        | What matters               |
-| ------------ | -------------------------- |
-| 1–10 users   | **Perceived intelligence** |
-| 10–100 users | **Pattern discovery**      |
-| 100–1K users | **True personalization**   |
+Hero glow:
+
+* Slowly shifts horizontally
+* Duration: 15s
+* Infinite
+* Ease: sine.inOut
+
+Shader texture:
+
+* Moves 10px left-right
+* Extremely subtle
+
+Headline:
+
+* Fade up
+* 0.8s
+* y: 20px
+
+CTA:
+
+* Fade up
+* Delay: 0.2s
+
+No bouncing.
+
+No spring animations.
+
+Everything should feel premium like Apple keynotes.
 
 ---
 
-# Final Take
+SLATE BRANDING
 
-Right now your system is:
+Replace all reference copy with:
 
-👉 **Technically advanced, but data-poor**
+Logo:
+SLATE
 
-So the move is:
+Headline:
+Track.
+Discover.
+Remember.
 
-* Strip reliance on CF early
-* Lean into:
+Subtext:
+The home for people who love movies.
 
-  * onboarding
-  * metadata
-  * embeddings
-  * LLM reasoning
+Primary CTA:
+Get Started
 
-Then gradually **turn on ML components as data grows**
+Secondary CTA:
+Sign In
 
----
+Keep the visual hierarchy identical to the reference.
 
+The goal is that if the reference and implementation were shown side-by-side, they feel like the same design system.
+
+One more thing: the "shader" in the middle is not actually an image. For production, I would build it with **3 layered gradients + a repeating-linear-gradient texture + CSS mask + slight GSAP movement**. That gives you the exact premium look while staying fully responsive and lightweight, instead of embedding a static PNG. That's how I'd implement it for Slate.

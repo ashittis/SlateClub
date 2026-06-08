@@ -6,13 +6,16 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { apiFetch, tmdbImage } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import FollowButton from "@/components/social/FollowButton";
+import OrbitButton from "@/components/social/OrbitButton";
 import TwinBadge from "@/components/social/TwinBadge";
+import TasteMatchCard from "@/components/social/TasteMatchCard";
+import StarRating from "@/components/ratings/StarRating";
 import CriticBadge from "@/components/social/CriticBadge";
 import type {
   FilmCardLite,
   MutualTwin,
   PublicProfile,
+  TasteMatch,
   TwinScore,
 } from "@/types/user";
 
@@ -32,15 +35,6 @@ export default function UserProfilePage() {
 
   const isOwnProfile = currentUser?.username === username;
 
-  const followCheck = useQuery({
-    queryKey: ["follow-check", profile?.id],
-    queryFn: () =>
-      apiFetch<{ isFollowing: boolean }>(
-        `/api/follows/${profile?.id}/check`,
-      ),
-    enabled: !!profile?.id && !isOwnProfile && !!currentUser,
-  });
-
   const twin = useQuery<TwinScore>({
     queryKey: ["twin-score", username],
     queryFn: () => apiFetch(`/api/users/${username}/twin-score`),
@@ -58,6 +52,13 @@ export default function UserProfilePage() {
     queryKey: ["mutual-twins", username],
     queryFn: () => apiFetch(`/api/users/${username}/mutual-twins`),
     enabled: !!username && !!currentUser && !isOwnProfile,
+  });
+
+  const matchCut = useQuery<TasteMatch>({
+    queryKey: ["match-cut", username],
+    queryFn: () => apiFetch(`/api/match-cut/${username}`),
+    enabled: !!username && !!currentUser && !isOwnProfile,
+    retry: false,
   });
 
   if (isLoading) {
@@ -141,10 +142,7 @@ export default function UserProfilePage() {
             />
           )}
           {!isOwnProfile && currentUser && profile.id && (
-            <FollowButton
-              userId={profile.id}
-              initialFollowing={followCheck.data?.isFollowing}
-            />
+            <OrbitButton userId={profile.id} />
           )}
           {isOwnProfile && (
             <Link
@@ -166,7 +164,7 @@ export default function UserProfilePage() {
       <div className="mb-6 grid grid-cols-3 sm:grid-cols-5 gap-3">
         <Stat label="Ratings" value={profile.ratings_count} />
         <Stat label="Watched" value={profile.watched_count} />
-        <Stat label="Watchlist" value={profile.watchlist_count} />
+        <Stat label="Shelf" value={profile.watchlist_count} />
         <Stat label="Followers" value={profile.followers_count} />
         <Stat label="Following" value={profile.following_count} />
       </div>
@@ -178,6 +176,15 @@ export default function UserProfilePage() {
         >
           {profile.bio}
         </p>
+      )}
+
+      {/* Match Cut — taste compatibility */}
+      {!isOwnProfile && matchCut.data && (
+        <TasteMatchCard
+          match={matchCut.data}
+          targetUsername={profile.username}
+          targetName={profile.name}
+        />
       )}
 
       {/* Films you'd both love */}
@@ -290,17 +297,82 @@ export default function UserProfilePage() {
                   : "2px solid transparent",
               }}
             >
-              {tab}
+              {tab === "watchlist" ? "Shelf" : "Ratings"}
             </button>
           );
         })}
       </div>
 
-      <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-        Other users&apos; activity grids will land here once the per-user
-        ratings/watchlist endpoints accept a target user. Today these endpoints
-        are scoped to the requesting user only.
+      <div className="pb-8">
+        {activeTab === "ratings" ? (
+          <UserLibraryGrid username={username} kind="ratings" />
+        ) : (
+          <UserLibraryGrid username={username} kind="watchlist" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface LibraryFilm {
+  id: string;
+  tmdbId: number;
+  title: string;
+  posterPath: string | null;
+  userRating?: number;
+}
+
+function UserLibraryGrid({ username, kind }: { username: string; kind: "ratings" | "watchlist" }) {
+  const { data, isLoading } = useQuery<LibraryFilm[]>({
+    queryKey: ["user-library", username, kind],
+    queryFn: () => apiFetch(`/api/users/${username}/${kind}`),
+    enabled: !!username,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="aspect-[2/3] animate-pulse rounded-lg" style={{ background: "var(--bg-card)" }} />
+        ))}
+      </div>
+    );
+  }
+  if (!data || data.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm" style={{ color: "var(--text-faint)" }}>
+        {kind === "ratings" ? "No ratings yet." : "Shelf is empty."}
       </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+      {data.map((m) => (
+        <Link key={m.id} href={`/film/${m.tmdbId}`} className="group block">
+          <div className="aspect-[2/3] overflow-hidden rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+            {m.posterPath && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={tmdbImage(m.posterPath, "w300")}
+                alt={m.title}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+              />
+            )}
+          </div>
+          {m.userRating != null ? (
+            /* Ratings: star icons under the poster, no title */
+            <div className="mt-1.5">
+              <StarRating value={m.userRating} readonly size="sm" />
+            </div>
+          ) : (
+            <p className="mt-1.5 truncate text-xs" style={{ color: "var(--text-primary)" }}>
+              {m.title}
+            </p>
+          )}
+        </Link>
+      ))}
     </div>
   );
 }

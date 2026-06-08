@@ -493,3 +493,44 @@ async def mutual_twins(
             for u in users
         ]
     }
+
+
+# ── Public per-user library (any profile) ─────────────────────
+# Declared after /me/* so "me" still resolves to the literal routes.
+
+
+async def _user_by_username(db: AsyncSession, username: str) -> User:
+    target = (
+        await db.execute(select(User).where(User.username == username))
+    ).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return target
+
+
+@router.get("/{username}/ratings")
+async def user_ratings(username: str, db: AsyncSession = Depends(get_db)):
+    target = await _user_by_username(db, username)
+    rows = (
+        await db.execute(
+            select(Rating, Movie)
+            .join(Movie, Rating.movie_id == Movie.id)
+            .where(Rating.user_id == target.id)
+            .order_by(Rating.updated_at.desc())
+        )
+    ).all()
+    return [{**_movie_payload(m), "userRating": r.value} for r, m in rows]
+
+
+@router.get("/{username}/watchlist")
+async def user_watchlist(username: str, db: AsyncSession = Depends(get_db)):
+    target = await _user_by_username(db, username)
+    rows = (
+        await db.execute(
+            select(WatchlistItem, Movie)
+            .join(Movie, WatchlistItem.movie_id == Movie.id)
+            .where(WatchlistItem.user_id == target.id)
+            .order_by(WatchlistItem.created_at.desc())
+        )
+    ).all()
+    return [_movie_payload(m) for _, m in rows]

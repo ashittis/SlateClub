@@ -145,7 +145,7 @@ export default function FestivalPage({
               disabled={!draft.trim() || post.isPending}
               className="px-4 py-1.5 rounded-full text-xs font-semibold disabled:opacity-50"
               style={{
-                background: "var(--cta-primary)",
+                background: "var(--cta-gradient)",
                 color: "var(--bg-screening)",
               }}
             >

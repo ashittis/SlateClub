@@ -35,6 +35,20 @@ SIGNAL_WEIGHTS = {
     "skip": -0.3,
     "not_interested": -0.5,
 }
+
+
+def rating_signal(value: float) -> str:
+    """Map a star rating (0.25-step, 0–5) to its taste-signal key.
+
+    Ratings are stored at quarter-star precision, but the taste vector keys
+    off whole-star buckets (``rating_1`` … ``rating_5``). Round half-up to the
+    nearest whole star and clamp to [1, 5] — this keeps quarter/half stars
+    meaningful (e.g. 4.75 → ``rating_5``, 4.25 → ``rating_4``) and avoids the
+    old ``int(0.5) == 0 → rating_0`` truncation bug, which produced a key that
+    isn't in ``SIGNAL_WEIGHTS``.
+    """
+    bucket = min(5, max(1, int(value + 0.5)))
+    return f"rating_{bucket}"
 DECAY_LAMBDA = 0.003  # half-life ~230 days; tuned for sparse-interaction users.
 # Ramp toward 0.01 (half-life ~70d) once typical users have >50 interactions.
 

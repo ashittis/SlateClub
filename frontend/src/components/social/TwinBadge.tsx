@@ -21,9 +21,9 @@ export default function TwinBadge({ score, overlapCount }: Props) {
       transition={{ duration: 0.4 }}
       className="inline-flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1"
       style={{
-        background: strong ? "rgba(92,165,114,0.15)" : "var(--bg-card)",
+        background: strong ? "rgba(255, 138, 0, 0.15)" : "var(--bg-card)",
         border: strong
-          ? "1px solid rgba(92,165,114,0.45)"
+          ? "1px solid rgba(255, 138, 0, 0.45)"
           : "1px solid rgba(255,255,255,0.06)",
       }}
     >

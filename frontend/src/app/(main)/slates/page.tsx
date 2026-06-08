@@ -36,9 +36,9 @@ export default function SlatesPage() {
           href="/slates/new"
           className="px-4 py-2 rounded-full text-sm font-semibold"
           style={{
-            background: "var(--cta-primary)",
+            background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
-            boxShadow: "0 12px 24px -10px rgba(92,165,114,0.5)",
+            boxShadow: "0 12px 24px -10px rgba(255, 138, 0, 0.5)",
           }}
         >
           + New Slate
@@ -95,7 +95,7 @@ export default function SlatesPage() {
               href="/slates/new"
               className="inline-block mt-4 px-5 py-2 rounded-full text-sm font-semibold"
               style={{
-                background: "var(--cta-primary)",
+                background: "var(--cta-gradient)",
                 color: "var(--bg-screening)",
               }}
             >

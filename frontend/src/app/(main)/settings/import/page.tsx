@@ -82,7 +82,7 @@ export default function ImportPage() {
           label="watchlist.csv"
           file={watchlist}
           onChange={setWatchlist}
-          hint="Watchlist → Slate Watchlist."
+          hint="Watchlist → Slate Shelf."
         />
 
         <button
@@ -90,7 +90,7 @@ export default function ImportPage() {
           disabled={!ready || upload.isPending}
           className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
           style={{
-            background: "var(--cta-primary)",
+            background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
           }}
         >
@@ -107,8 +107,8 @@ export default function ImportPage() {
           <div
             className="rounded-xl p-4 space-y-2 text-sm"
             style={{
-              background: "rgba(92,165,114,0.10)",
-              border: "1px solid rgba(92,165,114,0.35)",
+              background: "rgba(255, 138, 0, 0.10)",
+              border: "1px solid rgba(255, 138, 0, 0.35)",
               color: "var(--text-primary)",
             }}
           >

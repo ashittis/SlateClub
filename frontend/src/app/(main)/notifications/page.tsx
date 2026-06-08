@@ -9,11 +9,17 @@ const KIND_GROUPS: Array<{
   label: string;
   kinds: Notification["kind"][];
 }> = [
+  { label: "Orbit", kinds: ["orbit_request", "orbit_accepted"] },
+  { label: "Messages", kinds: ["film_recommend", "dm_reaction", "cut_invite"] },
   { label: "Twins", kinds: ["twin_activity", "hidden_gem"] },
   { label: "Social", kinds: ["follow", "review_helpful", "slate_save", "slate_message"] },
   { label: "Releases", kinds: ["release"] },
   { label: "Artists", kinds: ["artist", "ama"] },
 ];
+
+// Any kind not claimed by a group above still renders here, so a new
+// notification type is never silently hidden.
+const GROUPED_KINDS = new Set(KIND_GROUPS.flatMap((g) => g.kinds));
 
 export default function NotificationsPage() {
   const qc = useQueryClient();
@@ -21,7 +27,8 @@ export default function NotificationsPage() {
   const list = useQuery<{ items: Notification[] }>({
     queryKey: ["notifications"],
     queryFn: () => apiFetch("/api/notifications"),
-    refetchInterval: 30_000,
+    staleTime: 0,
+    refetchInterval: 15_000,
   });
 
   const readAll = useMutation({
@@ -83,8 +90,13 @@ export default function NotificationsPage() {
       )}
 
       <div className="space-y-6">
-        {KIND_GROUPS.map((group) => {
-          const groupItems = items.filter((n) => group.kinds.includes(n.kind));
+        {[
+          ...KIND_GROUPS,
+          { label: "Activity", kinds: null as Notification["kind"][] | null },
+        ].map((group) => {
+          const groupItems = group.kinds
+            ? items.filter((n) => group.kinds!.includes(n.kind))
+            : items.filter((n) => !GROUPED_KINDS.has(n.kind));
           if (groupItems.length === 0) return null;
           return (
             <section key={group.label}>

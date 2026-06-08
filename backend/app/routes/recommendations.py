@@ -22,7 +22,7 @@ from ..models.onboarding import (
     LanguageSelection,
     OnboardingSignals,
 )
-from ..ml.embeddings.taste_vector import movie_to_embedding, seed_prior_vector
+from ..ml.embeddings.taste_vector import movie_to_embedding, seed_prior_vector, rating_signal
 from ..ml.pipeline.recommendation_pipeline import RecommendationPipeline
 from ..services.impressions import log_impressions
 from .movies import _upsert_movie
@@ -307,7 +307,7 @@ async def for_you(
     # Build interaction list for taste vector
     interactions = []
     for rating, movie in ratings:
-        bucket = f"rating_{min(int(rating.value), 5)}"
+        bucket = rating_signal(rating.value)
         interactions.append({
             "movie_data": _movie_to_dict(movie),
             "signal_type": bucket,

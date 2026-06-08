@@ -138,8 +138,8 @@ export default function PeoplePage() {
                 onClick={() => removePerson(person.tmdbId)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
-                  background: "rgba(92,165,114,0.18)",
-                  border: "1px solid rgba(92,165,114,0.45)",
+                  background: "rgba(255, 138, 0, 0.18)",
+                  border: "1px solid rgba(255, 138, 0, 0.45)",
                   color: "var(--cta-primary)",
                 }}
               >
@@ -194,7 +194,7 @@ export default function PeoplePage() {
                         ? "2px solid var(--cta-primary)"
                         : "1px solid rgba(255,255,255,0.06)",
                       boxShadow: selected
-                        ? "0 0 0 4px rgba(92,165,114,0.2), 0 12px 28px -10px rgba(92,165,114,0.55)"
+                        ? "0 0 0 4px rgba(255, 138, 0, 0.2), 0 12px 28px -10px rgba(255, 138, 0, 0.55)"
                         : "none",
                       background: "var(--bg-elevated)",
                     }}
@@ -219,7 +219,7 @@ export default function PeoplePage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="absolute inset-0 flex items-center justify-center"
-                        style={{ background: "rgba(92,165,114,0.3)" }}
+                        style={{ background: "rgba(255, 138, 0, 0.3)" }}
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center"

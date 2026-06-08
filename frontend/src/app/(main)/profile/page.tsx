@@ -9,6 +9,7 @@ import { apiFetch, tmdbImage } from "@/lib/api";
 import type { Movie } from "@/types/movie";
 import type { PublicProfile } from "@/types/user";
 import Button from "@/components/ui/Button";
+import StarRating from "@/components/ratings/StarRating";
 import TasteIdentityCard from "@/components/taste/TasteIdentityCard";
 import TribeLabel from "@/components/taste/TribeLabel";
 import Link from "next/link";
@@ -66,7 +67,7 @@ function WatchlistTab() {
   if (!movies || movies.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-text-subtle">
-        Your watchlist is empty. Browse movies to add some!
+        Your shelf is empty. Browse movies to add some!
       </p>
     );
   }
@@ -126,16 +127,36 @@ function RatingsTab() {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-      {movies.map((movie) => (
-        <div key={movie.id} className="relative">
-          <FilmCard movie={movie} />
-          {/* Rating badge */}
-          <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent-green text-xs font-bold text-bg-primary">
-            {movie.userRating}
-          </div>
-        </div>
-      ))}
+    <div>
+      <p className="mb-3 text-sm" style={{ color: "var(--text-muted)" }}>
+        Your ratings — films you&apos;ve rated, newest first.
+      </p>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+        {movies.map((movie) => (
+          <Link key={movie.id} href={`/film/${movie.tmdbId}`} className="group block">
+            <div
+              className="aspect-[2/3] overflow-hidden rounded-lg"
+              style={{ background: "var(--bg-elevated)" }}
+            >
+              {movie.posterPath && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={tmdbImage(movie.posterPath, "w300")}
+                  alt={movie.title}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+              )}
+            </div>
+            {/* Stars you gave — under the poster */}
+            {movie.userRating != null && (
+              <div className="mt-1.5">
+                <StarRating value={movie.userRating} readonly size="sm" />
+              </div>
+            )}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -156,7 +177,7 @@ function GridSkeleton() {
 /* ---------- Profile page ---------- */
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "watchlist", label: "Watchlist" },
+  { key: "watchlist", label: "Shelf" },
   { key: "watched", label: "Watched" },
   { key: "ratings", label: "Ratings" },
 ];
@@ -245,7 +266,7 @@ export default function ProfilePage() {
         <div className="mb-6 grid grid-cols-3 gap-4 rounded-xl bg-glass-6 p-4">
           <div className="text-center">
             <p className="text-lg font-bold text-text-primary">{stats.watchlist}</p>
-            <p className="text-xs text-text-subtle">Watchlist</p>
+            <p className="text-xs text-text-subtle">Shelf</p>
           </div>
           <div className="text-center">
             <p className="text-lg font-bold text-text-primary">

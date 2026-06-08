@@ -108,9 +108,9 @@ export default function MovieFilterModal({
           onClick={() => onApply(selected)}
           className="px-5 py-2.5 rounded-full text-sm font-semibold"
           style={{
-            background: "var(--cta-primary)",
+            background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
-            boxShadow: "0 12px 28px -10px rgba(92,165,114,0.55)",
+            boxShadow: "0 12px 28px -10px rgba(255, 138, 0, 0.55)",
           }}
         >
           Apply

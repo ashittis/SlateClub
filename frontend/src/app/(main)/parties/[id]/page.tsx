@@ -150,7 +150,7 @@ export default function WatchPartyPage({
               onClick={() => playbackPush.mutate(seconds + 15)}
               className="px-3 py-1.5 rounded-md text-xs font-semibold"
               style={{
-                background: "var(--cta-primary)",
+                background: "var(--cta-gradient)",
                 color: "var(--bg-screening)",
               }}
             >
@@ -162,7 +162,7 @@ export default function WatchPartyPage({
             onClick={() => join.mutate()}
             className="px-3 py-1.5 rounded-md text-xs font-semibold"
             style={{
-              background: "var(--cta-primary)",
+              background: "var(--cta-gradient)",
               color: "var(--bg-screening)",
             }}
           >

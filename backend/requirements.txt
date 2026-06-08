@@ -25,3 +25,6 @@ python-louvain>=0.16
 # Phase 5 — LLM Layer
 anthropic>=0.90.0
 openai>=1.50.0
+
+# Cache — shared taste-vector cache (optional; graceful fallback if absent)
+redis>=5.0.0,<7.0.0

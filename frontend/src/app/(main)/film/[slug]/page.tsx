@@ -7,53 +7,12 @@ import { motion } from "framer-motion";
 import { apiFetch, tmdbImage } from "@/lib/api";
 import type { Movie } from "@/types/movie";
 import Button from "@/components/ui/Button";
+import StarRating from "@/components/ratings/StarRating";
+import RecommendSheet from "@/components/film/RecommendSheet";
 import FilmDiscussSection from "@/components/discourse/FilmDiscussSection";
 import ConnectorRail from "@/components/cultural/ConnectorRail";
 import CulturalContextCard from "@/components/cultural/CulturalContextCard";
 import NowShowingSection from "@/components/theatres/NowShowingSection";
-
-/* ---------- Star Rating widget ---------- */
-
-function StarRating({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (rating: number) => void;
-}) {
-  const [hover, setHover] = useState(0);
-
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => onChange(star === value ? 0 : star)}
-          onMouseEnter={() => setHover(star)}
-          onMouseLeave={() => setHover(0)}
-          className="p-0.5 transition-transform hover:scale-110"
-          aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            className="h-7 w-7"
-            fill={(hover || value) >= star ? "#f59e0b" : "none"}
-            stroke={(hover || value) >= star ? "#f59e0b" : "#71717a"}
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-            />
-          </svg>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /* ---------- Film detail page ---------- */
 
@@ -66,6 +25,7 @@ interface UserMovieStatus {
 export default function FilmDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const queryClient = useQueryClient();
+  const [recOpen, setRecOpen] = useState(false);
 
   // Fetch movie details
   const {
@@ -86,14 +46,20 @@ export default function FilmDetailPage() {
   });
 
   // Mutations
+  // Keep the profile library tabs in sync after a status change.
+  const refreshProfileTabs = () => {
+    queryClient.invalidateQueries({ queryKey: ["movieStatus", slug] });
+    queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
+    queryClient.invalidateQueries({ queryKey: ["profile", "watched"] });
+    queryClient.invalidateQueries({ queryKey: ["profile", "watchlist"] });
+  };
+
   const watchlistMutation = useMutation({
     mutationFn: () =>
       apiFetch(`/api/movies/${slug}/watchlist`, {
         method: status?.inWatchlist ? "DELETE" : "POST",
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["movieStatus", slug] });
-    },
+    onSuccess: refreshProfileTabs,
   });
 
   const watchedMutation = useMutation({
@@ -101,9 +67,7 @@ export default function FilmDetailPage() {
       apiFetch(`/api/movies/${slug}/watched`, {
         method: status?.watched ? "DELETE" : "POST",
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["movieStatus", slug] });
-    },
+    onSuccess: refreshProfileTabs,
   });
 
   const ratingMutation = useMutation({
@@ -112,9 +76,7 @@ export default function FilmDetailPage() {
         method: "POST",
         body: JSON.stringify({ rating }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["movieStatus", slug] });
-    },
+    onSuccess: refreshProfileTabs,
   });
 
   if (isLoading) {
@@ -208,10 +170,18 @@ export default function FilmDetailPage() {
           {/* Rating widget */}
           <div className="space-y-2">
             <p className="text-sm font-medium text-glass-55">Your Rating</p>
-            <StarRating
-              value={status?.rating ?? 0}
-              onChange={(rating) => ratingMutation.mutate(rating)}
-            />
+            <div className="flex items-center gap-3">
+              <StarRating
+                size="xl"
+                value={status?.rating ?? 0}
+                onChange={(rating) => ratingMutation.mutate(rating)}
+              />
+              {status?.rating ? (
+                <span className="text-sm font-semibold" style={{ color: "#FF9408" }}>
+                  {status.rating.toFixed(2).replace(/\.?0+$/, "")}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           {/* Action buttons */}
@@ -233,7 +203,7 @@ export default function FilmDetailPage() {
                   clipRule="evenodd"
                 />
               </svg>
-              {status?.inWatchlist ? "In Watchlist" : "Watchlist"}
+              {status?.inWatchlist ? "✓ Shelved" : "Shelf"}
             </Button>
 
             <Button
@@ -255,7 +225,23 @@ export default function FilmDetailPage() {
               </svg>
               {status?.watched ? "Watched" : "Mark Watched"}
             </Button>
+
+            <Button variant="secondary" onClick={() => setRecOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
+              </svg>
+              Recommend
+            </Button>
           </div>
+
+          {movie && (
+            <RecommendSheet
+              open={recOpen}
+              onClose={() => setRecOpen(false)}
+              tmdbId={Number(slug)}
+              title={movie.title}
+            />
+          )}
 
           {/* Overview */}
           {movie.overview && (
@@ -487,7 +473,7 @@ function ReviewsSection({ movieId }: { movieId: string }) {
                   style={{
                     background: "var(--bg-elevated)",
                     color: "var(--cta-primary)",
-                    border: "1px solid rgba(92,165,114,0.25)",
+                    border: "1px solid rgba(255, 138, 0, 0.25)",
                   }}
                 >
                   Agree

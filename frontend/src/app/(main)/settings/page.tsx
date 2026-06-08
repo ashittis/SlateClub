@@ -19,7 +19,7 @@ const NOTIF_KINDS: Array<{ key: string; label: string }> = [
   { key: "slate_save", label: "Someone saved your slate" },
   { key: "slate_message", label: "Slate Room messages" },
   { key: "twin_activity", label: "Twin activity" },
-  { key: "release", label: "Releases on your watchlist" },
+  { key: "release", label: "Releases on your shelf" },
   { key: "artist", label: "Artists you follow post" },
   { key: "ama", label: "AMAs" },
   { key: "hidden_gem", label: "Hidden gem alerts" },
@@ -100,7 +100,7 @@ export default function SettingsPage() {
             Import from Letterboxd →
           </Link>
           <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
-            Bulk-seed ratings, watch history, and watchlist from a CSV export.
+            Bulk-seed ratings, watch history, and shelf from a CSV export.
           </p>
         </div>
       </Section>

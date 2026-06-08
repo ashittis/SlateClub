@@ -127,9 +127,9 @@ export default function ReadyPage() {
             whileTap={{ scale: 0.97 }}
             className="mt-12 px-10 py-3.5 rounded-full text-sm font-semibold"
             style={{
-              background: "var(--cta-primary)",
+              background: "var(--cta-gradient)",
               color: "var(--bg-screening)",
-              boxShadow: "0 16px 40px -12px rgba(92,165,114,0.55)",
+              boxShadow: "0 16px 40px -12px rgba(255, 138, 0, 0.55)",
             }}
           >
             Enter SlateClub →

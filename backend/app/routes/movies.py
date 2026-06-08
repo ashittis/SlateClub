@@ -9,6 +9,7 @@ from ..integrations import tmdb
 from ..models.actions import Rating, WatchHistory, WatchlistItem
 from ..models.movie import Movie
 from ..models.user import User
+from ..services.taste_cache import invalidate_user_taste_vector
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -272,7 +273,8 @@ async def unmark_watched(
 
 
 class RateBody(BaseModel):
-    rating: float = Field(ge=0, le=5)
+    # 0 clears the rating; otherwise quarter-star precision (0.25 … 5.0).
+    rating: float = Field(ge=0, le=5, multiple_of=0.25)
 
 
 @router.post("/{tmdb_id}/rate")
@@ -294,10 +296,12 @@ async def rate_film(
         # 0 stars = clear the rating.
         if existing:
             await db.delete(existing)
+        await invalidate_user_taste_vector(user.id)
         return {"ok": True, "rating": None}
     if existing:
         existing.value = body.rating
     else:
         db.add(Rating(user_id=user.id, movie_id=movie.id, value=body.rating))
     await db.flush()
+    await invalidate_user_taste_vector(user.id)
     return {"ok": True, "rating": body.rating}

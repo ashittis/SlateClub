@@ -25,11 +25,11 @@ export default function NextButton({
       whileTap={!disabled ? { scale: 0.98 } : undefined}
       className="w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200"
       style={{
-        background: !disabled ? "var(--cta-primary)" : "var(--bg-elevated)",
+        background: !disabled ? "var(--cta-gradient)" : "var(--bg-elevated)",
         color: !disabled ? "var(--bg-screening)" : "var(--text-faint)",
         cursor: disabled ? "not-allowed" : "pointer",
         boxShadow: !disabled
-          ? "0 12px 28px -10px rgba(92,165,114,0.45)"
+          ? "0 12px 28px -10px rgba(255, 138, 0, 0.45)"
           : "none",
       }}
     >

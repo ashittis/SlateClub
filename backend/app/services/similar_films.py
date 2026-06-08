@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 
+import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,14 +29,17 @@ from ..ml.embeddings.taste_vector import cosine_similarity, movie_to_embedding
 from ..ml.llm import openai_client as llm
 from ..models.movie import Movie
 
-# Mirror the ranker's fallback weights for these two signals
-# (xgboost_ranker.py: content_score=0.15, semantic_similarity=0.20) so the
-# cosine fallback stays aligned with how For-You weights them.
+# Cosine-fallback weights — emphasise *feeling* (the felt journey lives in the
+# semantic identity embedding; the 9-axis affect vector guards tone) over the
+# topical genre/metadata content vector.
 _W_CONTENT = 0.15
-_W_SEMANTIC = 0.20
+_W_SEMANTIC = 0.55
+_W_AFFECT = 0.30
 
 # Essence results are stable per (seed, language-combo), so cache the whole
-# payload and skip the LLM + TMDB round-trips on repeat.
+# payload and skip the LLM + TMDB round-trips on repeat. Bump _ESSENCE_VERSION
+# whenever the prompt/scoring changes so stale cached payloads are ignored.
+_ESSENCE_VERSION = 2
 _ESSENCE_CACHE: dict[tuple, dict] = {}
 _ESSENCE_TTL_SECONDS = 24 * 60 * 60
 _ESSENCE_CACHE_MAX = 256
@@ -107,6 +111,44 @@ def _seed_people(seed: Movie) -> tuple[str, list[tuple[int, str]]]:
 # ── Essence (LLM) path ────────────────────────────────────────
 
 
+def _seed_identity_block(seed: Movie) -> str:
+    """A compact emotional fingerprint from the seed's stored identity_json —
+    the felt journey the LLM should match on. Empty if not yet extracted."""
+    ident = seed.identity_json if isinstance(seed.identity_json, dict) else {}
+    if not ident:
+        return ""
+    parts: list[str] = []
+
+    arc = ident.get("emotional_arc")
+    if isinstance(arc, dict) and arc:
+        beats = [arc.get(k, "") for k in ("start", "conflict", "lowest", "transformation", "ending")]
+        line = " → ".join(b for b in beats if b)
+        if line:
+            parts.append(f"Emotional arc: {line}")
+
+    dna = ident.get("narrative_dna")
+    if dna:
+        parts.append(f"Narrative DNA: {', '.join(str(d) for d in dna)}")
+
+    after = ident.get("aftertaste")
+    if after:
+        parts.append(f"Aftertaste (how it leaves you): {', '.join(str(a) for a in after)}")
+
+    axes = ident.get("affect_axes")
+    if isinstance(axes, dict) and axes:
+        items = [(k, float(v)) for k, v in axes.items() if isinstance(v, (int, float))]
+        items.sort(key=lambda kv: -abs(kv[1]))
+        top = ", ".join(f"{k} {v:+.1f}" for k, v in items[:3])
+        if top:
+            parts.append(f"Dominant tone (affect axes, -1..+1): {top}")
+
+    vibe = ident.get("vibe")
+    if vibe:
+        parts.append(f"Vibe: {vibe}")
+
+    return "\n".join(parts)
+
+
 def _essence_prompt(seed: Movie) -> str:
     year = (seed.release_date or "")[:4]
     genres = ", ".join(_genre_names(seed))
@@ -120,26 +162,37 @@ def _essence_prompt(seed: Movie) -> str:
         f"Plot: {overview}" if overview else "",
     ]))
 
+    identity_block = _seed_identity_block(seed)
+    identity_section = (
+        f"\n\nThe seed's emotional fingerprint (weigh this HEAVILY — it matters "
+        f"far more than the plot above):\n{identity_block}"
+        if identity_block else ""
+    )
+
     return (
-        "You recommend films by ESSENCE, not genre or nationality. Essence is "
-        "the experience of watching a film: its tension and pacing, its tone "
-        "(e.g. dark comedy), its moral ambiguity, whether it escalates from "
-        "ordinary to chaotic, its take on class/power, the kind of suspense it "
-        "creates. Two films with zero genre or country overlap can share an "
-        "essence (Parasite and The Menu; The Social Network and Uncut Gems).\n\n"
+        "You recommend films by ESSENCE and EMOTIONAL JOURNEY — not genre, "
+        "profession, or nationality. What matters most is how the film makes the "
+        "viewer FEEL across its runtime: its emotional arc (e.g. humiliation → "
+        "perseverance → sacrifice → redemption), its aftertaste, its tone and "
+        "moral world — far more than its plot subject (sport, startup, music). "
+        "Two films with zero genre or country overlap can share an essence "
+        "(Parasite and The Menu; The Social Network and Uncut Gems).\n\n"
         "Given this seed film:\n"
-        f"{facts}\n\n"
-        "First, in one sentence, name the seed's essence — the shared viewing "
-        "experience. Then list ~30 real, well-known films that deliver that "
-        "SAME essence, chosen PURELY by feel. Language is NOT a barrier: draw "
-        "from ANY industry worldwide — Hollywood (English), Bollywood (Hindi), "
-        "Kollywood (Tamil), Tollywood (Telugu), Mollywood (Malayalam), "
-        "Sandalwood (Kannada), plus Korean, Japanese, European and others. "
-        "Never let language limit the picks — include the closest matches "
-        "whatever their language, and aim for a good spread across languages "
-        "so the list is browsable. Order them closest-essence first. Exclude "
-        "the seed itself. For each, give its real title, release year, and a "
-        "<=6-word reason."
+        f"{facts}{identity_section}\n\n"
+        "First, in one sentence, name the seed's essence — the shared emotional "
+        "experience. Then list ~30 real, well-known films that deliver that SAME "
+        "emotional journey and aftertaste, chosen PURELY by feel. PRIORITISE "
+        "emotional arc and aftertaste over shared profession/genre/setting: a "
+        "film about a totally different subject that delivers the same felt "
+        "journey beats a same-profession film that feels different. But keep "
+        "TONE true — do NOT lump a melancholic, heartbreaking film together with "
+        "a defiant, cheer-out-loud one just because they share an arc shape. "
+        "Language is NOT a barrier: draw from ANY industry worldwide — Hollywood "
+        "(English), Bollywood (Hindi), Kollywood (Tamil), Tollywood (Telugu), "
+        "Mollywood (Malayalam), Sandalwood (Kannada), plus Korean, Japanese, "
+        "European and others. Aim for a good spread across languages so the list "
+        "is browsable. Order them closest-feel first. Exclude the seed itself. "
+        "For each, give its real title, release year, and a <=6-word reason."
     )
 
 
@@ -309,9 +362,18 @@ async def find_similar_films(
 
     seed = await _get_or_fetch_movie(seed_tmdb_id, db)
 
-    cached = _ESSENCE_CACHE.get(seed_tmdb_id)
+    cache_key = (seed_tmdb_id, _ESSENCE_VERSION)
+    cached = _ESSENCE_CACHE.get(cache_key)
     if cached and (time.time() - cached["_ts"]) < _ESSENCE_TTL_SECONDS:
         return {k: v for k, v in cached.items() if not k.startswith("_")}
+
+    # L2: persisted cache — survives restarts and skips the LLM entirely.
+    from ..models.similar_cache import SimilarCache
+
+    row = await db.get(SimilarCache, seed_tmdb_id)
+    if row is not None and row.version == _ESSENCE_VERSION and isinstance(row.payload, dict):
+        _ESSENCE_CACHE[cache_key] = {**row.payload, "_ts": time.time()}
+        return row.payload
 
     essence_summary: str | None = None
     results: list[dict] | None = None
@@ -337,7 +399,20 @@ async def find_similar_films(
 
     if len(_ESSENCE_CACHE) >= _ESSENCE_CACHE_MAX:
         _ESSENCE_CACHE.pop(next(iter(_ESSENCE_CACHE)))
-    _ESSENCE_CACHE[seed_tmdb_id] = {**payload, "_ts": time.time()}
+    _ESSENCE_CACHE[cache_key] = {**payload, "_ts": time.time()}
+
+    # Persist for next time (upsert), so repeat requests skip the LLM.
+    try:
+        existing = await db.get(SimilarCache, seed_tmdb_id)
+        if existing is None:
+            db.add(SimilarCache(seed_tmdb_id=seed_tmdb_id, version=_ESSENCE_VERSION, payload=payload))
+        else:
+            existing.version = _ESSENCE_VERSION
+            existing.payload = payload
+        await db.flush()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[similar] cache persist failed: {exc}")
+
     return payload
 
 
@@ -348,25 +423,51 @@ async def _all_movies(db: AsyncSession) -> list[Movie]:
     return list((await db.execute(select(Movie))).scalars().all())
 
 
+def _affect_vec(movie: Movie) -> np.ndarray | None:
+    """The 9-axis affect vector from identity_json, or None if not extracted."""
+    ident = movie.identity_json if isinstance(movie.identity_json, dict) else None
+    if not ident:
+        return None
+    av = ident.get("affect_vector")
+    if not av:
+        return None
+    try:
+        v = np.asarray(av, dtype=np.float32)
+    except (TypeError, ValueError):
+        return None
+    return v if v.size else None
+
+
 def _cosine_similar_films(
     db: AsyncSession, seed: Movie, limit: int, candidates: list[Movie],
 ) -> list[dict]:
     seed_vec = movie_to_embedding(_movie_to_emb_dict(seed))
     seed_identity = llm.deserialize_embedding(seed.identity_embedding)
+    seed_aff = _affect_vec(seed)
 
     scored: list[tuple[Movie, float]] = []
     for cand in candidates:
         if cand.id == seed.id or cand.tmdb_id == seed.tmdb_id:
             continue
         content_sim = cosine_similarity(seed_vec, movie_to_embedding(_movie_to_emb_dict(cand)))
+
+        # Blend whatever signals exist: content (topical) + semantic identity
+        # embedding (the felt journey, incl. arc/aftertaste) + affect axes
+        # (tone guardrail). Weights renormalise over the available signals.
+        terms: list[tuple[float, float]] = [(_W_CONTENT, content_sim)]
+
         cand_identity = llm.deserialize_embedding(cand.identity_embedding)
         if seed_identity is not None and cand_identity is not None:
-            semantic_sim = cosine_similarity(seed_identity, cand_identity)
-            score = (_W_CONTENT * content_sim + _W_SEMANTIC * semantic_sim) / (
-                _W_CONTENT + _W_SEMANTIC
-            )
-        else:
-            score = content_sim
+            terms.append((_W_SEMANTIC, cosine_similarity(seed_identity, cand_identity)))
+
+        cand_aff = _affect_vec(cand)
+        if seed_aff is not None and cand_aff is not None and seed_aff.size == cand_aff.size:
+            # Affect cosine can be negative; clamp so a tone mismatch only
+            # withholds the bonus rather than dragging below content alone.
+            terms.append((_W_AFFECT, max(0.0, cosine_similarity(seed_aff, cand_aff))))
+
+        wsum = sum(w for w, _ in terms)
+        score = sum(w * s for w, s in terms) / wsum if wsum else content_sim
         scored.append((cand, score))
 
     scored.sort(key=lambda x: -x[1])

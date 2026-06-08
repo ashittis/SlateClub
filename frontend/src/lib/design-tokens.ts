@@ -25,8 +25,15 @@ export const tokens = {
     neutral: "#3A3A42",
   },
   cta: {
-    primary: "#5CA572",
-    primaryHover: "#6FB585",
+    primary: "#FF7A00",
+    primaryHover: "#FF9800",
+  },
+  // Warm brand gradient (orange → red → coal). For JS/SVG/canvas use.
+  gradient: {
+    amber: "#FF9408",
+    rust: "#CA3F16",
+    crimson: "#95122C",
+    coal: "#100C08",
   },
   nav: {
     active: "#C4716E",

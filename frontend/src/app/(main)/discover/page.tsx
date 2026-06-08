@@ -70,14 +70,21 @@ export default function DiscoverPage() {
     staleTime: Infinity,
   });
 
-  // Persist the seed + filter + the full response so a refresh restores it all.
+  // Persist the seed + filter IMMEDIATELY (decoupled from results) so an
+  // in-flight "movies like X" search resumes after navigating away and back —
+  // the running query stays alive in the cache (gcTime) and re-subscribes once
+  // the seed is restored. The full response is included once it arrives so a
+  // hard refresh restores instantly.
   useEffect(() => {
-    if (seedFilm && similarQuery.data) {
-      sessionStorage.setItem(
-        LIKE_KEY,
-        JSON.stringify({ seed: seedFilm, languages, data: similarQuery.data }),
-      );
-    }
+    if (!seedFilm) return;
+    sessionStorage.setItem(
+      LIKE_KEY,
+      JSON.stringify({
+        seed: seedFilm,
+        languages,
+        ...(similarQuery.data ? { data: similarQuery.data } : {}),
+      }),
+    );
   }, [seedFilm, languages, similarQuery.data]);
 
   // Client-side language filter over the single fetched set (no re-call).

@@ -19,6 +19,7 @@ from ..models.movie import Movie
 from ..models.onboarding import FavoriteMovie
 from ..models.social import MicroFeedback
 from ..models.user import User
+from ..ml.embeddings.taste_vector import rating_signal
 from ..services.impressions import log_impressions
 from .recommendations import (
     _movie_to_dict,
@@ -66,7 +67,7 @@ async def hero_feed(
 
     interactions: list[dict] = []
     for r, m in ratings:
-        bucket = f"rating_{min(int(r.value), 5)}"
+        bucket = rating_signal(r.value)
         interactions.append(
             {
                 "movie_data": _movie_to_dict(m),

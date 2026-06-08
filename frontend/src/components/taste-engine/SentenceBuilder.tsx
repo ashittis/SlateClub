@@ -150,11 +150,11 @@ export default function SentenceBuilder({
           disabled={!matchCount}
           className="px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-40"
           style={{
-            background: "var(--cta-primary)",
+            background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
             cursor: matchCount ? "pointer" : "not-allowed",
             boxShadow: matchCount
-              ? "0 12px 28px -10px rgba(92,165,114,0.55)"
+              ? "0 12px 28px -10px rgba(255, 138, 0, 0.55)"
               : "none",
           }}
         >

@@ -42,3 +42,55 @@ export interface FilmCardLite {
   posterPath: string | null;
   releaseDate?: string | null;
 }
+
+// ── Match Cut (taste compatibility) ──────────────────────────
+
+export interface TasteMatch {
+  score: number; // 0..1 cosine of taste vectors
+  sharedFavorites: FilmCardLite[];
+  disagreements: FilmCardLite[];
+  targetRatedCount: number;
+  username?: string;
+  name?: string;
+  avatarUrl?: string | null;
+}
+
+export interface MatchCutMember {
+  userId: string;
+  username: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export interface MatchCutItem {
+  tmdbId: number;
+  title: string;
+  posterPath: string | null;
+  releaseDate: string | null;
+  voteAverage: number | null;
+  groupScore: number; // 0..1
+  perMember: { userId: string; username: string; score: number }[];
+}
+
+export interface MatchCutResult {
+  members: MatchCutMember[];
+  items: MatchCutItem[];
+}
+
+export interface MatchCutSummary {
+  id: string;
+  title: string;
+  memberCount: number;
+  isCreator: boolean;
+  createdAt: string;
+}
+
+export interface MatchCutDetail {
+  id: string;
+  title: string;
+  inviteToken: string;
+  isCreator: boolean;
+  isMember: boolean;
+  members: MatchCutMember[];
+  items: MatchCutItem[];
+}

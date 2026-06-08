@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 from datetime import datetime, timezone
@@ -164,6 +165,27 @@ def _load_poster_seed() -> list[dict]:
     return _poster_seed_cache
 
 
+# The curated seed only stores tmdb_id/title, so poster paths are hydrated from
+# TMDB on demand and memoised process-wide (the seed is small + static).
+_poster_path_memo: dict[int, str | None] = {}
+
+
+async def _hydrate_poster_paths(tmdb_ids: list[int]) -> None:
+    missing = [t for t in tmdb_ids if t not in _poster_path_memo]
+    if not missing:
+        return
+
+    async def _one(tid: int) -> tuple[int, str | None]:
+        try:
+            data = await tmdb.get_movie(tid)
+            return tid, (data or {}).get("poster_path")
+        except Exception:
+            return tid, None
+
+    for tid, pp in await asyncio.gather(*(_one(t) for t in missing)):
+        _poster_path_memo[tid] = pp
+
+
 async def _get_or_create_signals(
     user_id: str, db: AsyncSession
 ) -> OnboardingSignals:
@@ -201,9 +223,14 @@ async def search_people(q: str | None = None, page: int = 1):
     try:
         if q and q.strip():
             data = await tmdb.search_people(q.strip(), page)
+            people = _map_tmdb_people(data.get("results", []))
         else:
-            data = await tmdb.get_popular_people(page)
-        people = _map_tmdb_people(data.get("results", []))
+            # Rotate the popular pool so the grid varies each visit (TMDB's
+            # /person/popular page 1 is identical every time otherwise).
+            data = await tmdb.get_popular_people(random.randint(1, 8))
+            results = [r for r in data.get("results", []) if r.get("profile_path")]
+            random.shuffle(results)
+            people = _map_tmdb_people(results)
     except Exception:
         # Fallback when TMDB is unreachable
         people = FALLBACK_PEOPLE
@@ -346,12 +373,14 @@ async def get_poster_set(count: int = 18):
     seed = _load_poster_seed()
     n = max(6, min(count, len(seed)))
     sample = random.sample(seed, n)
+    # Seed stores only tmdb_id/title — hydrate real poster paths from TMDB.
+    await _hydrate_poster_paths([p["tmdb_id"] for p in sample])
     # Strip the hidden mood/aesthetic tags before returning — the
     # frontend never needs them; they exist only on the backend.
     posters = [
         {
             "tmdbId": p["tmdb_id"],
-            "posterPath": p.get("poster_path"),
+            "posterPath": p.get("poster_path") or _poster_path_memo.get(p["tmdb_id"]),
             "title": p.get("title"),
         }
         for p in sample

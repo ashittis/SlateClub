@@ -28,7 +28,16 @@ export default function TopNav() {
     queryKey: ["notifications-unread"],
     queryFn: () => apiFetch("/api/notifications/unread-count"),
     enabled: !!user,
-    refetchInterval: 30_000,
+    staleTime: 0,
+    refetchInterval: 15_000,
+  });
+
+  const dmUnread = useQuery<{ count: number }>({
+    queryKey: ["dms-unread"],
+    queryFn: () => apiFetch("/api/dms/unread-count"),
+    enabled: !!user,
+    staleTime: 0,
+    refetchInterval: 15_000,
   });
 
   // Close avatar dropdown on outside click.
@@ -78,8 +87,8 @@ export default function TopNav() {
               href={item.href}
               className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
               style={{
-                color: active ? "var(--nav-active)" : "var(--text-muted)",
-                background: active ? "rgba(196,113,110,0.12)" : "transparent",
+                color: active ? "var(--cta-primary)" : "var(--text-muted)",
+                background: active ? "rgba(255,138,0,0.12)" : "transparent",
               }}
             >
               {item.label}
@@ -92,6 +101,27 @@ export default function TopNav() {
       <div className="flex-1 max-w-md ml-auto">
         <MovieSearchBar compact placeholder="Films, people…" />
       </div>
+
+      {/* Messages (DMs) */}
+      <Link
+        href="/messages"
+        className="relative p-2 rounded-full"
+        style={{ color: "var(--text-muted)" }}
+        aria-label="Messages"
+      >
+        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+          <path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" />
+          <path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" />
+        </svg>
+        {dmUnread.data && dmUnread.data.count > 0 && (
+          <span
+            className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+            style={{ background: "var(--nav-active)", color: "var(--bg-screening)" }}
+          >
+            {dmUnread.data.count > 99 ? "99+" : dmUnread.data.count}
+          </span>
+        )}
+      </Link>
 
       {/* Bell */}
       <Link

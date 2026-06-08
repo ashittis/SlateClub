@@ -25,10 +25,18 @@
   --pill-era: #6E5BA8;         /* violet */
   --pill-neutral: #3A3A42;     /* graphite */
 
+  /* Warm gradient system — orange → red → coal (brand palette) */
+  --grad-amber: #FF9408;
+  --grad-rust: #CA3F16;
+  --grad-crimson: #95122C;
+  --grad-coal: #100C08;
+
   /* Action / nav */
-  --cta-primary: #5CA572;      /* green primary */
-  --cta-primary-hover: #6FB585;
-  --nav-active: #C4716E;       /* coral */
+  --cta-primary: #FF7A00;      /* warm orange primary */
+  --cta-primary-hover: #FF9800;
+  --cta-gradient: linear-gradient(95deg, #FF4D00 0%, #FF9800 100%);
+  --cta-glow: 0 0 40px rgba(255, 120, 0, 0.28);
+  --nav-active: #C4716E;       /* coral (warm-adjacent) */
   --signal-warning: #E0A050;
   --signal-error: #C4716E;
 
@@ -56,7 +64,7 @@
   --color-cta-hover: var(--cta-primary-hover);
   --color-nav-active: var(--nav-active);
   --font-sans: var(--font-inter);
-  --font-display: var(--font-geist-sans);
+  --font-display: var(--font-inter);
 }
 
 body {
@@ -86,4 +94,13 @@ h1, h2, h3, .display {
   z-index: -1;
   pointer-events: none;
   transition: background 1200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Film grain — fixed filmic overlay, non-interactive */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 60;
 }

@@ -26,6 +26,9 @@ from .models import (  # noqa: F401
     circles,
     chapters,
     posts,
+    match_cut,
+    dms,
+    similar_cache,
 )
 
 
@@ -36,6 +39,8 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
+    from .core.redis_client import close_redis
+    await close_redis()
 
 
 app = FastAPI(title="SlateClub API", version="2.0", lifespan=lifespan)

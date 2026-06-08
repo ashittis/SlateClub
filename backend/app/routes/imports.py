@@ -127,6 +127,9 @@ async def import_letterboxd(
             except ValueError:
                 counts["ratings"]["skipped"] += 1
                 continue
+            # Snap to the 0.25 grid and clamp to the valid range so imported
+            # data obeys the same quarter-star precision as in-app ratings.
+            value = min(5.0, max(0.25, round(value * 4) / 4))
 
             tmdb_data = await _resolve_tmdb(title, year)
             if tmdb_data is None:

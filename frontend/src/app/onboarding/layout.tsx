@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import OnboardingProgress from "../../components/onboarding/OnboardingProgress";
+import AmbientGlow from "../../components/ui/AmbientGlow";
 
 const STEP_MAP: Record<string, number> = {
   "/onboarding/welcome": 1,
@@ -40,12 +41,15 @@ export default function OnboardingLayout({
 
   return (
     <div
-      className="min-h-dvh flex flex-col"
+      className="relative min-h-dvh flex flex-col"
       style={{
         background: "var(--bg-screening)",
         color: "var(--text-primary)",
       }}
     >
+      <AmbientGlow intensity="low" focusY={12} className="opacity-70" />
+
+      <div className="relative z-10 flex flex-1 flex-col">
       {showHeader && (
         <header className="shrink-0 px-5 pt-5 pb-3 lg:px-10 lg:pt-8">
           <div className="mx-auto w-full max-w-3xl">
@@ -70,6 +74,7 @@ export default function OnboardingLayout({
       )}
 
       <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      </div>
     </div>
   );
 }

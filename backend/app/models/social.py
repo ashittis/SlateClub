@@ -22,6 +22,22 @@ class Follow(Base):
     __table_args__ = (UniqueConstraint("follower_id", "following_id"),)
 
 
+class OrbitRequest(Base):
+    """A pending/answered 'add to orbit' (friend) request. On accept the
+    routes create reciprocal Follow rows, so an accepted orbit == mutual follow."""
+
+    __tablename__ = "orbit_requests"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    from_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    to_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending | accepted | declined
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (UniqueConstraint("from_id", "to_id"),)
+
+
 class ActivityEvent(Base):
     __tablename__ = "activity_events"
 

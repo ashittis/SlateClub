@@ -31,6 +31,9 @@ from .chapters import router as chapters_router
 from .critics import router as critics_router
 from .imports import router as imports_router
 from .posts import router as posts_router
+from .match_cut import router as match_cut_router
+from .orbits import router as orbits_router
+from .dms import router as dms_router
 
 all_routers = [
     auth_router,
@@ -66,4 +69,7 @@ all_routers = [
     critics_router,
     imports_router,
     posts_router,
+    match_cut_router,
+    orbits_router,
+    dms_router,
 ]

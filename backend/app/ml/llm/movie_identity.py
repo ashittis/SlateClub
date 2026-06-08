@@ -75,6 +75,42 @@ IDENTITY_SCHEMA: dict = {
                 "EXPERIENCE, even if they share no genre/director/cast."
             ),
         },
+        "emotional_arc": {
+            "type": "object",
+            "description": (
+                "The viewer's EMOTIONAL trajectory, abstracted from plot — "
+                "how you feel across the film. Short phrases."
+            ),
+            "properties": {
+                "start": {"type": "string", "description": "emotional starting state, e.g. 'ambitious outsider'"},
+                "conflict": {"type": "string", "description": "core emotional conflict, e.g. 'systemic rejection'"},
+                "lowest": {"type": "string", "description": "the lowest point, e.g. 'crushing public failure'"},
+                "transformation": {"type": "string", "description": "the turn, e.g. 'refuses to quit'"},
+                "ending": {"type": "string", "description": "ending feeling, e.g. 'triumphant inspiration' or 'bittersweet inspiration'"},
+            },
+            "required": ["start", "conflict", "lowest", "transformation", "ending"],
+        },
+        "narrative_dna": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "1-4 story-shape tags from: underdog, redemption, revenge, "
+                "coming-of-age, self-discovery, rise-and-fall, mentor-journey, "
+                "family-reconciliation, obsession, survival, forbidden-love, "
+                "fish-out-of-water, tragedy, heist. Pick only what truly fits."
+            ),
+        },
+        "aftertaste": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "2-4 adjectives for how the viewer feels ~30 minutes after the "
+                "credits, e.g. inspired, hopeful, heartbroken, uplifted, "
+                "unsettled, hollow, defiant, warm, exhausted. Be specific to "
+                "THIS film's tone — two underdog films with different tones "
+                "(triumphant vs melancholic) must have different aftertaste."
+            ),
+        },
     },
     "required": [
         "experiential_paragraph",
@@ -82,6 +118,9 @@ IDENTITY_SCHEMA: dict = {
         "affect_axes",
         "themes",
         "comparable_by_feel",
+        "emotional_arc",
+        "narrative_dna",
+        "aftertaste",
     ],
 }
 
@@ -131,6 +170,16 @@ def _build_prompt(movie: dict) -> str:
         "escalating, anxious loss-of-control). Capture THAT.\n\n"
         "Rate these affect axes, each a float in [-1, 1]:\n"
         f"{axes_doc}\n\n"
+        "ALSO capture the EMOTIONAL JOURNEY (this is how humans actually "
+        "compare films — 'it made me feel the same way'):\n"
+        "  - emotional_arc: the trajectory of how the VIEWER feels "
+        "(start → conflict → lowest → transformation → ending), abstracted "
+        "from plot specifics.\n"
+        "  - narrative_dna: the story's structural shape (underdog, "
+        "redemption, etc.).\n"
+        "  - aftertaste: how the viewer feels ~30 min after the credits. Keep "
+        "this TONE-TRUE: a defiant, cheer-out-loud triumph and a melancholic, "
+        "tears-of-sorrow triumph share an arc but NOT an aftertaste — say so.\n\n"
         f"Movie:\n{movie_block}\n\n"
         "Return ONLY JSON matching the provided schema. No prose, no "
         "markdown fences."
@@ -148,8 +197,29 @@ def _embedding_text(identity: dict) -> str:
     vibe = identity.get("vibe", "")
     themes = ", ".join(identity.get("themes") or [])
     comps = ", ".join(identity.get("comparable_by_feel") or [])
+
+    # Emotional-arc layer — encoded into the vector so cosine similarity
+    # reflects the felt journey, not just topic. All null-safe for older
+    # identities that predate these fields.
+    arc = identity.get("emotional_arc") or {}
+    arc_line = ""
+    if isinstance(arc, dict) and arc:
+        beats = [arc.get(k, "") for k in ("start", "conflict", "lowest", "transformation", "ending")]
+        arc_line = " → ".join(b for b in beats if b)
+    dna = ", ".join(identity.get("narrative_dna") or [])
+    after = ", ".join(identity.get("aftertaste") or [])
+
+    extra = ""
+    if arc_line:
+        extra += f"Emotional arc: {arc_line}.\n"
+    if dna:
+        extra += f"Narrative DNA: {dna}.\n"
+    if after:
+        extra += f"Aftertaste: {after}.\n"
+
     return (
         f"{para}\n{vibe}\n{para}\n"
+        f"{extra}"
         f"Feels like: {comps}.\n"
         f"Themes: {themes}."
     )

@@ -18,6 +18,11 @@ NOTIFICATION_KINDS = (
     "follow",
     "review_helpful",
     "hidden_gem",
+    "orbit_request",
+    "orbit_accepted",
+    "cut_invite",
+    "film_recommend",
+    "dm_reaction",
 )
 
 

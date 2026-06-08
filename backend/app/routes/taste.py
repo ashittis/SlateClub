@@ -18,7 +18,7 @@ from ..ml.llm.taste_describer import extract_tone_tags
 from ..ml.llm.drift_detector import compute_drift_score, get_drift_adaptations
 from ..ml.llm.contextual_bandit import bandit
 from ..ml.graph.taste_graph import get_user_clusters
-from ..ml.embeddings.taste_vector import movie_to_embedding, compute_user_taste_vector
+from ..ml.embeddings.taste_vector import movie_to_embedding, compute_user_taste_vector, rating_signal
 
 router = APIRouter(prefix="/api/taste", tags=["taste"])
 
@@ -92,7 +92,7 @@ async def taste_drift(
                 "popularity": m.popularity, "runtime": m.runtime,
                 "release_date": m.release_date, "original_language": m.original_language,
             },
-            "signal_type": f"rating_{min(int(r.value), 5)}",
+            "signal_type": rating_signal(r.value),
             "created_at": r.created_at,
         })
 
@@ -169,7 +169,7 @@ async def taste_vector(
                 "popularity": m.popularity, "runtime": m.runtime,
                 "release_date": m.release_date, "original_language": m.original_language,
             },
-            "signal_type": f"rating_{min(int(r.value), 5)}",
+            "signal_type": rating_signal(r.value),
             "created_at": r.created_at,
         })
 

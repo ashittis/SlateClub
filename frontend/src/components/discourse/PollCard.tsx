@@ -64,7 +64,7 @@ export default function PollCard({ poll }: Props) {
                   transition={{ duration: 0.6, ease: "easeOut" }}
                   style={{
                     background: isMine
-                      ? "rgba(92,165,114,0.3)"
+                      ? "rgba(255, 138, 0, 0.3)"
                       : "rgba(255,255,255,0.05)",
                   }}
                 />

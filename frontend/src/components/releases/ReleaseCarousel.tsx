@@ -87,7 +87,7 @@ export default function ReleaseCarousel({ films }: Props) {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(60% 70% at 50% 38%, rgba(92,165,114,0.16), transparent 70%), linear-gradient(180deg, rgba(10,10,11,0.72) 0%, rgba(10,10,11,0.88) 60%, var(--bg-screening) 100%)",
+            "radial-gradient(60% 70% at 50% 38%, rgba(255, 138, 0, 0.16), transparent 70%), linear-gradient(180deg, rgba(10,10,11,0.72) 0%, rgba(10,10,11,0.88) 60%, var(--bg-screening) 100%)",
         }}
       />
 

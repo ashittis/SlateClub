@@ -45,7 +45,7 @@ export default function PostCard({ post }: Props) {
           <span
             className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
             style={{
-              background: "rgba(92,165,114,0.15)",
+              background: "rgba(255, 138, 0, 0.15)",
               color: "var(--cta-primary)",
             }}
           >

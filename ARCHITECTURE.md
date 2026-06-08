@@ -45,8 +45,7 @@ Every user interaction is a signal. Signals are classified into three tiers:
 #### Implicit Signals (lower confidence, high volume)
 | Signal | How Collected | Weight |
 |---|---|---|
-| Ca
-d dwell time | Time spent on swipe card before action | Medium |
+| Card dwell time | Time spent on swipe card before action | Medium |
 | Swipe direction | Accept (right) vs. reject (left) | Medium |
 | Trailer play % | How much of trailer was watched | Medium |
 | Scroll depth on film page | How far user read | Low-Medium |
@@ -95,9 +94,13 @@ event_log (append-only)
 
 ### 1.2 Feature Engineering
 
-#### User Taste Vector (512-dim)
+#### User Taste Vector
 
 A user is not their genre preferences. A user is a weighted superposition of everything they've ever loved.
+
+> **As-built (Phase 3–4):** The production taste vector computed by `backend/app/ml/embeddings/taste_vector.py` is a simplified **25-dim** vector — 20 genre one-hot dimensions + 5 metadata dimensions — with onboarding-anchor blending (anchor weight decays 0.85 → 0.30 over the first ~20 interactions). The 512-dim composite described below is the **Phase 5 target** (full visual/semantic/entity embeddings), not yet wired.
+
+The Phase 5 design treats the vector as a 512-dim composite:
 
 ```
 user_taste_vector = Σ (signal_weight × recency_decay × drift_factor × movie_embedding)
@@ -135,9 +138,11 @@ if drift_score < 0.15 for 90 consecutive days:
 **Explicit mood tags as multipliers:**
 When a user tags a film "cerebral" or "intense," that tag boosts the corresponding mood dimensions of that film's embedding in the user's vector — amplifying the directional signal.
 
-#### Movie Attribute Vector (512-dim)
+#### Movie Attribute Vector
 
-Each film is represented by a composite vector assembled from four sources:
+> **As-built (Phase 3–4):** Movies carry a stored `identity_json` + `identity_embedding` (migration `0016_movie_identity`), produced by `backend/app/ml/llm/movie_identity.py`. The LLM scores each film on a **9-axis affect rubric** (see table below) and that profile is embedded via OpenAI `text-embedding-3-large`. The 512-dim four-source composite below is the **Phase 5 target**.
+
+The Phase 5 design assembles a 512-dim composite from four sources:
 
 ```
 movie_vector = concat([
@@ -148,8 +153,23 @@ movie_vector = concat([
 ])
 ```
 
-**Tone tags (LLM-extracted):**
-Each film is classified via LLM on a set of cinematic dimensions:
+**Movie identity — 9-axis affect rubric (as-built, OpenAI-extracted):**
+Each film is scored by the LLM (`app/ml/llm/movie_identity.py`) on nine continuous affect axes. This profile is what is actually embedded and stored per film:
+
+| Axis | Captures |
+|---|---|
+| Tension | calm ↔ anxious / suspenseful |
+| Propulsion | slow-burn ↔ kinetic / driving |
+| Control | chaotic ↔ precise / composed |
+| Valence | bleak ↔ hopeful |
+| Texture | clean ↔ gritty / tactile |
+| Scale | intimate ↔ epic |
+| Cognition | visceral ↔ cerebral |
+| Resolution | ambiguous ↔ resolved |
+| Warmth | cold ↔ tender |
+
+**Conceptual tone dimensions (UI taxonomy):**
+The film page surfaces these as human-readable chips, derived from the affect axes above:
 
 | Dimension | Values |
 |---|---|
@@ -159,7 +179,7 @@ Each film is classified via LLM on a set of cinematic dimensions:
 | Perspective | unreliable narrator / omniscient / intimate |
 | Emotional register | cathartic / unsettling / contemplative / exhilarating |
 
-These tags feed directly into the movie vector and are surfaced as UI chips on film pages.
+The affect profile feeds directly into the movie vector and is surfaced as UI chips on film pages.
 
 #### Context Features (serving-time)
 
@@ -177,6 +197,12 @@ These tags feed directly into the movie vector and are surfaced as UI chips on f
 ### 1.3 Recommendation Models (Hybrid 4-Layer)
 
 The system runs four complementary models. Their outputs are merged into a unified candidate pool before ranking.
+
+> **As-built status** (`backend/app/ml/models/`):
+> - **Layer 1 — ALS** (`als.py`): built; gracefully skipped until ~10 interactions exist, then trains on the implicit-feedback matrix.
+> - **Layer 2 — Content-based** (`content_based.py`): built; genre/metadata cosine, active from day zero.
+> - **Layer 3 — Two-tower** (`two_tower.py`): **stub** — a random-projection placeholder stands in for the jointly-trained network. Full PyTorch training is a **Phase 5** item.
+> - **Layer 4 — LLM semantic** (`app/ml/llm/`): built via **OpenAI** (`gpt-5.5` for descriptions, `text-embedding-3-large` for the query vector).
 
 #### Layer 1 — Collaborative Filtering (ALS)
 
@@ -217,7 +243,7 @@ At serving time: ANN (Approximate Nearest Neighbor) search over pre-indexed movi
 
 #### Layer 4 — LLM Semantic Taste Alignment *(Differentiator)*
 
-**What it does:** Uses a language model to generate a natural-language description of the user's taste, then embeds that description as a semantic query vector.
+**What it does:** Uses a language model (OpenAI `gpt-5.5`, via `app/ml/llm/taste_describer.py` → `taste_identity.py`) to generate a natural-language description of the user's taste, then embeds that description as a semantic query vector.
 
 ```
 Input:  [last 20 reviews written by user] + [explicit mood/tone tags]
@@ -229,7 +255,7 @@ Output: "Gravitates toward morally complex slow-burn thrillers where environment
          shapes character. Values ambiguity over resolution. Prefers naturalistic 
          cinematography and non-linear structure."
 
-→ Embed this via sentence-transformer → semantic query vector
+→ Embed this via OpenAI text-embedding-3-large → semantic query vector
 → ANN search over movie semantic embedding index
 ```
 
@@ -266,6 +292,8 @@ The contextual bandit (Section 1.6) automatically adjusts blend weights as new l
 ### 1.4 Taste Graph Engine
 
 The taste graph is SlateClub's core moat. It is a living knowledge graph connecting users, films, directors, themes, and moods — with edge weights derived from real behavioral signals.
+
+> **As-built (Phase 4):** Wired on **Neo4j** via `backend/app/ml/graph/` — `taste_graph.py` (schema + node/edge ops over the `neo4j_client`), `community.py` (**python-louvain** community detection → "Cinematic Tribes"), and `graph_recommend.py` (cluster-consensus + friend-boost queries).
 
 #### Graph Schema
 
@@ -491,7 +519,13 @@ Phase transitions are logged as first-class events in the event bus (`taste.phas
 
 The onboarding flow mirrors Spotify's progressive profiling approach: each step narrows and personalizes the next. Designed to extract a high-fidelity taste profile in under 2 minutes.
 
-#### Step 1 — Language Selection
+> **As-built:** The implemented flow is an **8-step "Tune Your Taste"** sequence (not the original 3-step design). Pages live under `frontend/src/app/onboarding/` and step state is held in `frontend/src/stores/onboardingStore.ts`, which exposes one submit action per step (`markWelcomed`, `submitLanguages`, `submitPosters`, `submitMood`, `submitPlatforms`, `submitPeople`, `submitOrigin`, `submitMovies`) posting to the `onboarding` router (`backend/app/routes/onboarding.py`). The progress bar counts 8 numbered steps; `welcome` and `ready` are unnumbered bookends.
+
+#### Step 1 — Welcome (`/onboarding/welcome`)
+
+Intro screen — sets the tone, no input collected. Calls `markWelcomed()`.
+
+#### Step 2 — Language Selection (`/onboarding/languages`)
 
 ```
 "What languages do you watch movies in?"
@@ -510,7 +544,28 @@ The onboarding flow mirrors Spotify's progressive profiling approach: each step 
 - Strongest first signal — language preference predicts 60%+ of what a user will watch
 - Stored as `LanguageSelection` records (ISO 639-1 codes)
 
-#### Step 2 — Actor & Director Affinity Picks
+#### Step 3 — Poster Calibration (`/onboarding/posters`)
+
+A rapid visual taste-calibration pass — the user reacts to a grid of posters. Quick, low-effort signal that seeds the initial taste direction before any explicit favourites are picked. Stored as poster picks on `OnboardingSignals`.
+
+#### Step 4 — Mood Sliders (`/onboarding/mood`)
+
+Three continuous sliders (each clamped to [−1, 1]) capture preferred register:
+
+```
+  Pacing    slow & contemplative  ●───────  fast & kinetic
+  Tone      light & warm          ───●────  dark & heavy
+  Realism   grounded              ──────●─  stylised / surreal
+```
+
+- Component: `components/onboarding/MoodSlider.tsx`
+- Establishes the user's default position on the pace/tone axes used at ranking time
+
+#### Step 5 — Platforms & Theatre Preference (`/onboarding/platforms`)
+
+Which streaming services the user has, plus a theatre-going preference. Drives the pre-filter (Section 1.5, Stage 2) and "where to watch" surfacing.
+
+#### Step 6 — Actor & Director Affinity Picks (`/onboarding/people`)
 
 ```
 "Who do you love watching?"
@@ -522,51 +577,50 @@ The onboarding flow mirrors Spotify's progressive profiling approach: each step 
   [Park Chan-wook]    [Nolan ✓]      [Villeneuve]
 
   Selected (3):  [Shah Rukh Khan ✗] [Alia Bhatt ✗] [Nolan ✗]
-
-  (Search TMDB for any actor or director)
 ```
 
-- Search + popular people grid (filtered to Acting/Directing)
-- Minimum 3 selections required
+- Search + popular people grid (filtered to Acting/Directing), minimum **3** selections
 - Initializes `User → Director/Actor : AFFINITY` edges in the taste graph
 - **Key Spotify parallel:** Like picking artists — the system now knows your taste anchors
 - Stored as `FavoritePerson` records (TMDB person ID + metadata)
 
-#### Step 3 — Movie Selection (Personalized)
+#### Step 7 — Origin Film (`/onboarding/origin`)
+
+An optional single "film that made you fall in love with cinema" — a high-weight emotional anchor used to seed the taste vector. Skippable.
+
+#### Step 8 — Movie Selection (`/onboarding/movies`)
 
 ```
 "Pick 5+ movies you love"
 
-  ┌─────────────────────────────────────────┐
-  │  Showing movies from your selected      │
-  │  actors & directors                     │
-  │                                         │
-  │  [Poster] [Poster] [Poster] [Poster]    │
-  │  [Poster] [Poster] [Poster] [Poster]    │
-  │                                         │
-  │  Search: [________________]             │
-  └─────────────────────────────────────────┘
+  [Poster] [Poster] [Poster] [Poster]
+  [Poster] [Poster] [Poster] [Poster]
 
+  Search: [________________]
   Selected (5): [Jawan ✗] [Inception ✗] [Dangal ✗] ...
 ```
 
-- **Smart defaulting:** When no search query, shows top-rated films from selected people's filmography (merged, deduplicated, sorted by vote average)
-- Search fallback: full TMDB movie search
-- If no people selected: falls back to popular movies
-- Minimum 5 selections required
-- Marks user as `onboarded = true` on submission
-- **Key Spotify parallel:** Like picking songs from your chosen artists
+- **Smart defaulting:** shows top-rated films from selected people's filmography (merged, deduplicated, sorted by vote average); falls back to popular movies when no people were picked
+- Minimum **5** selections; marks user `onboarded = true` on submission
 - Stored as `FavoriteMovie` records (TMDB movie ID + poster/title)
+
+#### Completion (`/onboarding/ready`)
+
+Confirmation screen — the first recommendation feed is generated immediately.
 
 #### Onboarding Output
 
 ```
-After all 3 steps, the system has:
+After all 8 steps, the system has:
 
-  ✓ language_preferences         — from Step 1 (filters discovery by language)
-  ✓ director/actor affinities    — from Step 2 (drives people-based recommendations)
-  ✓ explicit movie preferences   — from Step 3 (seeds initial taste vector)
-  ✓ genre signal                 — inferred from Step 3 movie genres
+  ✓ language_preferences         — Step 2 (filters discovery by language)
+  ✓ poster-calibration signal    — Step 3 (seeds initial taste direction)
+  ✓ mood axes (pace/tone/realism)— Step 4 (default ranking register)
+  ✓ platform + theatre prefs     — Step 5 (drives pre-filter & "where to watch")
+  ✓ director/actor affinities    — Step 6 (drives people-based recommendations)
+  ✓ origin-film anchor           — Step 7 (high-weight emotional seed)
+  ✓ explicit movie preferences   — Step 8 (seeds initial taste vector)
+  ✓ genre signal                 — inferred from Step 8 movie genres
   ✓ initial cluster assignment   — nearest Cinematic Tribe by movie overlap
 
 First recommendation feed generated immediately — no waiting.
@@ -587,7 +641,7 @@ Each step:
 
 #### Supplementary Cold Start Paths
 
-- **Letterboxd CSV import:** User exports and uploads watch history. Generates full taste vector from historical ratings, bypassing all 3 steps.
+- **Letterboxd CSV import:** User exports and uploads watch history (`app/routes/imports.py`). Generates a taste vector from historical ratings, bypassing the 8-step onboarding flow.
 - **New Film cold start:** Content vector computed immediately from TMDB metadata + NLP on synopsis. Visual embedding from poster via CLIP model. Film surfaced via content-based layer from day zero. Collaborative signal accumulates within 48–72h.
 - **Fallback:** If user skips onboarding, system defaults to trending/popular films filtered by detected locale.
 
@@ -772,6 +826,8 @@ MOVIE PAGE — FULL LAYOUT
 
 ### Core Services
 
+> **As-built:** The decomposition below is a **logical** view. Today these responsibilities are served by **one FastAPI process** (`backend/app/main.py`) using modular routers (`app/routes/`) and services (`app/services/`) against a single PostgreSQL database — not separately deployed microservices, a standalone event bus, or a separate ML service. The split is the target topology for scale-out; the boundaries (router/service/model trio per domain) are already respected in code so the carve-out is mechanical when needed.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                         API GATEWAY                              │
@@ -869,263 +925,140 @@ MOVIE PAGE — FULL LAYOUT
 ```
 slateclub/
 │
-├── frontend/                                 # Next.js 15 (App Router) + TypeScript
+├── frontend/                                 # Next.js 16.2.3 (App Router, Turbopack) · React 19 · TS · Tailwind v4
 │   ├── public/
-│   │   ├── fonts/
-│   │   └── images/
 │   ├── src/
-│   │   ├── app/                              # App Router pages
-│   │   │   ├── (auth)/
-│   │   │   │   ├── login/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── signup/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── layout.tsx
-│   │   │   ├── (main)/
-│   │   │   │   ├── home/
-│   │   │   │   │   └── page.tsx              # Swipe stack feed
-│   │   │   │   ├── discover/
-│   │   │   │   │   └── page.tsx              # Discovery + mood filter
-│   │   │   │   ├── film/
-│   │   │   │   │   └── [slug]/
-│   │   │   │   │       └── page.tsx          # Movie page (Section 2)
-│   │   │   │   ├── profile/
-│   │   │   │   │   ├── page.tsx              # User profile + Taste Identity card
-│   │   │   │   │   └── [username]/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   ├── search/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── layout.tsx
-│   │   │   ├── onboarding/                   # 3-step Spotify-style onboarding (Section 1.7)
-│   │   │   │   ├── languages/
-│   │   │   │   │   └── page.tsx              # Step 1: Language selection
-│   │   │   │   ├── people/
-│   │   │   │   │   └── page.tsx              # Step 2: Actor/director picks
-│   │   │   │   ├── movies/
-│   │   │   │   │   └── page.tsx              # Step 3: Movie selection (personalized)
-│   │   │   │   └── layout.tsx
+│   │   ├── app/                              # App Router pages (route groups)
+│   │   │   ├── (auth)/                       # login, signup, layout.tsx
+│   │   │   ├── (main)/                       # Shared authed layout (mobile tab nav)
+│   │   │   │   ├── home/                     # Swipe stack feed
+│   │   │   │   ├── discover/                 # Discovery + mood filter
+│   │   │   │   ├── film/[slug]/              # Movie page (Section 2)
+│   │   │   │   ├── slates/                   # + [id]/, new/   — curated collections
+│   │   │   │   ├── circles/                  # + [id]/         — private taste circles
+│   │   │   │   ├── tribe/                    # Cinematic Tribe view
+│   │   │   │   ├── artists/[tmdbId]/         # Artist/director profiles
+│   │   │   │   ├── festivals/[slug]/         # Festivals
+│   │   │   │   ├── releases/                 # Release calendar (theatrical + OTT)
+│   │   │   │   ├── parties/[id]/             # Watch parties
+│   │   │   │   ├── chapters/                 # + [slug]/       — local cinema clubs
+│   │   │   │   ├── profile/                  # + [username]/   — profile + Taste Identity
+│   │   │   │   ├── settings/                 # + import/       — Letterboxd CSV import
+│   │   │   │   ├── community/                # Social feed
+│   │   │   │   ├── activity/                 # Activity feed
+│   │   │   │   ├── search/                   # Full-text search
+│   │   │   │   └── notifications/            # Notification center
+│   │   │   ├── onboarding/                   # 8-step "Tune Your Taste" (Section 1.7)
+│   │   │   │   ├── welcome/   languages/  posters/  mood/
+│   │   │   │   ├── platforms/ people/     origin/   movies/
+│   │   │   │   ├── ready/                    # completion
+│   │   │   │   └── layout.tsx                # progress shell (TOTAL_STEPS = 8)
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx                      # Root redirect
-│   │   ├── components/
-│   │   │   ├── film/
-│   │   │   │   ├── FilmCard.tsx
-│   │   │   │   ├── FilmHero.tsx
-│   │   │   │   ├── TasteMatch.tsx            # "92% match" widget
-│   │   │   │   ├── ToneChips.tsx             # [cerebral] [slow-burn] pills
-│   │   │   │   ├── StreamingAvail.tsx
-│   │   │   │   └── MoreLikeThis.tsx
-│   │   │   ├── feed/
-│   │   │   │   ├── SwipeStack.tsx            # Framer Motion swipe cards
-│   │   │   │   ├── ForYouShelf.tsx
-│   │   │   │   ├── TribeShelf.tsx
-│   │   │   │   ├── SerendipityShelf.tsx
-│   │   │   │   └── SessionMoodPrompt.tsx     # "What are you in the mood for?"
-│   │   │   ├── onboarding/
-│   │   │   │   ├── SwipeCard.tsx             # Love/Like/Skip card
-│   │   │   │   ├── VibePicker.tsx            # Mood chip grid
-│   │   │   │   ├── PreferenceSlider.tsx      # Plot-driven ↔ Character-driven
-│   │   │   │   ├── AffinityPicker.tsx        # Director/actor search + chips
-│   │   │   │   └── OnboardingProgress.tsx
-│   │   │   ├── calibration/
-│   │   │   │   ├── AccuracyRating.tsx        # "How are we doing?" prompt
-│   │   │   │   ├── PairwisePicker.tsx        # Film A vs Film B
-│   │   │   │   └── TasteIdentityEditor.tsx
-│   │   │   ├── social/
-│   │   │   │   ├── ReviewCard.tsx
-│   │   │   │   ├── ReviewForm.tsx
-│   │   │   │   ├── ActivityFeed.tsx
-│   │   │   │   └── FriendsWatched.tsx
-│   │   │   ├── taste/
-│   │   │   │   ├── TasteIdentityCard.tsx     # Profile taste fingerprint widget
-│   │   │   │   ├── TribeLabel.tsx
-│   │   │   │   └── TasteDriftBanner.tsx      # "Your taste is evolving" prompt
-│   │   │   ├── micro-feedback/
-│   │   │   │   ├── MicroFeedbackBar.tsx      # "Not in the mood" / "More like this"
-│   │   │   │   └── PostWatchPrompt.tsx       # "Too slow?" / "Rate it"
-│   │   │   ├── ratings/
-│   │   │   │   ├── StarRating.tsx
-│   │   │   │   └── MoodTagger.tsx
-│   │   │   └── ui/                           # Shared primitives
-│   │   │       ├── Button.tsx
-│   │   │       ├── Modal.tsx
-│   │   │       ├── Skeleton.tsx
-│   │   │       └── Sparkline.tsx
-│   │   ├── hooks/
-│   │   │   ├── useSwipe.ts                   # Swipe gesture logic
-│   │   │   ├── useSessionMood.ts             # Session mood state (2h expiry)
-│   │   │   ├── useCalibration.ts             # Calibration loop triggers
-│   │   │   └── useMicroFeedback.ts
-│   │   ├── stores/                           # Zustand stores
+│   │   ├── components/                       # Feature-grouped (18 domains)
+│   │   │   ├── feed/                         # HeroFan, ForYouGrid, BrowseGrid,
+│   │   │   │                                 #   FeedScopeTabs, SessionMoodPrompt, MovieSearchBar
+│   │   │   ├── film/  discover/  slates/  social/  discourse/  releases/
+│   │   │   ├── taste/                        # TasteIdentityCard, TribeLabel, TasteDriftBanner
+│   │   │   ├── taste-engine/                 # BubbleConstellation (GSAP), SentenceBuilder, SwapSheet
+│   │   │   ├── onboarding/                   # MoodSlider, StepShell, OnboardingProgress, NextButton
+│   │   │   ├── calibration/                  # AccuracyRating, PairwisePicker
+│   │   │   ├── micro-feedback/               # MicroFeedbackBar
+│   │   │   ├── ratings/  cultural/  theatres/  notifications/  layout/
+│   │   │   └── ui/                           # Button, Modal, Skeleton, Pill, CardStack, ...
+│   │   ├── stores/                           # Zustand
 │   │   │   ├── authStore.ts
-│   │   │   ├── feedStore.ts
-│   │   │   ├── onboardingStore.ts
-│   │   │   └── sessionMoodStore.ts
+│   │   │   ├── feedStore.ts                  # Session mood (2h expiry)
+│   │   │   ├── onboardingStore.ts            # 8-step form state + per-step submit actions
+│   │   │   └── socialStore.ts
 │   │   ├── lib/
-│   │   │   ├── api.ts                        # TanStack Query client + API helpers
-│   │   │   ├── auth.ts                       # JWT handling, OAuth flows
-│   │   │   ├── tmdb.ts                       # TMDB API client
-│   │   │   └── constants.ts
-│   │   ├── types/                            # Shared TypeScript types
-│   │   │   ├── movie.ts                      # Movie, Genre, ToneTag, StreamingAvail
-│   │   │   ├── user.ts                       # User, TasteIdentity, Preferences
-│   │   │   ├── social.ts                     # Review, Rating, Comment, Follow
-│   │   │   ├── recommendation.ts             # FeedItem, Explanation, SessionMood
-│   │   │   ├── signals.ts                    # SignalType, MicroFeedbackType
-│   │   │   └── onboarding.ts                 # OnboardingStep, PreferenceAxis, VibeTag
-│   │   └── styles/
-│   │       └── globals.css                   # Tailwind base
-│   ├── tailwind.config.ts
-│   ├── next.config.ts
-│   ├── tsconfig.json
-│   └── package.json
+│   │   │   ├── api.ts                        # apiFetch<T> + JWT refresh on 401
+│   │   │   ├── nav.ts                        # MOBILE_NAV_ITEMS
+│   │   │   ├── design-tokens.ts  poster-color.ts  constants.ts
+│   │   └── types/                            # discourse, movie, notifications,
+│   │       │                                 #   onboarding, slates, social, user
+│   │       └── ...
+│   ├── package.json                          # GSAP: add when first needed (not yet installed)
+│   └── tsconfig.json
 │
-├── backend/                                  # Node.js + Fastify (API) + Python (ML)
-│   │
-│   ├── src/                                  # Fastify API server (TypeScript)
-│   │   ├── routes/
-│   │   │   ├── auth.ts                       # Login, signup, OAuth, JWT refresh
-│   │   │   ├── users.ts                      # Profile CRUD, preferences, devices
-│   │   │   ├── movies.ts                     # Movie catalog, metadata, trailers
-│   │   │   ├── streaming.ts                  # Streaming availability per region
-│   │   │   ├── reviews.ts                    # Review CRUD, helpfulness voting
-│   │   │   ├── ratings.ts                    # Star rating + mood tag submission
-│   │   │   ├── comments.ts                   # Discussion threads
-│   │   │   ├── follows.ts                    # Follow/unfollow
-│   │   │   ├── activity.ts                   # Activity feed
-│   │   │   ├── watchlist.ts                  # Watchlist add/remove
-│   │   │   ├── watchHistory.ts               # Watch marks, completion tracking
-│   │   │   ├── feed.ts                       # Recommendation feed (proxies to ML service)
-│   │   │   ├── taste.ts                      # Taste identity, taste vector endpoints
-│   │   │   ├── calibration.ts                # Calibration loop endpoints (Section 1.8)
-│   │   │   ├── onboarding.ts                 # Onboarding signal ingestion (Section 1.7)
-│   │   │   ├── search.ts                     # Full-text search (movies, people, reviews)
-│   │   │   └── signals.ts                    # Micro-feedback + swipe signal ingestion
-│   │   ├── services/
-│   │   │   ├── authService.ts
-│   │   │   ├── profileService.ts
-│   │   │   ├── movieService.ts
-│   │   │   ├── reviewService.ts
-│   │   │   ├── ratingService.ts
-│   │   │   ├── activityService.ts
-│   │   │   ├── signalService.ts              # Signal processing + event emission
-│   │   │   └── searchService.ts
-│   │   ├── integrations/                     # External API clients
-│   │   │   ├── tmdb.ts                       # TMDB API — movie metadata, posters, cast
-│   │   │   ├── watchmode.ts                  # Watchmode API — streaming availability
-│   │   │   ├── omdb.ts                       # OMDb API — IMDb/RT/Metacritic scores
-│   │   │   └── youtube.ts                    # YouTube Data API — trailer links
-│   │   ├── plugins/
-│   │   │   ├── auth.ts                       # JWT validation plugin
-│   │   │   ├── db.ts                         # PostgreSQL connection (Prisma)
-│   │   │   └── cors.ts
-│   │   ├── middleware/
-│   │   │   ├── rateLimit.ts
-│   │   │   └── errorHandler.ts
-│   │   └── index.ts                          # Fastify app entry
-│   │
-│   ├── prisma/
-│   │   ├── schema.prisma                     # All models: User, Movie, Review, Rating, etc.
-│   │   └── migrations/
-│   │
-│   ├── ml/                                   # Python ML service (FastAPI)
-│   │   ├── app/
-│   │   │   ├── api/
-│   │   │   │   ├── feed.py                   # GET /feed — full pipeline (Section 1.5)
-│   │   │   │   ├── explain.py                # Explanation generation per film
-│   │   │   │   ├── taste.py                  # Taste identity + taste vector computation
-│   │   │   │   ├── calibration.py            # Pairwise preference processing
-│   │   │   │   └── onboarding.py             # Onboarding vector generation
-│   │   │   ├── pipeline/                     # 4-stage recommendation pipeline
-│   │   │   │   ├── candidate_gen.py          # Stage 1: ANN + ALS + graph retrieval
-│   │   │   │   ├── prefilter.py              # Stage 2: Remove watched/dismissed
-│   │   │   │   ├── ranking.py                # Stage 3: XGBoost + explore/exploit (70/30)
-│   │   │   │   └── contextualize.py          # Stage 4: Session mood + explanations
-│   │   │   ├── taste/
-│   │   │   │   ├── taste_vector.py           # 512-dim taste vector computation
-│   │   │   │   ├── taste_identity.py         # Taste Identity Profile generation
-│   │   │   │   ├── drift_detector.py         # Taste drift detection (drift_score)
-│   │   │   │   └── session_mood.py           # Session mood handling (2h expiry)
-│   │   │   ├── graph/
-│   │   │   │   ├── taste_graph.py            # Neo4j graph operations
-│   │   │   │   ├── community.py              # Louvain clustering (Cinematic Tribes)
-│   │   │   │   └── graph_recommend.py        # Graph-powered recommendations
-│   │   │   ├── models/
-│   │   │   │   ├── two_tower.py              # Two-tower neural retrieval (Layer 3)
-│   │   │   │   ├── als.py                    # ALS collaborative filtering (Layer 1)
-│   │   │   │   ├── content_based.py          # Content-based cosine similarity (Layer 2)
-│   │   │   │   ├── llm_taste.py              # LLM semantic taste alignment (Layer 4)
-│   │   │   │   └── xgboost_ranker.py         # XGBoost ranking model
-│   │   │   ├── embeddings/
-│   │   │   │   ├── movie_embeddings.py       # Composite 512-dim movie vectors
-│   │   │   │   ├── semantic_embeddings.py    # sentence-transformer (all-mpnet-base-v2)
-│   │   │   │   ├── visual_embeddings.py      # CLIP poster/thumbnail encoding
-│   │   │   │   ├── entity_embeddings.py      # Director/cast co-occurrence embeddings
-│   │   │   │   └── tone_extractor.py         # LLM tone tag extraction
-│   │   │   ├── training/                     # Offline model training scripts
-│   │   │   │   ├── train_two_tower.py        # PyTorch two-tower training
-│   │   │   │   ├── train_als.py              # Implicit ALS matrix factorization
-│   │   │   │   ├── train_xgboost.py          # XGBoost ranking model training
-│   │   │   │   └── detect_communities.py     # python-louvain community detection
-│   │   │   ├── pipelines/                    # Scheduled batch jobs
-│   │   │   │   ├── nightly_taste_vectors.py  # Recompute taste vectors for dirty users
-│   │   │   │   ├── nightly_movie_vectors.py  # Rebuild movie vectors for new films
-│   │   │   │   ├── nightly_taste_identity.py # Taste Identity Profile recomputation
-│   │   │   │   ├── nightly_drift_check.py    # Batch drift_score computation
-│   │   │   │   ├── nightly_llm_taste.py      # LLM taste descriptions (Layer 4)
-│   │   │   │   ├── weekly_two_tower.py       # Two-tower model retrain
-│   │   │   │   ├── weekly_community.py       # Louvain re-run
-│   │   │   │   ├── monthly_als.py            # Full ALS retrain
-│   │   │   │   └── monthly_xgboost.py        # XGBoost retrain
-│   │   │   ├── core/
-│   │   │   │   ├── config.py
-│   │   │   │   ├── db.py                     # PostgreSQL connection
-│   │   │   │   ├── neo4j_client.py           # Neo4j driver
-│   │   │   │   ├── vector_store.py           # Weaviate/Pinecone client
-│   │   │   │   └── events.py                 # Event bus consumer
-│   │   │   └── main.py                       # FastAPI app entry
-│   │   ├── tests/
-│   │   ├── requirements.txt
-│   │   └── pyproject.toml
-│   │
-│   ├── tsconfig.json
-│   ├── package.json
-│   └── .env.example
+├── backend/                                  # Unified Python 3.12 · FastAPI · SQLAlchemy 2.0 (async) · asyncpg
+│   ├── app/
+│   │   ├── main.py                           # FastAPI app ("SlateClub API" v2.0); registers all_routers
+│   │   ├── core/
+│   │   │   ├── config.py                     # pydantic-settings from .env
+│   │   │   ├── database.py                   # async engine + Base + session
+│   │   │   ├── auth.py                       # JWT (python-jose) + bcrypt
+│   │   │   └── neo4j_client.py               # Neo4j async driver
+│   │   ├── routes/                           # 32 routers (registered in routes/__init__.py)
+│   │   │   ├── auth · users · onboarding · imports          # identity + onboarding
+│   │   │   ├── movies · discover · releases · festivals · theatres · cultural
+│   │   │   ├── ratings · reviews · comments · watchlist · watch_history · feedback
+│   │   │   ├── follows · activity · feed · notifications · critics
+│   │   │   ├── slates · circles · chapters · discourse · watch_parties · artists
+│   │   │   └── recommendations · anchors · tribes · taste · taste_engine
+│   │   ├── models/                           # 17 model files (~51 tables)
+│   │   │   ├── user (User, UserPreferences, UserTasteState) · movie (+ identity_json/embedding)
+│   │   │   ├── actions · social · onboarding · taste_engine
+│   │   │   └── slates · discourse · notifications · artists · releases · cultural
+│   │   │       festivals · theatres · watch_parties · circles · chapters
+│   │   ├── services/                         # impressions · notify · trending · releases
+│   │   │   └── similar_films · taste_embedding
+│   │   ├── ml/
+│   │   │   ├── embeddings/taste_vector.py    # 25-dim taste vector (Phase 3–4)
+│   │   │   ├── graph/                        # taste_graph · community (Louvain) · graph_recommend
+│   │   │   ├── llm/                          # openai_client · movie_identity (9-axis) · taste_identity
+│   │   │   │                                 #   taste_describer · drift_detector · contextual_bandit
+│   │   │   ├── models/                       # als · content_based · two_tower (stub) · xgboost_ranker
+│   │   │   ├── pipeline/recommendation_pipeline.py   # 4-stage funnel (Section 1.5)
+│   │   │   └── recommendationengine.py       # implemented-vs-scaffolded status doc
+│   │   ├── integrations/tmdb.py              # TMDB client (only external integration wired)
+│   │   └── data/                             # seed fixtures
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/                         # 18 migrations: 0001_onboarding_signals …
+│   │                                         #   0016_movie_identity · 0017_user_taste_state · 0018_impression_source
+│   ├── bootstrap_db.py                       # Base.metadata.create_all (one-time base schema)
+│   ├── requirements.txt
+│   └── .env
 │
+├── frontend/.env.local                       # NEXT_PUBLIC_API_URL
 ├── ARCHITECTURE.md                           # This file
-├── About.md
-└── .env.example                              # Root environment variable template
+├── CLAUDE.md · vision.md                      # Product/agent docs
+└── figma-screens/                            # PNG design references (no code)
 ```
 
 ### API & Service Dependencies (Phased)
 
-Not everything is needed from day one. APIs and services activate as the product matures:
+Not everything is needed from day one. APIs and services activate as the product matures. **Status** reflects what is wired in the current codebase (✅ wired · ⏳ planned).
 
 #### Phase 1–2: Core Product (start here)
 
-| Dependency | Type | What It Powers |
-|---|---|---|
-| **TMDB API** | External API | Movie catalog, posters, cast, genres, synopses — the entire content layer |
-| **PostgreSQL** | Database | Users, watchlists, ratings, reviews, watch history |
-| **Google OAuth + Apple Sign-In** | Auth provider | User login (OAuth 2.0) |
-| **JWT** | Auth | Access tokens (15 min) + refresh tokens (7 days), HttpOnly cookies |
+| Dependency | Type | Status | What It Powers |
+|---|---|---|---|
+| **TMDB API** | External API | ✅ wired | Movie catalog, posters, cast, genres, synopses — the entire content layer |
+| **PostgreSQL** | Database | ✅ wired | Users, watchlists, ratings, reviews, watch history (async SQLAlchemy + asyncpg) |
+| **JWT** | Auth | ✅ wired | Access + refresh tokens (python-jose), bcrypt password hashing |
+| **Google OAuth + Apple Sign-In** | Auth provider | ⏳ planned | Social login — not yet implemented (current auth is email/password) |
 
-#### Phase 3: Recommendation Engine V1
+#### Phase 3–4: Recommendation Engine + Taste Graph
 
-| Dependency | Type | What It Powers |
-|---|---|---|
-| **OMDb API** | External API | IMDb/Rotten Tomatoes/Metacritic scores on film pages |
-| **Watchmode API** | External API | "Watch on Netflix/Mubi/Prime" streaming availability |
-| **Weaviate** (or Pinecone) | Vector store | ANN search over taste/movie embeddings |
-| **Neo4j** | Graph database | Taste graph, user-user similarity, Cinematic Tribes |
+| Dependency | Type | Status | What It Powers |
+|---|---|---|---|
+| **Neo4j** | Graph database | ✅ wired | Taste graph, user-user similarity, Cinematic Tribes (python-louvain) |
+| **OpenAI API** | LLM API | ✅ wired | Movie identity (9-axis), taste statements, semantic embeddings |
+| **OMDb API** | External API | ⏳ planned | IMDb/Rotten Tomatoes/Metacritic scores on film pages |
+| **Watchmode API** | External API | ⏳ planned | "Watch on Netflix/Mubi/Prime" streaming availability |
+| **Weaviate** (or Pinecone) | Vector store | ⏳ planned | Dedicated ANN index — embeddings currently held in Postgres/memory |
 
-#### Phase 4–5: Advanced Personalization
+#### Phase 5: Advanced Personalization
 
-| Dependency | Type | What It Powers |
-|---|---|---|
-| **Claude API** (Haiku) | LLM API | Taste descriptions, tone tag extraction, Layer 4 semantic alignment |
-| **Typesense** | Search engine | Sub-50ms full-text search across movies, reviews, people |
+| Dependency | Type | Status | What It Powers |
+|---|---|---|---|
+| **Anthropic Claude API** | LLM API | ⏳ available | SDK installed as an alternative LLM provider; not currently called |
+| **Typesense** | Search engine | ⏳ planned | Sub-50ms full-text search across movies, reviews, people |
+| **PyTorch / sentence-transformers / CLIP** | ML | ⏳ planned | Full two-tower training + visual/semantic embeddings |
 
-> **Note:** YouTube trailer links can be pulled from TMDB's video metadata — no separate YouTube Data API key needed unless you require extended video search.
+> **Note:** YouTube trailer links are pulled from TMDB's video metadata — no separate YouTube Data API key needed.
 
 ---
 
@@ -1133,58 +1066,62 @@ Not everything is needed from day one. APIs and services activate as the product
 
 ### Frontend
 
-| Layer | Technology | Rationale |
+| Layer | Technology | Status |
 |---|---|---|
-| Web framework | **Next.js 15** (App Router) + TypeScript | SSR for movie page SEO; streaming responses |
-| Styling | **Tailwind CSS** | Matches existing prototype design tokens |
-| Animation | **Framer Motion** | Swipe mechanics, page transitions, micro-interactions |
-| Mobile | **React Native (Expo)** | Shared TypeScript types with web; fast iteration |
-| State | **Zustand** | Lightweight; no Redux overhead for prototype scale |
-| Data fetching | **TanStack Query** | Caching, optimistic updates, background refetch |
+| Web framework | **Next.js 16.2.3** (App Router, Turbopack) + TypeScript | ✅ |
+| UI runtime | **React 19.2** | ✅ |
+| Styling | **Tailwind CSS v4** (`@tailwindcss/postcss`) + `geist` font | ✅ |
+| Animation (components) | **Framer Motion 12** | ✅ |
+| Animation (choreography) | **GSAP** — for taste-engine constellation | ⏳ add when first needed |
+| State | **Zustand 5** | ✅ (authStore, feedStore, onboardingStore, socialStore) |
+| Data fetching | **TanStack Query 5** | ✅ installed |
+| Mobile | Mobile-web parity (responsive, ≥44px targets); native app | ⏳ not started |
 
 ### Backend Services
 
-| Layer | Technology | Rationale |
+| Layer | Technology | Status |
 |---|---|---|
-| API + ML services (unified) | **Python + FastAPI** | Single stack for API + ML; async, auto-generated docs |
-| Primary database | **PostgreSQL** | Users, reviews, ratings, watch history, structured data |
-| Session & cache | **Redis** | Sessions, rate limiting, feed cache, BullMQ jobs |
-| Vector store | **Weaviate** (or Pinecone) | ANN search over 128/512-dim embeddings at scale |
-| Graph database | **Neo4j** | Native graph DB; Louvain community detection built-in |
-| Full-text search | **Typesense** | Sub-50ms movie/review/person search; typo-tolerant |
-| Job queues | **BullMQ** (Redis-backed) | ML retraining triggers, notification delivery |
-| Real-time | **Socket.io** | Activity feed, live notification push |
+| API + ML (unified) | **Python 3.12 + FastAPI** | ✅ single process serving routers + ML |
+| ORM + migrations | **SQLAlchemy 2.0 (async) + asyncpg + Alembic** | ✅ (18 migrations; ~51 tables) |
+| Primary database | **PostgreSQL 17** — port **5433**, database `slateclub` | ✅ |
+| Graph database | **Neo4j** | ✅ Louvain community detection (Cinematic Tribes) |
+| Session & cache | **Redis** | ⏳ planned |
+| Vector store | **Weaviate** (or Pinecone) | ⏳ planned |
+| Full-text search | **Typesense** | ⏳ planned |
+| Job queues / real-time | **BullMQ / Socket.io** | ⏳ planned |
 
 ### ML Stack
 
-| Component | Technology |
-|---|---|
-| Neural model training | **PyTorch** |
-| Collaborative filtering | **Implicit** (ALS for implicit feedback) |
-| Sentence embeddings | **Hugging Face sentence-transformers** (`all-mpnet-base-v2`) |
-| Visual embeddings | **CLIP** (OpenAI) — poster/thumbnail encoding |
-| LLM taste descriptions | **Claude claude-haiku-4-5-20251001** — fast, cheap, high quality for short generation |
-| Ranking model | **XGBoost** |
-| Community detection | **python-louvain** + **NetworkX** |
-| Experiment tracking | **MLflow** |
-| Feature store | **Custom PostgreSQL + Redis** (simple at prototype scale; migrate to Feast at scale) |
+| Component | Technology | Status |
+|---|---|---|
+| Numerics | **NumPy · SciPy · scikit-learn** | ✅ installed |
+| Collaborative filtering | **ALS** (`app/ml/models/als.py`) | ✅ trains once ~10+ interactions exist |
+| Ranking model | **XGBoost** | ✅ (weighted-sum fallback until ~50 interactions) |
+| Community detection | **python-louvain** + **NetworkX** | ✅ |
+| LLM (descriptions, movie identity) | **OpenAI** `gpt-5.5` | ✅ wired |
+| Embeddings | **OpenAI** `text-embedding-3-large` | ✅ wired |
+| LLM (alternative provider) | **Anthropic** SDK | ⏳ installed, not called |
+| Neural model training | **PyTorch** (two-tower) | ⏳ Phase 5 (current two-tower is a random-projection stub) |
+| Sentence / visual embeddings | **sentence-transformers** · **CLIP** | ⏳ Phase 5 (not installed) |
+| Experiment tracking | **MLflow** | ⏳ planned |
+| Feature store | **Custom PostgreSQL** (migrate to Feast at scale) | ⏳ Redis layer planned |
 
 ### External Data Sources
 
-| Source | Data Provided | Integration |
+| Source | Data Provided | Status |
 |---|---|---|
-| **TMDB API** | Movie metadata: title, cast, crew, synopsis, poster, release date, genres, language, runtime | REST API; nightly delta sync |
-| **Watchmode API** | Streaming availability by region and platform | REST API; cached daily per region |
-| **YouTube Data API** | Official trailers and film clips | REST API; linked via TMDB video IDs |
-| **OMDb API** | IMDb rating, Rotten Tomatoes score, Metacritic score | REST API; enriches film pages |
-| **Open Subtitles API** | Subtitle text for future content analysis | Optional; future NLP signal source |
+| **TMDB API** | Movie metadata: title, cast, crew, synopsis, poster, release date, genres, language, runtime; trailers via video metadata | ✅ wired (`app/integrations/tmdb.py`) |
+| **Watchmode API** | Streaming availability by region and platform | ⏳ planned |
+| **OMDb API** | IMDb rating, Rotten Tomatoes score, Metacritic score | ⏳ planned |
+| **YouTube Data API** | Extended trailer/clip search beyond TMDB | ⏳ optional |
+| **Open Subtitles API** | Subtitle text for future content analysis | ⏳ optional |
 
 ### Authentication
 
-- **JWT** — access token (15 min TTL) + refresh token (7 days), stored in HttpOnly cookies (not localStorage)
-- **OAuth 2.0** — Google Sign-In, Apple Sign-In as primary entry points
-- **Letterboxd CSV import** — import watch history at signup for instant taste vector bootstrap (no OAuth; user exports and uploads)
-- **Session invalidation** — refresh tokens stored in Redis; revocable instantly on logout or device removal
+- **JWT** — access + refresh tokens via **python-jose**; **bcrypt** (passlib) password hashing. Routes: `signup`, `login`, `refresh`, `logout`, `me` (`app/routes/auth.py`).
+- **Letterboxd CSV import** — `app/routes/imports.py` ingests watch history for taste-vector bootstrap (no OAuth; user exports and uploads).
+- **OAuth 2.0** (Google / Apple Sign-In) — ⏳ planned; not yet implemented.
+- **Session invalidation / Redis-backed refresh tokens** — ⏳ planned.
 
 ---
 
@@ -1236,45 +1173,46 @@ The recommendation engine is a **compounding asset**, not a feature.
 
 ### Prototype-to-Production Path
 
+**Current position:** ~**Phase 4** — taste graph wired (Neo4j + Louvain), full route surface (32 routers), ~51 tables across 18 migrations, 8-step onboarding live. **Phase 5 is scaffolded**: the LLM layer runs on OpenAI (taste statements, movie identity, drift detection, contextual-bandit segmentation), while the full PyTorch two-tower and dedicated vector/search stores remain pending.
+
 ```
-Prototype (now)
+Prototype (done)
 ├── Static HTML UIs: Home, Discover, TasteEngine
 └── No backend
 
-Phase 1 — Real Data
+Phase 1 — Real Data ✅
 ├── Next.js frontend consuming TMDB
 ├── PostgreSQL: users, watchlists, ratings
-├── Auth (JWT + Google OAuth)
-└── Spotify-style onboarding (languages → people → movies)
+├── Auth (JWT email/password; OAuth pending)
+└── 8-step onboarding (languages → posters → mood → platforms → people → origin → movies)
 
-Phase 2 — Social Core
-├── Reviews, comments, following
-├── Activity feed (event-sourced)
+Phase 2 — Social Core ✅
+├── Reviews, comments, following, activity feed
 ├── Basic content-based recommendations (cosine similarity)
 ├── Taste calibration loop (pairwise preferences)
 └── Micro-feedback signals v1 ("not in the mood", "more like this")
 
-Phase 3 — Recommendation Engine V1
+Phase 3 — Recommendation Engine V1 ✅ (two-tower stubbed)
 ├── ALS collaborative filtering
-├── Two-tower model (initial training)
-├── Taste vector computation pipeline
+├── Two-tower model — random-projection placeholder (full training = Phase 5)
+├── 25-dim taste vector computation pipeline
 ├── Session mood prompt ("What are you in the mood for?")
 └── Explore/exploit ratio (70/30 split)
 
-Phase 4 — Taste Graph
+Phase 4 — Taste Graph ✅
 ├── Neo4j graph DB + Louvain clustering
 ├── Tribe UI ("Your Cinematic Tribe")
 └── Graph-powered recommendation layer
 
-Phase 5 — LLM Layer & Advanced Personalization
-├── LLM taste descriptions + semantic retrieval
-├── Full 4-layer hybrid pipeline
-├── Contextual bandit for source blending
-├── Taste Identity Profile (user-facing)
-├── Taste drift detection and phase transitions
-└── Advanced onboarding refinement (pairwise calibration, mood/vibe layer)
+Phase 5 — LLM Layer & Advanced Personalization ◻ scaffolded
+├── LLM taste descriptions + semantic retrieval (OpenAI) ✅
+├── Taste Identity Profile (user-facing) ✅
+├── Taste drift detection and phase transitions ✅
+├── Contextual bandit for source blending ✅ (segment classifier)
+├── Full 4-layer hybrid pipeline — pending trained two-tower ◻
+└── Dedicated vector store (Weaviate) + Typesense search ◻
 ```
 
 ---
 
-*Architecture version: 1.2 · Last updated: April 2026*
+*Architecture version: 2.0 · Last updated: June 2026*

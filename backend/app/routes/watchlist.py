@@ -8,6 +8,7 @@ from ..core.database import get_db
 from ..models.actions import WatchlistItem
 from ..models.movie import Movie
 from ..models.user import User
+from ..services.taste_cache import invalidate_user_taste_vector
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
@@ -57,6 +58,7 @@ async def add_to_watchlist(
     item = WatchlistItem(user_id=user.id, movie_id=body.movie_id)
     db.add(item)
     await db.flush()
+    await invalidate_user_taste_vector(user.id)
     return item
 
 
@@ -102,4 +104,5 @@ async def remove_from_watchlist(
     )
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Not in watchlist")
+    await invalidate_user_taste_vector(user.id)
     return {"ok": True}

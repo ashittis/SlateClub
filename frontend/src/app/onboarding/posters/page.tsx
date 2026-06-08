@@ -105,7 +105,7 @@ export default function PostersPage() {
                     ? "2px solid var(--cta-primary)"
                     : "1px solid rgba(255,255,255,0.06)",
                   boxShadow: selected
-                    ? "0 0 0 4px rgba(92,165,114,0.18), 0 12px 28px -10px rgba(92,165,114,0.55)"
+                    ? "0 0 0 4px rgba(255, 138, 0, 0.18), 0 12px 28px -10px rgba(255, 138, 0, 0.55)"
                     : "none",
                   background: "var(--bg-elevated)",
                 }}
@@ -137,7 +137,7 @@ export default function PostersPage() {
                     className="absolute inset-0 flex items-end justify-end p-2"
                     style={{
                       background:
-                        "linear-gradient(180deg, transparent 50%, rgba(92,165,114,0.35))",
+                        "linear-gradient(180deg, transparent 50%, rgba(255, 138, 0, 0.35))",
                     }}
                   >
                     <span

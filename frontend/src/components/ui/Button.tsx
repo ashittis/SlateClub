@@ -12,7 +12,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<Variant, string> = {
   primary:
-    "text-[var(--bg-screening)] hover:opacity-90 active:scale-[0.98] " +
+    "text-white hover:opacity-90 active:scale-[0.98] " +
     "disabled:opacity-50",
   secondary:
     "bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-card)] " +
@@ -26,7 +26,7 @@ const variantStyles: Record<Variant, string> = {
 };
 
 const variantInline: Record<Variant, React.CSSProperties> = {
-  primary: { background: "var(--cta-primary)" },
+  primary: { background: "var(--cta-gradient)", boxShadow: "var(--cta-glow)" },
   secondary: {},
   ghost: {},
   danger: { background: "var(--signal-error)" },

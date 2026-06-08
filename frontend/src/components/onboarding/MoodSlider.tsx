@@ -69,7 +69,7 @@ export default function MoodSlider({
           className="absolute inset-y-0 rounded-full pointer-events-none"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(92,165,114,0.18), transparent)",
+              "linear-gradient(90deg, transparent, rgba(255, 138, 0, 0.18), transparent)",
             left: `${Math.min(pct, 50)}%`,
             right: `${Math.min(100 - pct, 50)}%`,
           }}
@@ -95,8 +95,8 @@ export default function MoodSlider({
             background: "var(--cta-primary)",
             border: "3px solid var(--bg-screening)",
             boxShadow: active
-              ? "0 0 0 8px rgba(92,165,114,0.18), 0 8px 24px -6px rgba(92,165,114,0.6)"
-              : "0 4px 12px -3px rgba(92,165,114,0.4)",
+              ? "0 0 0 8px rgba(255, 138, 0, 0.18), 0 8px 24px -6px rgba(255, 138, 0, 0.6)"
+              : "0 4px 12px -3px rgba(255, 138, 0, 0.4)",
             left: `calc(${pct}% - 14px)`,
             top: "calc(50% - 14px)",
           }}

@@ -12,6 +12,7 @@ from ..models.actions import Rating, WatchHistory
 from ..models.movie import Movie
 from ..models.social import Follow, Impression
 from ..models.user import User
+from ..services.taste_cache import invalidate_user_taste_vector
 
 router = APIRouter(prefix="/api/watch-history", tags=["watch-history"])
 
@@ -126,6 +127,8 @@ async def mark_watched(
             )
     except Exception as exc:
         print(f"[watch-history] bandit reward failed: {exc}")
+
+    await invalidate_user_taste_vector(user.id)
 
     return entry
 

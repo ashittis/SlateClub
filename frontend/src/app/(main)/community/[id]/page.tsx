@@ -96,7 +96,7 @@ export default function PostThreadPage() {
           {p.postType === "question" && (
             <span
               className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(92,165,114,0.15)", color: "var(--cta-primary)" }}
+              style={{ background: "rgba(255, 138, 0, 0.15)", color: "var(--cta-primary)" }}
             >
               Question
             </span>
@@ -147,7 +147,7 @@ export default function PostThreadPage() {
             onClick={() => addReply.mutate()}
             disabled={!replyBody.trim() || addReply.isPending}
             className="px-4 py-1.5 rounded-full text-xs font-semibold disabled:opacity-40"
-            style={{ background: "var(--cta-primary)", color: "#fff" }}
+            style={{ background: "var(--cta-gradient)", color: "#fff" }}
           >
             {addReply.isPending ? "Posting…" : "Reply"}
           </button>

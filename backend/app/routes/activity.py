@@ -1,11 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.auth import get_current_user
 from ..core.database import get_db
+from ..models.actions import Rating, Review, WatchHistory, WatchlistItem
 from ..models.movie import Movie
 from ..models.social import ActivityEvent, Follow
 from ..models.user import User
@@ -13,7 +14,79 @@ from ..models.user import User
 router = APIRouter(prefix="/api/activity", tags=["activity"])
 
 
+# ── Helpers ──────────────────────────────────────────────────
+
+
+def _event(
+    etype: str, ts: datetime, u: User, m: Movie, metadata: dict | None = None
+) -> dict:
+    return {
+        "id": f"{etype}:{u.id}:{m.id}:{int(ts.timestamp())}",
+        "userId": u.id,
+        "type": etype,
+        "movieId": m.id,
+        "targetId": None,
+        "metadata": metadata,
+        "createdAt": ts.isoformat(),
+        "user": {
+            "id": u.id,
+            "name": u.name,
+            "username": u.username,
+            "avatar_url": u.avatar_url,
+        },
+        "movie": {
+            "id": m.id,
+            "title": m.title,
+            "tmdbId": m.tmdb_id,
+            "posterPath": m.poster_path,
+        },
+        "_ts": ts,
+    }
+
+
+async def _collect(
+    db: AsyncSession,
+    user_ids: list[str] | None,
+    exclude_id: str | None,
+    cap: int,
+) -> list[dict]:
+    """Build a merged activity stream from the real source tables.
+
+    user_ids=None → everyone; otherwise only those users. Each source is
+    capped, then everything is merged and sorted by recency by the caller.
+    """
+    events: list[dict] = []
+
+    sources = [
+        (Rating, Rating.user_id, Rating.movie_id, Rating.updated_at, "rated"),
+        (WatchHistory, WatchHistory.user_id, WatchHistory.movie_id, WatchHistory.watched_at, "watched"),
+        (WatchlistItem, WatchlistItem.user_id, WatchlistItem.movie_id, WatchlistItem.created_at, "watchlisted"),
+        (Review, Review.user_id, Review.movie_id, Review.created_at, "reviewed"),
+    ]
+
+    for Model, uid_col, mid_col, ts_col, etype in sources:
+        q = (
+            select(Model, Movie, User)
+            .join(Movie, mid_col == Movie.id)
+            .join(User, User.id == uid_col)
+            .order_by(ts_col.desc())
+            .limit(cap)
+        )
+        if user_ids is not None:
+            q = q.where(uid_col.in_(user_ids))
+        if exclude_id is not None:
+            q = q.where(uid_col != exclude_id)
+
+        for row, m, u in (await db.execute(q)).all():
+            ts = getattr(row, ts_col.key)
+            meta = {"rating": row.value} if etype == "rated" else None
+            events.append(_event(etype, ts, u, m, meta))
+
+    return events
+
+
 # ── Routes ───────────────────────────────────────────────────
+
 
 @router.get("/feed")
 async def activity_feed(
@@ -24,81 +97,39 @@ async def activity_feed(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Feed scope:
-      network — events from people you follow (default).
-      artists — events from users flagged as artists (P3 — column TBD;
-                today behaves like network until the flag is added).
-      world   — top-engagement events globally over the last 24h.
-      all     — network ∪ world (interleaved by recency).
+    Feed derived live from real activity (ratings, watches, shelves, reviews).
+      network / artists — people you follow.
+      world             — everyone except you.
+      all               — everyone, including you.
     """
-    query = (
-        select(ActivityEvent, User)
-        .join(User, ActivityEvent.user_id == User.id)
-        .order_by(ActivityEvent.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    user_ids: list[str] | None
+    exclude_id: str | None = None
 
-    if scope in ("network", "all", "artists"):
-        following_result = await db.execute(
-            select(Follow.following_id).where(Follow.follower_id == user.id)
-        )
-        following_ids = [row[0] for row in following_result.all()]
-        if scope == "network":
-            if not following_ids:
-                return {"events": [], "total": 0, "scope": scope}
-            query = query.where(ActivityEvent.user_id.in_(following_ids))
-        elif scope == "artists":
-            # Stub: until users.is_artist exists, fall back to network.
-            if not following_ids:
-                return {"events": [], "total": 0, "scope": scope}
-            query = query.where(ActivityEvent.user_id.in_(following_ids))
+    if scope in ("network", "artists"):
+        following = [
+            r[0] for r in (
+                await db.execute(
+                    select(Follow.following_id).where(Follow.follower_id == user.id)
+                )
+            ).all()
+        ]
+        if not following:
+            return {"events": [], "total": 0, "scope": scope}
+        user_ids = following
+    elif scope == "world":
+        user_ids = None
+        exclude_id = user.id
+    else:  # all
+        user_ids = None
 
-    if scope == "world":
-        # Last 24h, exclude self.
-        since = datetime.now(timezone.utc) - timedelta(hours=24)
-        query = query.where(
-            ActivityEvent.created_at >= since,
-            ActivityEvent.user_id != user.id,
-        )
+    cap = offset + limit
+    events = await _collect(db, user_ids, exclude_id, cap)
+    events.sort(key=lambda e: e["_ts"], reverse=True)
+    page = events[offset : offset + limit]
+    for e in page:
+        e.pop("_ts", None)
 
-    result = await db.execute(query)
-    rows = result.all()
-
-    # Enrich with movie data where applicable
-    events = []
-    for event, evt_user in rows:
-        entry: dict = {
-            "id": event.id,
-            "type": event.type,
-            "movie_id": event.movie_id,
-            "target_id": event.target_id,
-            "metadata": event.event_metadata,
-            "created_at": event.created_at.isoformat(),
-            "user": {
-                "id": evt_user.id,
-                "name": evt_user.name,
-                "username": evt_user.username,
-                "avatar_url": evt_user.avatar_url,
-            },
-        }
-
-        if event.movie_id:
-            movie_result = await db.execute(
-                select(Movie).where(Movie.id == event.movie_id)
-            )
-            movie = movie_result.scalar_one_or_none()
-            if movie:
-                entry["movie"] = {
-                    "id": movie.id,
-                    "tmdb_id": movie.tmdb_id,
-                    "title": movie.title,
-                    "poster_path": movie.poster_path,
-                }
-
-        events.append(entry)
-
-    return {"events": events, "total": len(events), "scope": scope}
+    return {"events": page, "total": len(page), "scope": scope}
 
 
 @router.get("/user/{user_id}")

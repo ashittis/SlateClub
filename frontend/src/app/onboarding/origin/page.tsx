@@ -160,8 +160,8 @@ export default function OriginPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3 rounded-xl p-3 mb-4"
           style={{
-            background: "rgba(92,165,114,0.10)",
-            border: "1px solid rgba(92,165,114,0.35)",
+            background: "rgba(255, 138, 0, 0.10)",
+            border: "1px solid rgba(255, 138, 0, 0.35)",
           }}
         >
           {picked.posterPath && (

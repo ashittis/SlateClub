@@ -169,7 +169,7 @@ export default function CircleDetailPage({
           disabled={!draft.trim() || post.isPending}
           className="px-4 py-2 rounded-full text-xs font-semibold disabled:opacity-50"
           style={{
-            background: "var(--cta-primary)",
+            background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
           }}
         >

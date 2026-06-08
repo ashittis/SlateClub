@@ -143,7 +143,7 @@ export default function BubbleConstellation({ films, height = 560 }: Props) {
                 background: "var(--bg-elevated)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 boxShadow: isActive
-                  ? "0 0 0 4px rgba(92,165,114,0.45), 0 24px 48px -16px rgba(0,0,0,0.6)"
+                  ? "0 0 0 4px rgba(255, 138, 0, 0.45), 0 24px 48px -16px rgba(0,0,0,0.6)"
                   : "0 12px 28px -12px rgba(0,0,0,0.65)",
                 transform: isActive ? "scale(1.06)" : "scale(1)",
               }}

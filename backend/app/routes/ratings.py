@@ -13,6 +13,7 @@ from ..models.movie import Movie
 from ..models.social import Follow, Impression
 from ..models.user import User
 from ..services.taste_embedding import refresh_taste_embedding
+from ..services.taste_cache import invalidate_user_taste_vector
 
 router = APIRouter(prefix="/api/ratings", tags=["ratings"])
 
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/api/ratings", tags=["ratings"])
 
 class RatingCreate(BaseModel):
     movie_id: str = Field(..., alias="movieId")
-    value: float = Field(..., ge=0.5, le=5.0)
+    value: float = Field(..., ge=0.25, le=5.0, multiple_of=0.25)
 
     class Config:
         populate_by_name = True
@@ -87,7 +88,7 @@ async def rate_movie(
     # ── Pairwise taste similarity (cheap at <50 users) ─────────────────
     try:
         from ..ml.graph import taste_graph as tg
-        from ..ml.embeddings.taste_vector import compute_user_taste_vector, cosine_similarity
+        from ..ml.embeddings.taste_vector import compute_user_taste_vector, cosine_similarity, rating_signal
 
         all_user_ids = (await db.execute(select(User.id))).scalars().all()
         if 1 < len(all_user_ids) <= 100:
@@ -105,7 +106,7 @@ async def rate_movie(
                         "popularity": m.popularity, "runtime": m.runtime,
                         "release_date": m.release_date, "original_language": m.original_language,
                     },
-                    "signal_type": f"rating_{min(int(r.value), 5)}",
+                    "signal_type": rating_signal(r.value),
                     "created_at": r.created_at,
                 })
             current_vec = compute_user_taste_vector(user_interaction_map.get(user.id, []))
@@ -187,6 +188,9 @@ async def rate_movie(
         except Exception as exc:
             print(f"[ratings] taste embedding refresh failed: {exc}")
 
+    # Rating changed the user's strongest taste signal — drop the cached vector.
+    await invalidate_user_taste_vector(user.id)
+
     return rating
 
 
@@ -246,4 +250,5 @@ async def delete_rating(
     )
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Rating not found")
+    await invalidate_user_taste_vector(user.id)
     return {"ok": True}

@@ -42,6 +42,7 @@ export default function HomePage() {
     queryKey: ["activity-feed", scope],
     queryFn: () => apiFetch(`/api/activity/feed?scope=${scope}`),
     enabled: !!user,
+    staleTime: 0,
     refetchInterval: 30_000,
   });
 
@@ -49,6 +50,7 @@ export default function HomePage() {
     queryKey: ["twins-now"],
     queryFn: () => apiFetch("/api/feed/twins-now"),
     enabled: !!user,
+    staleTime: 0,
     refetchInterval: 60_000,
   });
 
@@ -134,6 +136,12 @@ export default function HomePage() {
             </div>
 
             <div className="mt-4">
+              <h2 className="display mb-3 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+                From your orbit
+                <span className="ml-2 text-sm font-normal" style={{ color: "var(--text-faint)" }}>
+                  ratings &amp; activity
+                </span>
+              </h2>
               {activityQuery.isLoading ? (
                 <p
                   className="text-sm py-12 text-center"
