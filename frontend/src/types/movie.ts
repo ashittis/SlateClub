@@ -1,6 +1,9 @@
+export type MediaType = "movie" | "tv";
+
 export interface Movie {
   id: string;
   tmdbId: number;
+  mediaType?: MediaType;
   title: string;
   overview: string | null;
   posterPath: string | null;

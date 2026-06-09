@@ -8,6 +8,10 @@ export interface SlateCreator {
   avatarUrl: string | null;
 }
 
+export interface SlateCollaborator extends SlateCreator {
+  role: string;
+}
+
 export interface SlateCard {
   id: string;
   title: string;
@@ -17,6 +21,8 @@ export interface SlateCard {
   isCollaborative: boolean;
   filmCount: number;
   saveCount: number;
+  likeCount: number;
+  likedByMe: boolean;
   collaboratorCount: number;
   createdAt: string;
   updatedAt: string;
@@ -26,6 +32,7 @@ export interface SlateCard {
 
 export interface SlateFilm {
   tmdbId: number;
+  mediaType: "movie" | "tv";
   note: string | null;
   position: number;
   addedAt: string;
@@ -38,6 +45,8 @@ export interface SlateFilm {
 export interface SlateDetail extends SlateCard {
   films: SlateFilm[];
   savedByMe: boolean;
+  canEdit: boolean;
+  collaborators: SlateCollaborator[];
 }
 
 export interface SlateRoomMessage {

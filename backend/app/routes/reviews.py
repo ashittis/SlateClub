@@ -19,12 +19,15 @@ class ReviewCreate(BaseModel):
     movie_id: str
     body: str
     spoiler: bool = False
+    # 0 = whole title; >0 = a specific season's review (series only).
+    season_number: int = 0
 
 
 class ReviewResponse(BaseModel):
     id: str
     user_id: str
     movie_id: str
+    season_number: int
     body: str
     spoiler: bool
     helpful_count: int
@@ -47,9 +50,13 @@ async def create_or_update_review(
     if not movie.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Movie not found in database")
 
-    # Upsert (one review per user per movie)
+    # Upsert (one review per user per movie per season; season 0 = whole title)
     result = await db.execute(
-        select(Review).where(Review.user_id == user.id, Review.movie_id == body.movie_id)
+        select(Review).where(
+            Review.user_id == user.id,
+            Review.movie_id == body.movie_id,
+            Review.season_number == body.season_number,
+        )
     )
     review = result.scalar_one_or_none()
 
@@ -60,6 +67,7 @@ async def create_or_update_review(
         review = Review(
             user_id=user.id,
             movie_id=body.movie_id,
+            season_number=body.season_number,
             body=body.body,
             spoiler=body.spoiler,
         )
@@ -70,6 +78,7 @@ async def create_or_update_review(
         id=review.id,
         user_id=review.user_id,
         movie_id=review.movie_id,
+        season_number=review.season_number,
         body=review.body,
         spoiler=review.spoiler,
         helpful_count=review.helpful_count,
@@ -81,6 +90,7 @@ async def create_or_update_review(
 async def get_movie_reviews(
     movie_id: str,
     sort: str = "helpful",
+    season: int | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -88,6 +98,8 @@ async def get_movie_reviews(
         .join(User, Review.user_id == User.id)
         .where(Review.movie_id == movie_id)
     )
+    if season is not None:
+        query = query.where(Review.season_number == season)
 
     if sort == "helpful":
         query = query.order_by(Review.helpful_count.desc())
@@ -102,6 +114,7 @@ async def get_movie_reviews(
             id=r.id,
             user_id=r.user_id,
             movie_id=r.movie_id,
+            season_number=r.season_number,
             body=r.body,
             spoiler=r.spoiler,
             helpful_count=r.helpful_count,

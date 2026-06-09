@@ -1,22 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import SlateCard from "@/components/slates/SlateCard";
+import CreateSlateModal from "@/components/slates/CreateSlateModal";
 import type { SlateCard as SlateCardType } from "@/types/slates";
 
-type Tab = "mine" | "saved" | "featured";
+type Tab = "mine" | "saved" | "collaborative" | "featured";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "mine", label: "My Slates" },
   { key: "saved", label: "Saved" },
+  { key: "collaborative", label: "Collaborative" },
   { key: "featured", label: "Trending" },
 ];
 
 export default function SlatesPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("mine");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const list = useQuery<{ items: SlateCardType[] }>({
     queryKey: ["slates", tab],
@@ -32,17 +36,17 @@ export default function SlatesPage() {
         >
           Slates
         </h1>
-        <Link
-          href="/slates/new"
-          className="px-4 py-2 rounded-full text-sm font-semibold"
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="px-4 py-2 rounded-full text-sm font-semibold cursor-pointer"
           style={{
             background: "var(--cta-gradient)",
             color: "var(--bg-screening)",
             boxShadow: "0 12px 24px -10px rgba(255, 138, 0, 0.5)",
           }}
         >
-          + New Slate
-        </Link>
+          + Create Slate
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -91,16 +95,16 @@ export default function SlatesPage() {
                 : "Nothing trending yet — it'll fill in as people save."}
           </p>
           {tab === "mine" && (
-            <Link
-              href="/slates/new"
-              className="inline-block mt-4 px-5 py-2 rounded-full text-sm font-semibold"
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="inline-block mt-4 px-5 py-2 rounded-full text-sm font-semibold cursor-pointer"
               style={{
                 background: "var(--cta-gradient)",
                 color: "var(--bg-screening)",
               }}
             >
               Create a Slate
-            </Link>
+            </button>
           )}
         </div>
       ) : (
@@ -110,6 +114,12 @@ export default function SlatesPage() {
           ))}
         </div>
       )}
+
+      <CreateSlateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(slate) => router.push(`/slates/${slate.id}`)}
+      />
     </div>
   );
 }

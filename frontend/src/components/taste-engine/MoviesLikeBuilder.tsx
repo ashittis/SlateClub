@@ -10,6 +10,7 @@ export interface PickedFilm {
   title: string;
   posterPath: string | null;
   releaseDate: string | null;
+  mediaType?: "movie" | "tv";
 }
 
 interface TmdbMovie {
@@ -20,6 +21,8 @@ interface TmdbMovie {
   vote_average: number | null;
 }
 
+type Hit = TmdbMovie & { media_type: "movie" | "tv" };
+
 interface Props {
   onSubmit: (film: PickedFilm) => void;
   pending: boolean;
@@ -27,6 +30,10 @@ interface Props {
   value?: PickedFilm | null;
   /** Called when the user clears the picked film. */
   onClear?: () => void;
+  /** True once results exist for the current seed — flips the CTA to "Show more". */
+  hasResults?: boolean;
+  /** Called when "Show more" is pressed (generate/navigate the next page). */
+  onMore?: () => void;
 }
 
 /*
@@ -40,6 +47,8 @@ export default function MoviesLikeBuilder({
   pending,
   value,
   onClear,
+  hasResults,
+  onMore,
 }: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -73,16 +82,37 @@ export default function MoviesLikeBuilder({
     staleTime: 60_000,
   });
 
-  const films = filmsQuery.data?.results?.slice(0, 6) ?? [];
-  const showDropdown = open && !picked && debounced.length >= 2;
-  const empty = showDropdown && !filmsQuery.isFetching && films.length === 0;
+  const seriesQuery = useQuery<{ results: TmdbMovie[] }>({
+    queryKey: ["series-like-search", debounced],
+    queryFn: () =>
+      apiFetch<{ results: TmdbMovie[] }>(
+        `/api/series/search?q=${encodeURIComponent(debounced)}`,
+      ),
+    enabled: debounced.length >= 2 && !picked,
+    staleTime: 60_000,
+  });
 
-  function pick(m: TmdbMovie) {
+  // Interleave films + series, most-popular-ish first, so either can anchor.
+  const hits: Hit[] = [
+    ...(filmsQuery.data?.results ?? []).map((m) => ({ ...m, media_type: "movie" as const })),
+    ...(seriesQuery.data?.results ?? []).map((m) => ({ ...m, media_type: "tv" as const })),
+  ]
+    .sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))
+    .slice(0, 8);
+  const isFetching = filmsQuery.isFetching || seriesQuery.isFetching;
+  const showDropdown = open && !picked && debounced.length >= 2;
+  const empty = showDropdown && !isFetching && hits.length === 0;
+  // The CTA becomes "Show more" only when results exist for the title currently
+  // picked (the active seed). Choosing a different title resets it to "Show me".
+  const isMore = !!hasResults && !!picked && picked.id === value?.id;
+
+  function pick(m: Hit) {
     setPicked({
       id: m.id,
       title: m.title,
       posterPath: m.poster_path,
       releaseDate: m.release_date,
+      mediaType: m.media_type,
     });
     setQuery(m.title);
     setOpen(false);
@@ -108,7 +138,7 @@ export default function MoviesLikeBuilder({
         className="display text-xl lg:text-2xl leading-relaxed flex flex-wrap items-center gap-x-3 gap-y-3"
         style={{ color: "var(--text-primary)" }}
       >
-        <span>Show me movies like</span>
+        <span>Show me something like</span>
 
         {picked ? (
           <button
@@ -155,7 +185,7 @@ export default function MoviesLikeBuilder({
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setOpen(true)}
               onBlur={() => setTimeout(() => setOpen(false), 180)}
-              placeholder="a film…"
+              placeholder="a film or series…"
               className="w-full rounded-full pl-10 pr-4 py-3 text-base focus:outline-none"
               style={{
                 background: "var(--bg-elevated)",
@@ -163,7 +193,7 @@ export default function MoviesLikeBuilder({
                 color: "var(--text-primary)",
               }}
             />
-            {filmsQuery.isFetching && (
+            {isFetching && (
               <span
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-xs"
                 style={{ color: "var(--text-faint)" }}
@@ -191,12 +221,12 @@ export default function MoviesLikeBuilder({
                       className="px-4 py-4 text-sm"
                       style={{ color: "var(--text-faint)" }}
                     >
-                      No films found.
+                      Nothing found.
                     </p>
                   )}
-                  {films.map((m) => (
+                  {hits.map((m) => (
                     <button
-                      key={m.id}
+                      key={`${m.media_type}-${m.id}`}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => pick(m)}
@@ -226,7 +256,8 @@ export default function MoviesLikeBuilder({
                           className="text-xs"
                           style={{ color: "var(--text-faint)" }}
                         >
-                          {m.release_date?.slice(0, 4) ?? ""}
+                          {m.media_type === "tv" ? "Series" : "Film"}
+                          {m.release_date ? ` · ${m.release_date.slice(0, 4)}` : ""}
                           {m.vote_average ? ` · ${m.vote_average.toFixed(1)}★` : ""}
                         </p>
                       </div>
@@ -242,12 +273,18 @@ export default function MoviesLikeBuilder({
       <div className="mt-6 flex items-center justify-between gap-3">
         <span className="text-sm" style={{ color: "var(--text-muted)" }}>
           {picked
-            ? "Matched by essence — tone, tension & moral world, across languages."
-            : "Pick a film to anchor the recommendations."}
+            ? "Matched by essence — tone, tension & moral world, across films & series."
+            : "Pick a film or series to anchor the recommendations."}
         </span>
         <button
           type="button"
-          onClick={() => picked && onSubmit(picked)}
+          onClick={() => {
+            if (!picked) return;
+            // "Show more" only applies to the film already searched; picking a
+            // different title reverts to a fresh "Show me" search.
+            if (isMore) onMore?.();
+            else onSubmit(picked);
+          }}
           disabled={!picked || pending}
           className="px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-40"
           style={{
@@ -260,7 +297,13 @@ export default function MoviesLikeBuilder({
                 : "none",
           }}
         >
-          {pending ? "Tuning…" : "Show me →"}
+          {pending
+            ? isMore
+              ? "Finding more…"
+              : "Tuning…"
+            : isMore
+              ? "Show more"
+              : "Show me →"}
         </button>
       </div>
     </div>

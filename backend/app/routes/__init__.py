@@ -4,6 +4,8 @@ from .comments import router as comments_router
 from .feedback import router as feedback_router
 from .follows import router as follows_router
 from .movies import router as movies_router
+from .series import router as series_router
+from .search import router as search_router
 from .onboarding import router as onboarding_router
 from .ratings import router as ratings_router
 from .reviews import router as reviews_router
@@ -38,6 +40,8 @@ from .dms import router as dms_router
 all_routers = [
     auth_router,
     movies_router,
+    series_router,
+    search_router,
     ratings_router,
     watchlist_router,
     watch_history_router,

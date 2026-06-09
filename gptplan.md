@@ -1,255 +1,754 @@
-The biggest mistake when prompting Claude Code is saying:
+Ah, that's actually much better branding.
 
-> "Make it look like this image."
+If:
 
-That produces an approximation.
+```text
+SlateClub = The platform
+```
 
-Instead, tell Claude to **reverse engineer the visual system** and recreate the exact design language.
+and
 
-Here's the prompt I would give Claude Code:
+```text
+Slate = A curated collection / playlist
+```
 
-You are not designing a new screen.
+then don't call the feature "List" anywhere.
 
-You are recreating the visual language of the attached reference exactly, but for the Slate movie app onboarding/login screen.
+A Slate should become a first-class object in the app, just like:
 
-ANALYZE FIRST, THEN IMPLEMENT.
+```text
+Spotify -> Playlist
+Letterboxd -> List
+Pinterest -> Board
+```
 
-Break the reference down into:
+For SlateClub:
 
-1. Typography
-2. Layout
-3. Gradient system
-4. Lighting system
-5. Texture system
-6. Depth system
-7. CTA styling
-8. Motion system
-
-Do not approximate.
-
-Do not redesign.
-
-Do not use generic SaaS onboarding patterns.
-
-The final result should feel visually identical to the reference.
+```text
+SlateClub -> Slate
+```
 
 ---
 
-LAYOUT
+## Mental Model
 
-Use a full-screen mobile onboarding page.
+User says:
 
-Background:
+```text
+I created a Slate.
+```
 
-* Pure black (#000000)
-* No cards
-* No containers
-* No glassmorphism
+not
 
-Everything should feel printed directly onto darkness.
+```text
+I created a list.
+```
 
-Content alignment:
+Examples:
 
-* Left aligned
-* Large headline occupying roughly 40% of screen height
-* CTA section anchored near bottom
+```text
+Top 10 Tamil Films
+```
 
-Spacing should feel luxurious and cinematic.
+is a Slate.
+
+```text
+Movies That Made Me Cry
+```
+
+is a Slate.
+
+```text
+Ashik + Rahul Weekend Watchlist
+```
+
+is a Collaborative Slate.
 
 ---
 
-TYPOGRAPHY
+## Navigation
+
+Instead of:
+
+```text
+Discover
+```
+
+having only movies.
+
+Add:
+
+```text
+Discover
+
+Movies
+Series
+Slates
+```
+
+---
+
+## Profile
+
+Current:
+
+```text
+Ratings
+Watched
+Shelf
+```
+
+Add:
+
+```text
+Ratings
+Watched
+Shelf
+Slates
+```
+
+---
+
+## User Profile
+
+```text
+Ashik
+
+152 Ratings
+97 Watched
+31 Shelf
+12 Slates
+```
+
+---
+
+## Slate Creation
+
+Button:
+
+```text
++ Create Slate
+```
+
+Modal:
+
+```text
+Title
+
+Description
+
+Visibility
+
+○ Public
+○ Private
+
+Collaborators
+
+Create Slate
+```
+
+---
+
+## Movie Page
+
+Instead of:
+
+```text
++ Shelf
+```
+
+and that's it.
+
+Add:
+
+```text
++ Add to Slate
+```
+
+---
+
+When clicked:
+
+```text
+Add to Slate
+
+Weekend Watchlist
+
+Korean Cinema
+
+Films That Changed Me
+
+Create New Slate
+```
+
+---
+
+## Slate Detail Page
+
+This is where I'd take inspiration from Spotify, not Letterboxd.
+
+Hero:
+
+```text
+SLATE
+
+Films That Changed Me
+```
+
+Under:
+
+```text
+Created by Ashik
+
+37 titles
+
+Movies + Series
+```
+
+Then:
+
+```text
+Like
+Save
+Share
+Collaborate
+```
+
+---
+
+## Public / Private
+
+I would actually rename them.
+
+Instead of:
+
+```text
+Public
+Private
+```
 
 Use:
-font-family: Inter
 
-Weights:
+```text
+Open Slate
+```
 
-* Logo: Medium (500)
-* Headline: Bold (700)
-* Supporting text: Regular (400)
+Visible to everyone.
 
-Headline characteristics:
+and
 
-* Extremely large
-* Tight line-height (~0.92)
-* Negative letter spacing
-* White (#FFFFFF)
+```text
+Circle Only
+```
+
+Visible to:
+
+* Orbit
+* Collaborators
+
+This feels more on-brand.
+
+---
+
+## Feed
+
+Don't show them like Letterboxd.
+
+The Letterboxd feed looks dated.
+
+Instead:
+
+```text
+Trending Slates
+```
+
+Horizontal cards.
 
 Example:
 
-Discover.
-Track.
-Remember.
+```text
+┌─────────────────┐
+│ Memories of     │
+│ Murder          │
+│ Oldboy          │
+│ Burning         │
+│ ...             │
+└─────────────────┘
 
-or
+Korean Essentials
 
-Movies That
-Stay With
-You.
+By Ashik
+```
 
-Text should dominate the screen.
-
----
-
-CENTER SHADER EFFECT
-
-This is the most important part.
-
-The orange glow is NOT a gradient.
-
-It is a layered lighting system.
-
-Create:
-
-Layer 1:
-Background radial glow
-
-radial-gradient(
-circle at center,
-rgba(255,140,0,0.35),
-transparent 60%
-)
-
-Layer 2:
-Vertical ribbed light texture
-
-Use repeating-linear-gradient
-
-repeating-linear-gradient(
-90deg,
-rgba(255,180,80,0.12) 0px,
-rgba(255,180,80,0.12) 8px,
-transparent 8px,
-transparent 16px
-)
-
-Layer 3:
-Orange sunset overlay
-
-linear-gradient(
-180deg,
-#ff8a00 0%,
-#ff5e00 40%,
-#5c1200 100%
-)
-
-Layer 4:
-Strong vignette
-
-darken edges heavily.
-
-Center should be bright.
-
-Edges almost black.
-
-Result:
-The light appears to emerge from darkness and fade away naturally.
+Use poster mosaics.
 
 ---
 
-TEXTURE
+## Collaborative Slates
 
-Add subtle film-grain.
+This is where SlateClub can beat Letterboxd.
 
-Opacity:
-2-4%
+Example:
 
-Blend mode:
-overlay
+```text
+Ashik × Rahul
 
-No obvious noise.
+Weekend Watchs
+```
 
-Should only be visible on close inspection.
+Contributors:
 
----
+```text
+Ashik
+Rahul
+```
 
-BUTTON
+Both can:
 
-Primary CTA:
-
-Height:
-56px
-
-Radius:
-9999px
-
-Gradient:
-
-#ff4d00
-→
-#ff9800
-
-No shadow.
-
-Only a subtle glow:
-
-0 0 40px rgba(255,120,0,0.25)
-
-Text:
-white
-semibold
+* Add
+* Remove
+* Reorder
 
 ---
 
-ANIMATION
+## Orbit Integration
 
-Use GSAP.
+This becomes powerful.
 
-Hero glow:
+Example:
 
-* Slowly shifts horizontally
-* Duration: 15s
-* Infinite
-* Ease: sine.inOut
-
-Shader texture:
-
-* Moves 10px left-right
-* Extremely subtle
-
-Headline:
-
-* Fade up
-* 0.8s
-* y: 20px
-
-CTA:
-
-* Fade up
-* Delay: 0.2s
-
-No bouncing.
-
-No spring animations.
-
-Everything should feel premium like Apple keynotes.
+```text
+5 people in your Orbit saved this Slate.
+```
 
 ---
 
-SLATE BRANDING
+## Taste Engine Integration
 
-Replace all reference copy with:
+A Slate should become a signal.
 
-Logo:
-SLATE
+Example:
 
-Headline:
-Track.
-Discover.
-Remember.
+User creates:
 
-Subtext:
-The home for people who love movies.
+```text
+Best Mind-Bending Movies
+```
 
-Primary CTA:
-Get Started
+containing:
 
-Secondary CTA:
-Sign In
+* Primer
+* Coherence
+* Predestination
+* Donnie Darko
 
-Keep the visual hierarchy identical to the reference.
+SlateClub learns:
 
-The goal is that if the reference and implementation were shown side-by-side, they feel like the same design system.
+```text
+Mind-Bending
+```
 
-One more thing: the "shader" in the middle is not actually an image. For production, I would build it with **3 layered gradients + a repeating-linear-gradient texture + CSS mask + slight GSAP movement**. That gives you the exact premium look while staying fully responsive and lightweight, instead of embedding a static PNG. That's how I'd implement it for Slate.
+is part of their taste.
+
+---
+
+## Naming
+
+I would consistently use:
+
+```text
+Create Slate
+
+Add to Slate
+
+Save Slate
+
+Collaborative Slate
+
+Open Slate
+
+Circle-Only Slate
+```
+
+Never use:
+
+```text
+List
+Collection
+Playlist
+Board
+```
+
+because "Slate" itself is a strong product concept and helps make SlateClub feel like its own ecosystem rather than a Letterboxd clone.
+
+
+I'd tell Claude Code to **copy the interaction model, not the visual design**.
+
+If you clone Letterboxd's UI 1:1, Slate will feel like a Letterboxd skin.
+
+Instead:
+
+* Copy the feed mechanics.
+* Copy the list/slate discovery patterns.
+* Rebuild the visuals using Slate's premium black + orange identity.
+
+---
+
+# Prompt for Claude Code
+
+Build a new feature called "Slates".
+
+A Slate is the equivalent of a Spotify playlist for movies and series.
+
+DO NOT copy Letterboxd visually.
+
+Use Slate's existing design language:
+
+* black background
+* subtle borders
+* orange accent
+* premium cinematic feel
+* large artwork
+* generous spacing
+
+The interaction model can be inspired by Letterboxd Lists and Spotify Playlists.
+
+---
+
+CORE CONCEPT
+
+Users can create:
+
+1. Personal Slates
+2. Collaborative Slates
+
+A Slate can contain:
+
+* Movies
+* Series
+* Mixed content
+
+Examples:
+
+Movies That Broke Me
+
+Best Korean Thrillers
+
+Dad Movies
+
+Films To Watch On Rainy Nights
+
+Ashik + Rahul Weekend Watchlist
+
+---
+
+CREATE SLATE FLOW
+
+Create Slate button.
+
+Modal:
+
+Title
+
+Description
+
+Cover Image (optional)
+
+Visibility
+
+○ Public
+○ Private
+
+Collaborators
+
+[ Search Users ]
+
+Create Slate
+
+---
+
+VISIBILITY
+
+Public
+
+* Discoverable
+* Searchable
+* Visible to everyone
+
+Private
+
+* Visible only to:
+
+  * creator
+  * collaborators
+  * users in Orbit (friends)
+
+Visibility can be changed later from Slate Settings.
+
+---
+
+ADDING CONTENT
+
+Every Movie Page
+
+Every Series Page
+
+Add button:
+
+* Add To Slate
+
+When clicked:
+
+Show existing Slates
+
+My Slates
+
+* Korean Cinema
+* Weekend Watchlist
+* Films That Changed Me
+
+Create New Slate
+
+Select slate and save.
+
+---
+
+COLLABORATIVE SLATES
+
+Creator can invite users.
+
+Collaborators can:
+
+* add items
+* remove items
+* reorder items
+* edit description
+
+Display collaborators:
+
+Ashik
+Rahul
+Ananya
+
+with avatars.
+
+---
+
+DISCOVER PAGE
+
+Add a dedicated tab:
+
+Slates
+
+Layout inspired by Letterboxd list discovery.
+
+Feed cards.
+
+Each card contains:
+
+Cover collage
+
+Title
+
+Creator
+
+Item count
+
+Likes
+
+Collaborators count
+
+---
+
+SLATE COVER
+
+Generate automatically.
+
+Use first four posters.
+
+2x2 poster collage.
+
+If user uploads custom cover:
+
+Use custom cover.
+
+---
+
+SLATE DETAIL PAGE
+
+Hero section.
+
+Large cinematic cover.
+
+Gradient overlay.
+
+Title.
+
+Description.
+
+Creator.
+
+Collaborators.
+
+Stats:
+
+Movies
+Series
+Likes
+Saves
+
+Actions:
+
+Like
+
+Save Slate
+
+Share
+
+Collaborate
+
+---
+
+CONTENT GRID
+
+Display ranked order.
+
+1
+2
+3
+4
+
+Large posters.
+
+Responsive layout.
+
+Desktop:
+5-6 columns.
+
+Mobile:
+3 columns.
+
+---
+
+SORTING
+
+Drag and drop.
+
+Reorder items.
+
+Persist order.
+
+---
+
+COMMENTS
+
+Allow comments on public slates.
+
+Comment thread at bottom.
+
+---
+
+DISCOVER FEED
+
+Show:
+
+Trending Slates
+
+New Slates
+
+From Orbit
+
+Because You Liked
+
+Collaborative Slates
+
+---
+
+RECOMMENDATION ENGINE INTEGRATION
+
+A Slate becomes a recommendation signal.
+
+Example:
+
+User saves:
+
+Top Korean Thrillers
+
+Boost:
+
+Memories of Murder
+Oldboy
+Burning
+
+inside taste engine.
+
+---
+
+PROFILE INTEGRATION
+
+Add new profile metric.
+
+Ratings
+Watched
+Shelf
+Slates
+
+Profile section:
+
+Created Slates
+
+Saved Slates
+
+Collaborative Slates
+
+---
+
+ROUTES
+
+/slates
+
+/slates/[slug]
+
+/create-slate
+
+/slates/[slug]/settings
+
+---
+
+VISUAL STYLE
+
+Do NOT recreate Letterboxd.
+
+Use:
+
+* cinematic spacing
+* premium typography
+* large cover artwork
+* smooth hover animations
+* subtle orange highlights
+* Spotify-quality polish
+
+The result should feel like:
+Spotify Playlists + Letterboxd Lists + Slate branding.
+
+---
+
+One thing I'd add that Letterboxd doesn't have:
+
+### Slate Blend
+
+If two users are collaborators:
+
+```text
+Ashik × Rahul
+```
+
+Create a shared slate automatically:
+
+```text
+Shared Universe
+```
+
+containing movies and series both users are likely to enjoy.
+
+That's the kind of feature people will actually share, and it ties directly into your Orbit/Taste Match system.

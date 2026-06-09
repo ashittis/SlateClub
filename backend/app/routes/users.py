@@ -5,7 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.auth import get_current_user
 from ..core.database import get_db
-from ..models.actions import Rating, Review, WatchHistory, WatchlistItem
+from ..models.actions import (
+    CurrentlyWatching,
+    DnfEntry,
+    Rating,
+    Review,
+    WatchHistory,
+    WatchlistItem,
+)
 from ..models.movie import Movie
 from ..models.social import Follow
 from ..models.user import User, UserPreferences
@@ -153,6 +160,7 @@ def _movie_payload(m: Movie) -> dict:
     return {
         "id": m.id,
         "tmdbId": m.tmdb_id,
+        "mediaType": m.media_type,
         "title": m.title,
         "posterPath": m.poster_path,
         "backdropPath": m.backdrop_path,
@@ -175,7 +183,63 @@ async def my_watchlist(
             .order_by(WatchlistItem.created_at.desc())
         )
     ).all()
-    return [_movie_payload(m) for _, m in rows]
+    return [
+        {
+            **_movie_payload(m),
+            "reasonType": wl.reason_type,
+            "reasonReference": wl.reason_reference,
+            "note": wl.note,
+            "addedAt": wl.created_at.isoformat(),
+        }
+        for wl, m in rows
+    ]
+
+
+@router.get("/me/watching")
+async def my_watching(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (
+        await db.execute(
+            select(CurrentlyWatching, Movie)
+            .join(Movie, CurrentlyWatching.movie_id == Movie.id)
+            .where(CurrentlyWatching.user_id == user.id)
+            .order_by(CurrentlyWatching.updated_at.desc())
+        )
+    ).all()
+    return [
+        {
+            **_movie_payload(m),
+            "progressPct": cw.progress_pct,
+            "startedAt": cw.started_at.isoformat(),
+        }
+        for cw, m in rows
+    ]
+
+
+@router.get("/me/dnf")
+async def my_dnf(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (
+        await db.execute(
+            select(DnfEntry, Movie)
+            .join(Movie, DnfEntry.movie_id == Movie.id)
+            .where(DnfEntry.user_id == user.id)
+            .order_by(DnfEntry.created_at.desc())
+        )
+    ).all()
+    return [
+        {
+            **_movie_payload(m),
+            "reason": d.reason,
+            "stoppedAt": d.stopped_at,
+            "progressPct": d.progress_pct,
+        }
+        for d, m in rows
+    ]
 
 
 @router.get("/me/watched")
@@ -534,3 +598,46 @@ async def user_watchlist(username: str, db: AsyncSession = Depends(get_db)):
         )
     ).all()
     return [_movie_payload(m) for _, m in rows]
+
+
+@router.get("/{username}/watching")
+async def user_watching(username: str, db: AsyncSession = Depends(get_db)):
+    target = await _user_by_username(db, username)
+    rows = (
+        await db.execute(
+            select(CurrentlyWatching, Movie)
+            .join(Movie, CurrentlyWatching.movie_id == Movie.id)
+            .where(CurrentlyWatching.user_id == target.id)
+            .order_by(CurrentlyWatching.updated_at.desc())
+        )
+    ).all()
+    return [
+        {
+            **_movie_payload(m),
+            "progressPct": cw.progress_pct,
+            "startedAt": cw.started_at.isoformat(),
+        }
+        for cw, m in rows
+    ]
+
+
+@router.get("/{username}/dnf")
+async def user_dnf(username: str, db: AsyncSession = Depends(get_db)):
+    target = await _user_by_username(db, username)
+    rows = (
+        await db.execute(
+            select(DnfEntry, Movie)
+            .join(Movie, DnfEntry.movie_id == Movie.id)
+            .where(DnfEntry.user_id == target.id)
+            .order_by(DnfEntry.created_at.desc())
+        )
+    ).all()
+    return [
+        {
+            **_movie_payload(m),
+            "reason": d.reason,
+            "stoppedAt": d.stopped_at,
+            "progressPct": d.progress_pct,
+        }
+        for d, m in rows
+    ]

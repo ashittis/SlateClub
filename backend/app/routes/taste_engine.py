@@ -394,7 +394,11 @@ class SimilarRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     tmdb_id: Annotated[int, Field(alias="tmdbId")]
+    media_type: Annotated[str, Field(default="movie", alias="mediaType")]
     limit: Annotated[int, Field(default=30, ge=4, le=60)]
+    # tmdbIds already shown on previous pages — the next page strictly excludes
+    # them so "Show more" never repeats a film.
+    exclude_ids: Annotated[list[int], Field(default_factory=list, alias="excludeIds")]
 
 
 @router.post("/similar")
@@ -403,8 +407,15 @@ async def similar(
     db: AsyncSession = Depends(get_db),
 ):
     """Essence-reasoned 'movies like X' — one broad, language-diverse set the
-    client filters locally. Public, like /query."""
-    return await find_similar_films(db, body.tmdb_id, body.limit)
+    client filters locally. Pass excludeIds to fetch a fresh, disjoint page.
+    Public, like /query."""
+    return await find_similar_films(
+        db,
+        body.tmdb_id,
+        body.limit,
+        exclude_ids=body.exclude_ids,
+        media_type=body.media_type,
+    )
 
 
 # ── Presets ───────────────────────────────────────────────────

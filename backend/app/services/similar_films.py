@@ -149,7 +149,7 @@ def _seed_identity_block(seed: Movie) -> str:
     return "\n".join(parts)
 
 
-def _essence_prompt(seed: Movie) -> str:
+def _essence_prompt(seed: Movie, exclude_titles: list[str] | None = None) -> str:
     year = (seed.release_date or "")[:4]
     genres = ", ".join(_genre_names(seed))
     blurb, _ = _seed_people(seed)
@@ -167,6 +167,13 @@ def _essence_prompt(seed: Movie) -> str:
         f"\n\nThe seed's emotional fingerprint (weigh this HEAVILY — it matters "
         f"far more than the plot above):\n{identity_block}"
         if identity_block else ""
+    )
+
+    exclude_section = (
+        "\n\nThe viewer has ALREADY seen these films — do NOT include any of "
+        "them; choose entirely DIFFERENT films that still share the essence: "
+        + ", ".join(exclude_titles) + "."
+        if exclude_titles else ""
     )
 
     return (
@@ -193,6 +200,7 @@ def _essence_prompt(seed: Movie) -> str:
         "European and others. Aim for a good spread across languages so the list "
         "is browsable. Order them closest-feel first. Exclude the seed itself. "
         "For each, give its real title, release year, and a <=6-word reason."
+        + exclude_section
     )
 
 
@@ -218,17 +226,32 @@ async def _resolve_title(title: str, year: int | None) -> dict | None:
 
 
 async def _essence_films(
-    db: AsyncSession, seed: Movie, limit: int
+    db: AsyncSession, seed: Movie, limit: int, excluded: set[int] | None = None
 ) -> tuple[list[dict], str | None] | None:
     """LLM names a broad, language-diverse set of essence-similar films; we
     resolve them via TMDB and tag each with its original language so the client
     can filter by language without another LLM call. Returns
-    (results, essence_summary) or None when unavailable / too few resolvable."""
+    (results, essence_summary) or None when unavailable / too few resolvable.
+
+    Any tmdbIds in `excluded` are strictly omitted (a "Show more" page), and
+    their titles are fed to the prompt so the LLM picks different films."""
     if not llm.is_available():
         return None
 
+    excluded = excluded or set()
+
+    # Titles of already-seen films so the prompt can steer away from them.
+    exclude_titles: list[str] = []
+    if excluded:
+        rows = (
+            await db.execute(
+                select(Movie.title).where(Movie.tmdb_id.in_(excluded))
+            )
+        ).scalars().all()
+        exclude_titles = [t for t in rows if t]
+
     data = await llm.generate_json(
-        _essence_prompt(seed), response_schema=_ESSENCE_SCHEMA
+        _essence_prompt(seed, exclude_titles), response_schema=_ESSENCE_SCHEMA
     )
     films = (data or {}).get("films") or []
     if not films:
@@ -242,13 +265,15 @@ async def _essence_films(
 
     pairs = [
         (f, s) for f, s in zip(films, resolved)
-        if s and s.get("id") and s["id"] != seed.tmdb_id
+        if s and s.get("id") and s["id"] != seed.tmdb_id and s["id"] not in excluded
     ]
 
     from ..routes.movies import _upsert_movie
 
     out: list[dict] = []
-    seen: set[int] = {seed.tmdb_id}
+    # Seed the dedupe set with exclusions — this is the strict guarantee that
+    # no already-seen film can survive, regardless of LLM output.
+    seen: set[int] = {seed.tmdb_id} | excluded
     for film, stub in pairs:
         if stub["id"] in seen:
             continue
@@ -349,48 +374,73 @@ async def _creator_row(
 
 
 async def find_similar_films(
-    db: AsyncSession, seed_tmdb_id: int, limit: int = 30
+    db: AsyncSession,
+    seed_tmdb_id: int,
+    limit: int = 30,
+    exclude_ids: list[int] | None = None,
+    media_type: str = "movie",
 ) -> dict:
     """Essence-reasoned 'movies like X' with a director/cast row.
 
     Makes ONE LLM call returning a broad, language-diverse set (each film tagged
     with its original language) so the client can filter by language without
     re-calling. Falls back to the cosine ranking when the LLM is unavailable.
-    Cached per seed.
+
+    The first page (no exclude_ids) is cached per seed in memory + DB. A "Show
+    more" page (exclude_ids set) strictly excludes those films and is memoised
+    per exclusion-set in memory, without disturbing the seed's page-1 cache.
     """
     from ..routes.movies import _get_or_fetch_movie
 
-    seed = await _get_or_fetch_movie(seed_tmdb_id, db)
+    seed = await _get_or_fetch_movie(seed_tmdb_id, db, media_type)
+    excluded = set(exclude_ids or [])
+    # The persisted SimilarCache is keyed by tmdb_id alone, so it's only safe for
+    # films (a movie and a series can share a tmdb_id). Series use memory only.
+    use_db_cache = media_type == "movie"
 
-    cache_key = (seed_tmdb_id, _ESSENCE_VERSION)
-    cached = _ESSENCE_CACHE.get(cache_key)
-    if cached and (time.time() - cached["_ts"]) < _ESSENCE_TTL_SECONDS:
-        return {k: v for k, v in cached.items() if not k.startswith("_")}
+    if excluded:
+        # Later page: serve an identical request from memory; never read or
+        # overwrite the page-1 SimilarCache row.
+        more_key = (seed_tmdb_id, media_type, _ESSENCE_VERSION, frozenset(excluded))
+        cached_more = _ESSENCE_CACHE.get(more_key)
+        if cached_more and (time.time() - cached_more["_ts"]) < _ESSENCE_TTL_SECONDS:
+            return {k: v for k, v in cached_more.items() if not k.startswith("_")}
+
+    cache_key = (seed_tmdb_id, media_type, _ESSENCE_VERSION)
+    if not excluded:
+        cached = _ESSENCE_CACHE.get(cache_key)
+        if cached and (time.time() - cached["_ts"]) < _ESSENCE_TTL_SECONDS:
+            return {k: v for k, v in cached.items() if not k.startswith("_")}
 
     # L2: persisted cache — survives restarts and skips the LLM entirely.
     from ..models.similar_cache import SimilarCache
 
-    row = await db.get(SimilarCache, seed_tmdb_id)
-    if row is not None and row.version == _ESSENCE_VERSION and isinstance(row.payload, dict):
-        _ESSENCE_CACHE[cache_key] = {**row.payload, "_ts": time.time()}
-        return row.payload
+    if not excluded and use_db_cache:
+        row = await db.get(SimilarCache, seed_tmdb_id)
+        if row is not None and row.version == _ESSENCE_VERSION and isinstance(row.payload, dict):
+            _ESSENCE_CACHE[cache_key] = {**row.payload, "_ts": time.time()}
+            return row.payload
 
     essence_summary: str | None = None
     results: list[dict] | None = None
 
-    essence = await _essence_films(db, seed, limit)
+    essence = await _essence_films(db, seed, limit, excluded)
     if essence is not None:
         results, essence_summary = essence
 
     if results is None:
         # Fallback: genre + semantic cosine over the broadened local catalogue.
         await _hydrate_seed_neighbours(db, seed_tmdb_id)
-        results = _cosine_similar_films(db, seed, limit, await _all_movies(db))
+        results = _cosine_similar_films(
+            db, seed, limit, await _all_movies(db), excluded
+        )
 
-    creator_row = await _creator_row(db, seed, {r["tmdbId"] for r in results})
+    creator_row = await _creator_row(
+        db, seed, {r["tmdbId"] for r in results} | excluded
+    )
 
     payload = {
-        "seed": {"tmdbId": seed.tmdb_id, "title": seed.title},
+        "seed": {"tmdbId": seed.tmdb_id, "title": seed.title, "mediaType": media_type},
         "essence": essence_summary,
         "results": results,
         "creatorRow": creator_row,
@@ -399,19 +449,27 @@ async def find_similar_films(
 
     if len(_ESSENCE_CACHE) >= _ESSENCE_CACHE_MAX:
         _ESSENCE_CACHE.pop(next(iter(_ESSENCE_CACHE)))
+
+    if excluded:
+        # Memoise this exact page; leave the seed's page-1 cache untouched.
+        more_key = (seed_tmdb_id, media_type, _ESSENCE_VERSION, frozenset(excluded))
+        _ESSENCE_CACHE[more_key] = {**payload, "_ts": time.time()}
+        return payload
+
     _ESSENCE_CACHE[cache_key] = {**payload, "_ts": time.time()}
 
-    # Persist for next time (upsert), so repeat requests skip the LLM.
-    try:
-        existing = await db.get(SimilarCache, seed_tmdb_id)
-        if existing is None:
-            db.add(SimilarCache(seed_tmdb_id=seed_tmdb_id, version=_ESSENCE_VERSION, payload=payload))
-        else:
-            existing.version = _ESSENCE_VERSION
-            existing.payload = payload
-        await db.flush()
-    except Exception as exc:  # noqa: BLE001
-        print(f"[similar] cache persist failed: {exc}")
+    # Persist for next time (upsert), so repeat requests skip the LLM. Films only.
+    if use_db_cache:
+        try:
+            existing = await db.get(SimilarCache, seed_tmdb_id)
+            if existing is None:
+                db.add(SimilarCache(seed_tmdb_id=seed_tmdb_id, version=_ESSENCE_VERSION, payload=payload))
+            else:
+                existing.version = _ESSENCE_VERSION
+                existing.payload = payload
+            await db.flush()
+        except Exception as exc:  # noqa: BLE001
+            print(f"[similar] cache persist failed: {exc}")
 
     return payload
 
@@ -440,14 +498,16 @@ def _affect_vec(movie: Movie) -> np.ndarray | None:
 
 def _cosine_similar_films(
     db: AsyncSession, seed: Movie, limit: int, candidates: list[Movie],
+    excluded: set[int] | None = None,
 ) -> list[dict]:
+    excluded = excluded or set()
     seed_vec = movie_to_embedding(_movie_to_emb_dict(seed))
     seed_identity = llm.deserialize_embedding(seed.identity_embedding)
     seed_aff = _affect_vec(seed)
 
     scored: list[tuple[Movie, float]] = []
     for cand in candidates:
-        if cand.id == seed.id or cand.tmdb_id == seed.tmdb_id:
+        if cand.id == seed.id or cand.tmdb_id == seed.tmdb_id or cand.tmdb_id in excluded:
             continue
         content_sim = cosine_similarity(seed_vec, movie_to_embedding(_movie_to_emb_dict(cand)))
 

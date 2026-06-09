@@ -5,14 +5,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch, tmdbImage } from "@/lib/api";
-
-interface TmdbMovie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  release_date: string | null;
-  vote_average: number | null;
-}
+import { titleHref } from "@/lib/titleHref";
+import type { TitleHit as TitleResult } from "@/lib/searchHistory";
 
 interface UserHit {
   id: string;
@@ -45,11 +39,11 @@ export default function MovieSearchBar({ compact, placeholder }: Props = {}) {
     return () => clearTimeout(t);
   }, [query]);
 
-  const filmsQuery = useQuery<{ results: TmdbMovie[] }>({
-    queryKey: ["movie-search", debounced],
+  const titlesQuery = useQuery<{ results: TitleResult[] }>({
+    queryKey: ["title-search", debounced],
     queryFn: () =>
-      apiFetch<{ results: TmdbMovie[] }>(
-        `/api/movies/search?q=${encodeURIComponent(debounced)}`,
+      apiFetch<{ results: TitleResult[] }>(
+        `/api/search/titles?q=${encodeURIComponent(debounced)}`,
       ),
     enabled: debounced.length >= 2,
     staleTime: 60_000,
@@ -65,15 +59,12 @@ export default function MovieSearchBar({ compact, placeholder }: Props = {}) {
     staleTime: 30_000,
   });
 
-  const films = filmsQuery.data?.results?.slice(0, 6) ?? [];
+  const titles = titlesQuery.data?.results?.slice(0, 8) ?? [];
   const people = peopleQuery.data?.items ?? [];
-  const isFetching = filmsQuery.isFetching || peopleQuery.isFetching;
+  const isFetching = titlesQuery.isFetching || peopleQuery.isFetching;
   const showDropdown = open && debounced.length >= 1;
   const empty =
-    showDropdown &&
-    !isFetching &&
-    films.length === 0 &&
-    people.length === 0;
+    showDropdown && !isFetching && titles.length === 0 && people.length === 0;
 
   const inputPad = compact ? "py-2 text-xs" : "py-3 text-sm";
 
@@ -190,47 +181,11 @@ export default function MovieSearchBar({ compact, placeholder }: Props = {}) {
               </>
             )}
 
-            {films.length > 0 && (
+            {titles.length > 0 && (
               <>
-                <SectionHeader>Films</SectionHeader>
-                {films.map((m) => (
-                  <Link
-                    key={m.id}
-                    href={`/film/${m.id}`}
-                    className="flex items-center gap-3 px-3 py-2 hover:opacity-90"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <div
-                      className="w-10 aspect-[2/3] rounded shrink-0 overflow-hidden"
-                      style={{ background: "var(--bg-elevated)" }}
-                    >
-                      {m.poster_path && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={tmdbImage(m.poster_path, "w200")}
-                          alt={m.title}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className="text-sm font-medium truncate"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {m.title}
-                      </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-faint)" }}
-                      >
-                        {m.release_date?.slice(0, 4) ?? ""}
-                        {m.vote_average
-                          ? ` · ${m.vote_average.toFixed(1)}★`
-                          : ""}
-                      </p>
-                    </div>
-                  </Link>
+                {people.length > 0 && <SectionHeader>Titles</SectionHeader>}
+                {titles.map((t) => (
+                  <TitleHitRow key={`${t.mediaType}-${t.tmdbId}`} t={t} />
                 ))}
               </>
             )}
@@ -238,6 +193,51 @@ export default function MovieSearchBar({ compact, placeholder }: Props = {}) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function TitleHitRow({ t }: { t: TitleResult }) {
+  const meta =
+    t.mediaType === "tv"
+      ? t.numberOfSeasons
+        ? `Series • ${t.numberOfSeasons} Season${t.numberOfSeasons > 1 ? "s" : ""}`
+        : t.year
+          ? `Series • ${t.year}`
+          : "Series"
+      : t.year
+        ? `Film • ${t.year}`
+        : "Film";
+  return (
+    <Link
+      href={titleHref(t.tmdbId, t.mediaType)}
+      className="flex items-center gap-3 px-3 py-2 hover:opacity-90"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div
+        className="w-10 aspect-[2/3] rounded shrink-0 overflow-hidden"
+        style={{ background: "var(--bg-elevated)" }}
+      >
+        {t.posterPath && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={tmdbImage(t.posterPath, "w200")}
+            alt={t.title}
+            className="w-full h-full object-cover"
+          />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-sm font-medium truncate"
+          style={{ color: "var(--text-primary)" }}
+        >
+          {t.title}
+        </p>
+        <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+          {meta}
+        </p>
+      </div>
+    </Link>
   );
 }
 

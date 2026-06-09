@@ -66,6 +66,45 @@ async def get_movie_similar(tmdb_id: int, page: int = 1) -> dict:
     return await _fetch(f"/movie/{tmdb_id}/similar", {"page": page})
 
 
+# ─── TV / Series ─────────────────────────────────────────────
+
+async def search_tv(query: str, page: int = 1) -> dict:
+    return await _fetch("/search/tv", {"query": query, "page": page, "include_adult": "false"})
+
+
+async def get_tv(tmdb_id: int) -> dict:
+    return await _fetch(f"/tv/{tmdb_id}")
+
+
+async def get_tv_credits(tmdb_id: int) -> dict:
+    return await _fetch(f"/tv/{tmdb_id}/credits")
+
+
+async def get_tv_season(tmdb_id: int, season_number: int) -> dict:
+    """Full season payload incl. the episodes array (each with vote_average)."""
+    return await _fetch(f"/tv/{tmdb_id}/season/{season_number}")
+
+
+async def get_tv_videos(tmdb_id: int) -> dict:
+    return await _fetch(f"/tv/{tmdb_id}/videos")
+
+
+async def get_popular_tv(page: int = 1) -> dict:
+    return await _fetch("/tv/popular", {"page": page})
+
+
+async def get_trending_tv(time_window: str = "week") -> dict:
+    return await _fetch(f"/trending/tv/{time_window}")
+
+
+async def get_tv_recommendations(tmdb_id: int, page: int = 1) -> dict:
+    return await _fetch(f"/tv/{tmdb_id}/recommendations", {"page": page})
+
+
+async def get_tv_similar(tmdb_id: int, page: int = 1) -> dict:
+    return await _fetch(f"/tv/{tmdb_id}/similar", {"page": page})
+
+
 # ─── People ──────────────────────────────────────────────────
 
 async def search_people(query: str, page: int = 1) -> dict:

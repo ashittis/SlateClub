@@ -4,9 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, tmdbImage } from "@/lib/api";
-import { useFeedStore } from "@/stores/feedStore";
 import { useAuthStore } from "@/stores/authStore";
-import SessionMoodPrompt from "@/components/feed/SessionMoodPrompt";
 import TasteDriftBanner from "@/components/taste/TasteDriftBanner";
 import HeroFan, { type HeroData } from "@/components/feed/HeroFan";
 import FeedScopeTabs, {
@@ -28,7 +26,6 @@ interface TwinNowItem {
 }
 
 export default function HomePage() {
-  const { sessionMood } = useFeedStore();
   const { user, loading: authLoading } = useAuthStore();
   const [scope, setScope] = useState<FeedScope>("network");
 
@@ -74,31 +71,6 @@ export default function HomePage() {
         </div>
 
         {user && <TasteDriftBanner />}
-        {user && <SessionMoodPrompt />}
-
-        {sessionMood && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="text-xs" style={{ color: "var(--text-faint)" }}>
-              Mood:
-            </span>
-            <span
-              className="rounded-full px-2 py-0.5 text-xs"
-              style={{
-                background: "rgba(224,160,80,0.18)",
-                color: "var(--pill-mood)",
-              }}
-            >
-              {sessionMood.replace(/_/g, " ")}
-            </span>
-            <button
-              onClick={() => useFeedStore.getState().setSessionMood(null)}
-              className="text-xs hover:opacity-80"
-              style={{ color: "var(--text-faint)" }}
-            >
-              Clear
-            </button>
-          </div>
-        )}
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
           <div>
@@ -111,20 +83,10 @@ export default function HomePage() {
               <HeroFan data={heroQuery.data} />
             ) : null}
 
-            {/* Personalised feed — taste engine picks for this user.
-                Renders nothing if the engine returns empty, so BrowseGrid
-                below always acts as a fallback. */}
-            <div className="mt-8">
-              <ForYouGrid />
-            </div>
-
-            {/* Always-on browseable catalog — clicks land on /film/{tmdbId}
-                where ratings, reviews, slates, and discussion live. */}
-            <div className="mt-2">
-              <BrowseGrid />
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
+            {/* From your orbit — what people you follow are rating and
+                watching. Sits above the personalised feed so social signal
+                leads the page. */}
+            <div className="mt-8 flex items-center justify-between">
               <FeedScopeTabs value={scope} onChange={setScope} />
               <Link
                 href="/discover"
@@ -155,6 +117,19 @@ export default function HomePage() {
                   emptyText={emptyTextFor(scope)}
                 />
               )}
+            </div>
+
+            {/* Personalised feed — taste engine picks for this user.
+                Renders nothing if the engine returns empty, so BrowseGrid
+                below always acts as a fallback. */}
+            <div className="mt-8">
+              <ForYouGrid />
+            </div>
+
+            {/* Always-on browseable catalog — clicks land on /film/{tmdbId}
+                where ratings, reviews, slates, and discussion live. */}
+            <div className="mt-2">
+              <BrowseGrid />
             </div>
           </div>
 

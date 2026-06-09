@@ -74,6 +74,8 @@ class SlateFilm(Base):
         String, ForeignKey("slates.id", ondelete="CASCADE"), index=True
     )
     tmdb_id: Mapped[int] = mapped_column(Integer)
+    # "movie" | "tv" — TMDB movie & TV ids collide, so uniqueness is composite.
+    media_type: Mapped[str] = mapped_column("mediaType", String, default="movie")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     added_by_user_id: Mapped[str] = mapped_column(
@@ -85,7 +87,7 @@ class SlateFilm(Base):
 
     slate = relationship("Slate", back_populates="films")
 
-    __table_args__ = (UniqueConstraint("slate_id", "tmdb_id"),)
+    __table_args__ = (UniqueConstraint("slate_id", "tmdb_id", "mediaType"),)
 
 
 class SlateCollaborator(Base):
@@ -103,6 +105,24 @@ class SlateCollaborator(Base):
     )
 
     slate = relationship("Slate", back_populates="collaborators")
+
+
+class SlateLike(Base):
+    """A heart on a slate — distinct from Save (bookmark)."""
+
+    __tablename__ = "slate_likes"
+
+    slate_id: Mapped[str] = mapped_column(
+        "slateId", String, ForeignKey("slates.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        "userId", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    slate = relationship("Slate")
 
 
 class SlateSave(Base):

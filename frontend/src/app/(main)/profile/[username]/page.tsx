@@ -11,6 +11,14 @@ import TwinBadge from "@/components/social/TwinBadge";
 import TasteMatchCard from "@/components/social/TasteMatchCard";
 import StarRating from "@/components/ratings/StarRating";
 import CriticBadge from "@/components/social/CriticBadge";
+import { dnfReasonLabel } from "@/lib/shelfReasons";
+import { titleHref } from "@/lib/titleHref";
+import MediaFilter, {
+  filterByMedia,
+  type MediaFilterValue,
+} from "@/components/profile/MediaFilter";
+import SlateCard from "@/components/slates/SlateCard";
+import type { SlateCard as SlateCardType } from "@/types/slates";
 import type {
   FilmCardLite,
   MutualTwin,
@@ -19,13 +27,21 @@ import type {
   TwinScore,
 } from "@/types/user";
 
-type Tab = "ratings" | "watchlist";
+type Tab = "ratings" | "watchlist" | "watching" | "dnf" | "slates";
 
 export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
   const username = params.username;
   const { user: currentUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Tab>("ratings");
+  const [media, setMedia] = useState<MediaFilterValue>("all");
+
+  // Currently Watching (series) — its tab only shows when non-empty.
+  const watching = useQuery<{ id: string }[]>({
+    queryKey: ["user-library", username, "watching"],
+    queryFn: () => apiFetch(`/api/users/${username}/watching`),
+    enabled: !!username,
+  });
 
   const { data: profile, isLoading } = useQuery<PublicProfile>({
     queryKey: ["user-profile", username],
@@ -283,13 +299,21 @@ export default function UserProfilePage() {
         className="mb-4 flex border-b"
         style={{ borderColor: "rgba(255,255,255,0.06)" }}
       >
-        {(["ratings", "watchlist"] as Tab[]).map((tab) => {
-          const active = activeTab === tab;
+        {([
+          { key: "ratings", label: "Ratings" },
+          { key: "watchlist", label: "Shelf" },
+          ...((watching.data?.length ?? 0) > 0
+            ? [{ key: "watching" as Tab, label: "Watching" }]
+            : []),
+          { key: "dnf", label: "DNF" },
+          { key: "slates", label: "Slates" },
+        ] as { key: Tab; label: string }[]).map(({ key, label }) => {
+          const active = activeTab === key;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="flex-1 py-2 text-sm font-medium capitalize transition-colors relative"
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className="flex-1 py-2 text-sm font-medium transition-colors relative"
               style={{
                 color: active ? "var(--text-primary)" : "var(--text-faint)",
                 borderBottom: active
@@ -297,17 +321,23 @@ export default function UserProfilePage() {
                   : "2px solid transparent",
               }}
             >
-              {tab === "watchlist" ? "Shelf" : "Ratings"}
+              {label}
             </button>
           );
         })}
       </div>
 
+      {activeTab !== "slates" && (
+        <div className="mb-4">
+          <MediaFilter value={media} onChange={setMedia} layoutId="view-media" />
+        </div>
+      )}
+
       <div className="pb-8">
-        {activeTab === "ratings" ? (
-          <UserLibraryGrid username={username} kind="ratings" />
+        {activeTab === "slates" ? (
+          <UserSlatesGrid username={username} />
         ) : (
-          <UserLibraryGrid username={username} kind="watchlist" />
+          <UserLibraryGrid username={username} kind={activeTab} media={media} />
         )}
       </div>
     </div>
@@ -317,12 +347,63 @@ export default function UserProfilePage() {
 interface LibraryFilm {
   id: string;
   tmdbId: number;
+  mediaType?: string | null;
   title: string;
   posterPath: string | null;
   userRating?: number;
+  reason?: string | null;
+  startedAt?: string;
 }
 
-function UserLibraryGrid({ username, kind }: { username: string; kind: "ratings" | "watchlist" }) {
+const EMPTY_TEXT: Record<Tab, string> = {
+  ratings: "No ratings yet.",
+  watchlist: "Shelf is empty.",
+  watching: "Nothing in progress.",
+  dnf: "Nothing abandoned.",
+  slates: "No slates yet.",
+};
+
+function UserSlatesGrid({ username }: { username: string }) {
+  const { data, isLoading } = useQuery<{ items: SlateCardType[] }>({
+    queryKey: ["user-slates", username],
+    queryFn: () => apiFetch(`/api/slates/by-user/${username}`),
+    enabled: !!username,
+  });
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-64 animate-pulse rounded-2xl" style={{ background: "var(--bg-card)" }} />
+        ))}
+      </div>
+    );
+  }
+  const items = data?.items ?? [];
+  if (items.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm" style={{ color: "var(--text-faint)" }}>
+        No public slates yet.
+      </p>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      {items.map((s) => (
+        <SlateCard key={s.id} slate={s} />
+      ))}
+    </div>
+  );
+}
+
+function UserLibraryGrid({
+  username,
+  kind,
+  media,
+}: {
+  username: string;
+  kind: Tab;
+  media: MediaFilterValue;
+}) {
   const { data, isLoading } = useQuery<LibraryFilm[]>({
     queryKey: ["user-library", username, kind],
     queryFn: () => apiFetch(`/api/users/${username}/${kind}`),
@@ -338,18 +419,19 @@ function UserLibraryGrid({ username, kind }: { username: string; kind: "ratings"
       </div>
     );
   }
-  if (!data || data.length === 0) {
+  const items = filterByMedia(data ?? [], media);
+  if (items.length === 0) {
     return (
       <p className="py-10 text-center text-sm" style={{ color: "var(--text-faint)" }}>
-        {kind === "ratings" ? "No ratings yet." : "Shelf is empty."}
+        {EMPTY_TEXT[kind]}
       </p>
     );
   }
 
   return (
     <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-      {data.map((m) => (
-        <Link key={m.id} href={`/film/${m.tmdbId}`} className="group block">
+      {items.map((m) => (
+        <Link key={m.id} href={titleHref(m.tmdbId, m.mediaType)} className="group block">
           <div className="aspect-[2/3] overflow-hidden rounded-lg" style={{ background: "var(--bg-elevated)" }}>
             {m.posterPath && (
               /* eslint-disable-next-line @next/next/no-img-element */
@@ -361,15 +443,27 @@ function UserLibraryGrid({ username, kind }: { username: string; kind: "ratings"
               />
             )}
           </div>
-          {m.userRating != null ? (
+          {kind === "ratings" && m.userRating != null ? (
             /* Ratings: star icons under the poster, no title */
             <div className="mt-1.5">
               <StarRating value={m.userRating} readonly size="sm" />
             </div>
           ) : (
-            <p className="mt-1.5 truncate text-xs" style={{ color: "var(--text-primary)" }}>
-              {m.title}
-            </p>
+            <>
+              <p className="mt-1.5 truncate text-xs" style={{ color: "var(--text-primary)" }}>
+                {m.title}
+              </p>
+              {kind === "dnf" && dnfReasonLabel(m.reason) && (
+                <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>
+                  {dnfReasonLabel(m.reason)}
+                </p>
+              )}
+              {kind === "watching" && (
+                <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>
+                  In progress
+                </p>
+              )}
+            </>
           )}
         </Link>
       ))}

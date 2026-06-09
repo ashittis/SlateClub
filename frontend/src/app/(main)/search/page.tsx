@@ -1,42 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, tmdbImage } from "@/lib/api";
-
-type Tab = "films" | "people" | "slates";
-
-interface TmdbMovie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  release_date: string | null;
-  vote_average: number | null;
-}
-
-interface UserResult {
-  id: string;
-  name: string;
-  username: string;
-  avatarUrl: string | null;
-  bio: string | null;
-}
-
-interface SlateCard {
-  id: string;
-  title: string;
-  description: string | null;
-  filmCount: number;
-  saveCount: number;
-  creator: { id: string; name: string; username: string } | null;
-}
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "films", label: "Films" },
-  { key: "people", label: "People" },
-  { key: "slates", label: "Slates" },
-];
+import { titleHref } from "@/lib/titleHref";
+import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
+import {
+  addRecentSearch,
+  getRecentSearches,
+  getRecentlyViewed,
+  removeRecentSearch,
+  removeRecentlyViewed,
+  type TitleHit,
+} from "@/lib/searchHistory";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [v, setV] = useState(value);
@@ -47,63 +24,58 @@ function useDebounce<T>(value: T, delay: number): T {
   return v;
 }
 
+function metaLine(t: TitleHit): string {
+  if (t.mediaType === "tv") {
+    if (t.numberOfSeasons)
+      return `Series • ${t.numberOfSeasons} Season${t.numberOfSeasons > 1 ? "s" : ""}`;
+    return t.year ? `Series • ${t.year}` : "Series";
+  }
+  return t.year ? `Film • ${t.year}` : "Film";
+}
+
 export default function SearchPage() {
+  const router = useRouter();
+  const qc = useQueryClient();
   const [query, setQuery] = useState("");
-  // Detect @-prefix as a hint to switch to People.
-  const [tab, setTab] = useState<Tab>("films");
   const debounced = useDebounce(query.trim(), 300);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [slateTarget, setSlateTarget] = useState<TitleHit | null>(null);
+
+  const [recentSearches, setRecentSearches] = useState<TitleHit[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<TitleHit[]>([]);
+  useEffect(() => {
+    if (!debounced) {
+      setRecentSearches(getRecentSearches());
+      setRecentlyViewed(getRecentlyViewed());
+    }
+  }, [debounced]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Auto-switch to People when the user starts with @, but only if they
-  // haven't manually picked another tab during this session.
-  const userPickedTab = useRef(false);
-  useEffect(() => {
-    if (!userPickedTab.current && query.startsWith("@")) {
-      setTab("people");
-    }
-  }, [query]);
-
-  const films = useQuery<{ results: TmdbMovie[] }>({
-    queryKey: ["search-films", debounced],
-    queryFn: () =>
-      apiFetch(`/api/movies/search?q=${encodeURIComponent(debounced)}`),
-    enabled: debounced.length >= 2 && tab === "films",
+  const titles = useQuery<{ results: TitleHit[] }>({
+    queryKey: ["search-titles", debounced],
+    queryFn: () => apiFetch(`/api/search/titles?q=${encodeURIComponent(debounced)}`),
+    enabled: debounced.length >= 2,
   });
 
-  const people = useQuery<{ items: UserResult[] }>({
-    queryKey: ["search-people", debounced],
-    queryFn: () =>
-      apiFetch(
-        `/api/users/search?q=${encodeURIComponent(debounced.replace(/^@/, ""))}`,
-      ),
-    enabled: debounced.length >= 1 && tab === "people",
+  const orbit = useQuery<{ results: TitleHit[] }>({
+    queryKey: ["search-popular-orbit"],
+    queryFn: () => apiFetch("/api/search/popular-in-orbit"),
+    enabled: !debounced,
   });
 
-  const slatesAll = useQuery<{ items: SlateCard[] }>({
-    queryKey: ["search-slates", debounced],
-    queryFn: () => apiFetch("/api/slates/featured"),
-    enabled: debounced.length >= 2 && tab === "slates",
-  });
-  const slateMatches = (slatesAll.data?.items ?? []).filter((s) =>
-    `${s.title} ${s.description ?? ""}`
-      .toLowerCase()
-      .includes(debounced.toLowerCase()),
-  );
+  const results = titles.data?.results ?? [];
+
+  const open = (t: TitleHit) => {
+    addRecentSearch(t);
+    router.push(titleHref(t.tmdbId, t.mediaType));
+  };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 lg:px-6 pt-6 pb-24">
-      <h1
-        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-4"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Search
-      </h1>
-
-      <div className="relative mb-5">
+    <div className="mx-auto max-w-3xl px-4 lg:px-6 pt-6 pb-24">
+      <div className="relative mb-6">
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5"
           style={{ color: "var(--text-faint)" }}
@@ -112,284 +84,199 @@ export default function SearchPage() {
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Films, people, slates… (start with @ for people)"
+          placeholder="Search films and series…"
           className="w-full rounded-full pl-11 pr-4 py-3 text-sm focus:outline-none"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "var(--text-primary)",
-          }}
+          style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-primary)" }}
         />
       </div>
 
-      {/* Tabs */}
-      <div
-        className="inline-flex rounded-full p-1 gap-1 mb-6"
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => {
-                userPickedTab.current = true;
-                setTab(t.key);
-              }}
-              className="px-4 py-1.5 text-xs font-semibold rounded-full"
-              style={{
-                background: active ? "var(--text-primary)" : "transparent",
-                color: active ? "var(--bg-screening)" : "var(--text-muted)",
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
+      {/* Empty state */}
       {!debounced && (
-        <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-          Start typing to search.
-        </p>
-      )}
-
-      {tab === "films" && debounced && (
-        <FilmsResults
-          isLoading={films.isLoading}
-          items={films.data?.results ?? []}
-          query={debounced}
-        />
-      )}
-      {tab === "people" && debounced && (
-        <PeopleResults
-          isLoading={people.isLoading}
-          items={people.data?.items ?? []}
-          query={debounced}
-        />
-      )}
-      {tab === "slates" && debounced && (
-        <SlatesResults
-          isLoading={slatesAll.isLoading}
-          items={slateMatches}
-          query={debounced}
-        />
-      )}
-    </div>
-  );
-}
-
-function FilmsResults({
-  isLoading,
-  items,
-  query,
-}: {
-  isLoading: boolean;
-  items: TmdbMovie[];
-  query: string;
-}) {
-  if (isLoading) return <GridSkeleton />;
-  if (items.length === 0) {
-    return (
-      <p className="text-sm py-8 text-center" style={{ color: "var(--text-faint)" }}>
-        No films found for &ldquo;{query}&rdquo;.
-      </p>
-    );
-  }
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {items.map((m) => (
-        <Link key={m.id} href={`/film/${m.id}`} className="group flex flex-col gap-2">
-          <div
-            className="relative aspect-[2/3] overflow-hidden rounded-lg"
-            style={{ background: "var(--bg-elevated)" }}
-          >
-            {m.poster_path && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={tmdbImage(m.poster_path, "w300")}
-                alt={m.title}
-                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            )}
-          </div>
-          <p
-            className="truncate text-sm font-medium"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {m.title}
-          </p>
-          {m.release_date && (
-            <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-              {m.release_date.slice(0, 4)}
-            </p>
+        <div className="space-y-8">
+          {recentSearches.length > 0 && (
+            <Section title="Recent searches">
+              {recentSearches.map((t) => (
+                <TitleRow
+                  key={`${t.mediaType}-${t.tmdbId}`}
+                  t={t}
+                  onOpen={() => open(t)}
+                  onRemove={() => {
+                    removeRecentSearch(t.tmdbId, t.mediaType);
+                    setRecentSearches(getRecentSearches());
+                  }}
+                />
+              ))}
+            </Section>
           )}
-        </Link>
-      ))}
+          {recentlyViewed.length > 0 && (
+            <Section title="Recently viewed">
+              {recentlyViewed.map((t) => (
+                <TitleRow
+                  key={`${t.mediaType}-${t.tmdbId}`}
+                  t={t}
+                  onOpen={() => open(t)}
+                  onRemove={() => {
+                    removeRecentlyViewed(t.tmdbId, t.mediaType);
+                    setRecentlyViewed(getRecentlyViewed());
+                  }}
+                />
+              ))}
+            </Section>
+          )}
+          {(orbit.data?.results.length ?? 0) > 0 && (
+            <Section title="Popular in your orbit">
+              {orbit.data!.results.map((t) => (
+                <TitleRow
+                  key={`${t.mediaType}-${t.tmdbId}`}
+                  t={t}
+                  onOpen={() => open(t)}
+                  onSlate={() => setSlateTarget(t)}
+                />
+              ))}
+            </Section>
+          )}
+          {recentSearches.length === 0 &&
+            recentlyViewed.length === 0 &&
+            (orbit.data?.results.length ?? 0) === 0 && (
+              <p className="text-sm" style={{ color: "var(--text-faint)" }}>
+                Start typing to search films and series.
+              </p>
+            )}
+        </div>
+      )}
+
+      {/* Results — single mixed feed */}
+      {debounced && (
+        <div>
+          {titles.isLoading ? (
+            <RowSkeletons />
+          ) : results.length === 0 ? (
+            <p className="py-6 text-center text-sm" style={{ color: "var(--text-faint)" }}>
+              No results for “{debounced}”.
+            </p>
+          ) : (
+            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+              {results.map((t) => (
+                <TitleRow
+                  key={`${t.mediaType}-${t.tmdbId}`}
+                  t={t}
+                  onOpen={() => open(t)}
+                  onSlate={() => setSlateTarget(t)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {slateTarget && (
+        <AddToSlateSheet
+          open={!!slateTarget}
+          onClose={() => {
+            setSlateTarget(null);
+            qc.invalidateQueries({ queryKey: ["search-titles", debounced] });
+          }}
+          tmdbId={slateTarget.tmdbId}
+          mediaType={slateTarget.mediaType}
+          title={slateTarget.title}
+        />
+      )}
     </div>
   );
 }
 
-function PeopleResults({
-  isLoading,
-  items,
-  query,
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
+        {title}
+      </h2>
+      <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/* Spotify-style compact row: poster · title · meta · action(+Slate / ✓) | X. */
+function TitleRow({
+  t,
+  onOpen,
+  onSlate,
+  onRemove,
 }: {
-  isLoading: boolean;
-  items: UserResult[];
-  query: string;
+  t: TitleHit;
+  onOpen: () => void;
+  onSlate?: () => void;
+  onRemove?: () => void;
 }) {
-  if (isLoading)
-    return (
-      <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-        Loading…
-      </p>
-    );
-  if (items.length === 0) {
-    return (
-      <p className="text-sm py-8 text-center" style={{ color: "var(--text-faint)" }}>
-        No people match &ldquo;{query}&rdquo;.
-      </p>
-    );
-  }
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer">
+        <div className="h-[78px] w-[52px] shrink-0 overflow-hidden rounded-md" style={{ background: "var(--bg-elevated)" }}>
+          {t.posterPath && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={tmdbImage(t.posterPath, "w200")} alt={t.title} className="h-full w-full object-cover" loading="lazy" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>{t.title}</p>
+          <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>{metaLine(t)}</p>
+        </div>
+      </button>
+
+      {onSlate &&
+        (t.inSlate ? (
+          <span
+            aria-label="In a Slate"
+            title="In a Slate"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
+            style={{ color: "var(--cta-primary)" }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+        ) : (
+          <button
+            onClick={onSlate}
+            aria-label="Add to Slate"
+            title="Add to Slate"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors hover:opacity-90 cursor-pointer"
+            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "var(--text-muted)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        ))}
+
+      {onRemove && (
+        <button onClick={onRemove} aria-label="Remove" className="shrink-0 px-1 text-sm cursor-pointer" style={{ color: "var(--text-faint)" }}>
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RowSkeletons() {
   return (
     <div className="space-y-2">
-      {items.map((u) => (
-        <Link
-          key={u.id}
-          href={`/profile/${u.username}`}
-          className="flex items-center gap-3 rounded-xl p-3 hover:opacity-95"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-            style={{
-              background: "var(--cta-primary)",
-              color: "var(--bg-screening)",
-            }}
-          >
-            {u.avatarUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={u.avatarUrl}
-                alt={u.name}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              u.name[0]?.toUpperCase()
-            )}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 py-2">
+          <div className="h-[78px] w-[52px] animate-pulse rounded-md" style={{ background: "var(--bg-card)" }} />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/2 animate-pulse rounded" style={{ background: "var(--bg-card)" }} />
+            <div className="h-3 w-1/4 animate-pulse rounded" style={{ background: "var(--bg-card)" }} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p
-              className="text-sm font-semibold truncate"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {u.name}
-            </p>
-            <p
-              className="text-xs truncate"
-              style={{ color: "var(--text-faint)" }}
-            >
-              @{u.username}
-              {u.bio ? ` · ${u.bio}` : ""}
-            </p>
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function SlatesResults({
-  isLoading,
-  items,
-  query,
-}: {
-  isLoading: boolean;
-  items: SlateCard[];
-  query: string;
-}) {
-  if (isLoading)
-    return (
-      <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-        Loading…
-      </p>
-    );
-  if (items.length === 0) {
-    return (
-      <p className="text-sm py-8 text-center" style={{ color: "var(--text-faint)" }}>
-        No slates match &ldquo;{query}&rdquo;.
-      </p>
-    );
-  }
-  return (
-    <div className="space-y-2">
-      {items.map((s) => (
-        <Link
-          key={s.id}
-          href={`/slates/${s.id}`}
-          className="block rounded-xl p-4"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <p
-            className="display text-base font-semibold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {s.title}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
-            {s.creator?.name ?? "—"} · {s.filmCount} film
-            {s.filmCount === 1 ? "" : "s"}
-            {s.saveCount > 0 ? ` · ♡ ${s.saveCount}` : ""}
-          </p>
-          {s.description && (
-            <p
-              className="text-xs mt-2 line-clamp-2"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {s.description}
-            </p>
-          )}
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function GridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <div
-            className="aspect-[2/3] animate-pulse rounded-lg"
-            style={{ background: "var(--bg-card)" }}
-          />
-          <div
-            className="h-4 w-3/4 animate-pulse rounded"
-            style={{ background: "var(--bg-card)" }}
-          />
         </div>
       ))}
     </div>

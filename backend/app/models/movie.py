@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, LargeBinary, String, Text
+from sqlalchemy import DateTime, Float, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -9,10 +9,15 @@ from ..core.database import Base
 
 
 class Movie(Base):
+    """A title — film or TV series. `media_type` discriminates the two; TMDB
+    movie and TV ids share an integer space, so uniqueness is composite."""
+
     __tablename__ = "movies"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tmdb_id: Mapped[int] = mapped_column("tmdbId", Integer, unique=True, index=True)
+    tmdb_id: Mapped[int] = mapped_column("tmdbId", Integer, index=True)
+    media_type: Mapped[str] = mapped_column("mediaType", String, default="movie", index=True)
+    number_of_seasons: Mapped[int | None] = mapped_column("numberOfSeasons", Integer, nullable=True)
     title: Mapped[str] = mapped_column(String)
     overview: Mapped[str | None] = mapped_column(Text, nullable=True)
     poster_path: Mapped[str | None] = mapped_column("posterPath", String, nullable=True)
@@ -48,3 +53,5 @@ class Movie(Base):
     watchlist = relationship("WatchlistItem", back_populates="movie", cascade="all, delete-orphan")
     watch_history = relationship("WatchHistory", back_populates="movie", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
+
+    __table_args__ = (UniqueConstraint("tmdbId", "mediaType"),)

@@ -6,8 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.auth import get_current_user
 from ..core.database import get_db
 from ..integrations import tmdb
-from ..models.actions import Rating, WatchHistory, WatchlistItem
+from ..models.actions import (
+    CurrentlyWatching,
+    DnfEntry,
+    Rating,
+    WatchHistory,
+    WatchlistItem,
+)
 from ..models.movie import Movie
+from ..models.social import MicroFeedback
 from ..models.user import User
 from ..services.taste_cache import invalidate_user_taste_vector
 
@@ -16,10 +23,29 @@ router = APIRouter(prefix="/api/movies", tags=["movies"])
 
 # ── Helpers ──────────────────────────────────────────────────
 
-async def _upsert_movie(db: AsyncSession, data: dict) -> Movie:
-    """Fetch a movie from TMDB, cache it in the DB, and return the DB record."""
+def _normalize_tv_data(data: dict) -> dict:
+    """Map a TMDB /tv payload onto the shared Movie field names so series and
+    films live in one table (name→title, first_air_date→release_date, etc.)."""
+    runtimes = data.get("episode_run_time") or []
+    return {
+        **data,
+        "title": data.get("name") or data.get("title") or "",
+        "release_date": data.get("first_air_date") or data.get("release_date"),
+        "runtime": (runtimes[0] if runtimes else None),
+        "number_of_seasons": data.get("number_of_seasons"),
+    }
+
+
+async def _upsert_movie(db: AsyncSession, data: dict, media_type: str = "movie") -> Movie:
+    """Cache a TMDB title (film or series) in the DB and return the record.
+    For series, pass media_type='tv' with data already normalized via
+    _normalize_tv_data."""
     tmdb_id = data.get("id") or data.get("tmdb_id")
-    result = await db.execute(select(Movie).where(Movie.tmdb_id == tmdb_id))
+    result = await db.execute(
+        select(Movie).where(
+            Movie.tmdb_id == tmdb_id, Movie.media_type == media_type
+        )
+    )
     movie = result.scalar_one_or_none()
 
     fields = dict(
@@ -35,6 +61,7 @@ async def _upsert_movie(db: AsyncSession, data: dict) -> Movie:
         original_language=data.get("original_language"),
         genres=data.get("genres"),
         credits=data.get("credits"),
+        number_of_seasons=data.get("number_of_seasons"),
     )
 
     if movie:
@@ -42,7 +69,7 @@ async def _upsert_movie(db: AsyncSession, data: dict) -> Movie:
             if v is not None:
                 setattr(movie, k, v)
     else:
-        movie = Movie(tmdb_id=tmdb_id, **fields)
+        movie = Movie(tmdb_id=tmdb_id, media_type=media_type, **fields)
         db.add(movie)
 
     await db.flush()
@@ -133,39 +160,61 @@ async def get_movie(tmdb_id: int, db: AsyncSession = Depends(get_db)):
 # ── Per-tmdb_id user actions (used by film page) ─────────────
 
 
-async def _get_or_fetch_movie(tmdb_id: int, db: AsyncSession) -> Movie:
-    """Resolve a tmdb_id to a local Movie row. Lazily fetches from
-    TMDB if we haven't seen this film yet, so users can rate / shelve
-    a film straight from search without opening detail first."""
+async def _get_or_fetch_movie(
+    tmdb_id: int, db: AsyncSession, media_type: str = "movie"
+) -> Movie:
+    """Resolve a (tmdb_id, media_type) to a local Movie row. Lazily fetches from
+    TMDB if we haven't seen this title yet, so users can rate / shelve straight
+    from search. Handles both films and TV series."""
     row = (
-        await db.execute(select(Movie).where(Movie.tmdb_id == tmdb_id))
+        await db.execute(
+            select(Movie).where(
+                Movie.tmdb_id == tmdb_id, Movie.media_type == media_type
+            )
+        )
     ).scalar_one_or_none()
     if row is not None:
         return row
     try:
+        if media_type == "tv":
+            data = _normalize_tv_data(await tmdb.get_tv(tmdb_id))
+            data["credits"] = await tmdb.get_tv_credits(tmdb_id)
+            return await _upsert_movie(db, data, media_type="tv")
         data = await tmdb.get_movie(tmdb_id)
-        credits_data = await tmdb.get_movie_credits(tmdb_id)
-        data["credits"] = credits_data
+        data["credits"] = await tmdb.get_movie_credits(tmdb_id)
         return await _upsert_movie(db, data)
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=404, detail=f"Movie {tmdb_id} not found") from exc
+        raise HTTPException(
+            status_code=404, detail=f"{media_type} {tmdb_id} not found"
+        ) from exc
 
 
 @router.get("/{tmdb_id}/status")
 async def get_movie_status(
     tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
-    in_wl = (
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
+    wl_row = (
         await db.execute(
             select(WatchlistItem).where(
                 WatchlistItem.user_id == user.id,
                 WatchlistItem.movie_id == movie.id,
             )
         )
-    ).scalar_one_or_none() is not None
+    ).scalar_one_or_none()
+    watching_row = (
+        await db.execute(
+            select(CurrentlyWatching).where(
+                CurrentlyWatching.user_id == user.id,
+                CurrentlyWatching.movie_id == movie.id,
+            )
+        )
+    ).scalar_one_or_none()
     watched = (
         await db.execute(
             select(WatchHistory).where(
@@ -174,6 +223,13 @@ async def get_movie_status(
             )
         )
     ).scalar_one_or_none() is not None
+    dnf_row = (
+        await db.execute(
+            select(DnfEntry).where(
+                DnfEntry.user_id == user.id, DnfEntry.movie_id == movie.id
+            )
+        )
+    ).scalar_one_or_none()
     rating_row = (
         await db.execute(
             select(Rating).where(
@@ -182,19 +238,49 @@ async def get_movie_status(
         )
     ).scalar_one_or_none()
     return {
-        "inWatchlist": in_wl,
+        "mediaType": media_type,
+        "inWatchlist": wl_row is not None,
+        "shelf": {
+            "reasonType": wl_row.reason_type,
+            "reasonReference": wl_row.reason_reference,
+            "note": wl_row.note,
+        }
+        if wl_row
+        else None,
+        "watching": {
+            "progressPct": watching_row.progress_pct,
+            "startedAt": watching_row.started_at.isoformat(),
+        }
+        if watching_row
+        else None,
         "watched": watched,
+        "dnf": {
+            "reason": dnf_row.reason,
+            "stoppedAt": dnf_row.stopped_at,
+            "progressPct": dnf_row.progress_pct,
+        }
+        if dnf_row
+        else None,
         "rating": rating_row.value if rating_row else None,
     }
+
+
+class ShelfBody(BaseModel):
+    # Shelf Notes — all optional ("Skip" sends an empty body).
+    reasonType: str | None = None
+    reasonReference: str | None = None
+    note: str | None = None
 
 
 @router.post("/{tmdb_id}/watchlist")
 async def add_to_watchlist(
     tmdb_id: int,
+    body: ShelfBody | None = None,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
     existing = (
         await db.execute(
             select(WatchlistItem).where(
@@ -203,19 +289,36 @@ async def add_to_watchlist(
             )
         )
     ).scalar_one_or_none()
-    if not existing:
-        db.add(WatchlistItem(user_id=user.id, movie_id=movie.id))
-        await db.flush()
+    reason_type = body.reasonType if body else None
+    reason_reference = body.reasonReference if body else None
+    note = body.note if body else None
+    if existing:
+        # Re-shelving updates the saved reason/note.
+        existing.reason_type = reason_type
+        existing.reason_reference = reason_reference
+        existing.note = note
+    else:
+        db.add(
+            WatchlistItem(
+                user_id=user.id,
+                movie_id=movie.id,
+                reason_type=reason_type,
+                reason_reference=reason_reference,
+                note=note,
+            )
+        )
+    await db.flush()
     return {"ok": True, "inWatchlist": True}
 
 
 @router.delete("/{tmdb_id}/watchlist")
 async def remove_from_watchlist(
     tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
     row = (
         await db.execute(
             select(WatchlistItem).where(
@@ -229,13 +332,29 @@ async def remove_from_watchlist(
     return {"ok": True, "inWatchlist": False}
 
 
+async def _clear_states(db: AsyncSession, user_id: str, movie_id: str, *models) -> None:
+    """Delete the user's row(s) for this movie from the given lifecycle tables.
+    Used to keep Shelf/Watching/Watched/DNF mutually exclusive."""
+    for model in models:
+        row = (
+            await db.execute(
+                select(model).where(
+                    model.user_id == user_id, model.movie_id == movie_id
+                )
+            )
+        ).scalar_one_or_none()
+        if row:
+            await db.delete(row)
+
+
 @router.post("/{tmdb_id}/watched")
 async def mark_watched(
     tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
     existing = (
         await db.execute(
             select(WatchHistory).where(
@@ -248,17 +367,20 @@ async def mark_watched(
         db.add(
             WatchHistory(user_id=user.id, movie_id=movie.id, completion_pct=100.0)
         )
-        await db.flush()
+    # Watched is terminal — it leaves the shelf, the watching list, and DNF.
+    await _clear_states(db, user.id, movie.id, WatchlistItem, CurrentlyWatching, DnfEntry)
+    await db.flush()
     return {"ok": True, "watched": True}
 
 
 @router.delete("/{tmdb_id}/watched")
 async def unmark_watched(
     tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
     row = (
         await db.execute(
             select(WatchHistory).where(
@@ -272,6 +394,121 @@ async def unmark_watched(
     return {"ok": True, "watched": False}
 
 
+# ── Currently Watching ───────────────────────────────────────
+
+
+class WatchingBody(BaseModel):
+    progressPct: float | None = None
+
+
+@router.post("/{tmdb_id}/watching")
+async def start_watching(
+    tmdb_id: int,
+    body: WatchingBody | None = None,
+    media_type: str = Query("movie", alias="mediaType"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
+    progress = (body.progressPct if body and body.progressPct is not None else 0.0)
+    existing = (
+        await db.execute(
+            select(CurrentlyWatching).where(
+                CurrentlyWatching.user_id == user.id,
+                CurrentlyWatching.movie_id == movie.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        existing.progress_pct = progress
+    else:
+        db.add(
+            CurrentlyWatching(
+                user_id=user.id, movie_id=movie.id, progress_pct=progress
+            )
+        )
+    # Starting moves the film off the shelf and clears any prior DNF.
+    await _clear_states(db, user.id, movie.id, WatchlistItem, DnfEntry)
+    await db.flush()
+    return {"ok": True, "watching": True}
+
+
+@router.delete("/{tmdb_id}/watching")
+async def stop_watching(
+    tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
+    await _clear_states(db, user.id, movie.id, CurrentlyWatching)
+    await db.flush()
+    return {"ok": True, "watching": False}
+
+
+# ── DNF (Didn't Finish) ──────────────────────────────────────
+
+
+class DnfBody(BaseModel):
+    reason: str | None = None
+    stoppedAt: str | None = None
+    progressPct: float | None = None
+
+
+@router.post("/{tmdb_id}/dnf")
+async def mark_dnf(
+    tmdb_id: int,
+    body: DnfBody | None = None,
+    media_type: str = Query("movie", alias="mediaType"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
+    reason = body.reason if body else None
+    stopped_at = body.stoppedAt if body else None
+    progress = body.progressPct if body else None
+    existing = (
+        await db.execute(
+            select(DnfEntry).where(
+                DnfEntry.user_id == user.id, DnfEntry.movie_id == movie.id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        existing.reason = reason
+        existing.stopped_at = stopped_at
+        existing.progress_pct = progress
+    else:
+        db.add(
+            DnfEntry(
+                user_id=user.id,
+                movie_id=movie.id,
+                reason=reason,
+                stopped_at=stopped_at,
+                progress_pct=progress,
+            )
+        )
+    # DNF leaves the shelf + watching list; it's a negative taste signal.
+    await _clear_states(db, user.id, movie.id, WatchlistItem, CurrentlyWatching)
+    db.add(MicroFeedback(user_id=user.id, movie_id=movie.id, type="dnf"))
+    await db.flush()
+    await invalidate_user_taste_vector(user.id)
+    return {"ok": True, "dnf": True}
+
+
+@router.delete("/{tmdb_id}/dnf")
+async def remove_dnf(
+    tmdb_id: int,
+    media_type: str = Query("movie", alias="mediaType"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
+    await _clear_states(db, user.id, movie.id, DnfEntry)
+    await db.flush()
+    return {"ok": True, "dnf": False}
+
+
 class RateBody(BaseModel):
     # 0 clears the rating; otherwise quarter-star precision (0.25 … 5.0).
     rating: float = Field(ge=0, le=5, multiple_of=0.25)
@@ -281,10 +518,11 @@ class RateBody(BaseModel):
 async def rate_film(
     tmdb_id: int,
     body: RateBody,
+    media_type: str = Query("movie", alias="mediaType"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await _get_or_fetch_movie(tmdb_id, db)
+    movie = await _get_or_fetch_movie(tmdb_id, db, media_type)
     existing = (
         await db.execute(
             select(Rating).where(

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.auth import get_current_user
 from ..core.database import get_db
-from ..models.actions import Rating, WatchHistory, WatchlistItem
+from ..models.actions import Rating, Review, WatchHistory, WatchlistItem
 from ..models.movie import Movie
 from ..models.onboarding import FavoriteMovie
 from ..models.social import MicroFeedback
@@ -134,7 +134,9 @@ async def hero_feed(
     ).all()
     dismissed_ids: set[str] = set()
     for fb, movie in feedback_rows:
-        if fb.type == "not_for_me":
+        # Both "not_for_me" and the hero "Dislike" (not_in_mood) should pull
+        # the film out of the next pick so the card advances on every action.
+        if fb.type in ("not_for_me", "not_in_mood"):
             dismissed_ids.add(fb.movie_id)
         interactions.append({
             "movie_data": _movie_to_dict(movie),
@@ -142,12 +144,16 @@ async def hero_feed(
             "created_at": fb.created_at,
         })
 
+    # Shelving a film ("+ Shelf") should also advance the hero — exclude
+    # anything already on the user's watchlist from the candidate set.
+    watchlist_ids = {wl.movie_id for wl, _ in watchlist}
+
     ranked = pipeline.run(
         user_id=user.id,
         user_interactions=interactions,
         all_movies=all_movies,
         watched_ids=watched_ids,
-        dismissed_ids=dismissed_ids,
+        dismissed_ids=dismissed_ids | watchlist_ids,
         session_mood=None,
         n_results=4,
         user_priors=user_priors,
@@ -242,29 +248,65 @@ async def twins_now(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Films currently being watched by users in the requesting user's
-    taste neighbourhood. "Currently" = WatchHistory rows in the last
-    90 minutes. The neighbour set is provided by the taste graph in
-    Phase 4 — until that's wired in here, we approximate with the
-    top recent watches across the whole user base, excluding self.
+    "Twins" = people who share recent taste overlap with you. We surface
+    films that *someone else* watched, rated, or reviewed in the recent
+    past where *you* also watched, rated, or reviewed the same film. Each
+    item names the other person (the twin) and the film you have in common.
     """
-    since = datetime.now(timezone.utc) - timedelta(minutes=90)
-    rows = (
-        await db.execute(
-            select(WatchHistory, Movie, User)
-            .join(Movie, WatchHistory.movie_id == Movie.id)
-            .join(User, WatchHistory.user_id == User.id)
-            .where(
-                WatchHistory.watched_at >= since,
-                WatchHistory.user_id != user.id,
-            )
-            .order_by(WatchHistory.watched_at.desc())
-            .limit(limit)
-        )
-    ).all()
+    since = datetime.now(timezone.utc) - timedelta(days=90)
 
-    return {
-        "items": [
+    # 1. The films you've touched recently (any signal counts).
+    my_movie_ids: set[str] = set()
+    for table, ts_col in (
+        (WatchHistory, WatchHistory.watched_at),
+        (Rating, Rating.created_at),
+        (Review, Review.created_at),
+    ):
+        ids = (
+            await db.execute(
+                select(table.movie_id).where(
+                    table.user_id == user.id, ts_col >= since
+                )
+            )
+        ).scalars().all()
+        my_movie_ids.update(ids)
+
+    if not my_movie_ids:
+        return {"items": []}
+
+    # 2. Other people's recent activity on those same films.
+    rows: list[tuple[datetime, Movie, User]] = []
+    for table, ts_col in (
+        (WatchHistory, WatchHistory.watched_at),
+        (Rating, Rating.created_at),
+        (Review, Review.created_at),
+    ):
+        result = (
+            await db.execute(
+                select(ts_col, Movie, User)
+                .join(Movie, table.movie_id == Movie.id)
+                .join(User, table.user_id == User.id)
+                .where(
+                    table.movie_id.in_(my_movie_ids),
+                    table.user_id != user.id,
+                    ts_col >= since,
+                )
+                .order_by(ts_col.desc())
+                .limit(limit)
+            )
+        ).all()
+        rows.extend((ts, m, u) for ts, m, u in result)
+
+    # 3. Most recent first, deduped per (film, twin), capped at limit.
+    rows.sort(key=lambda r: r[0], reverse=True)
+    seen: set[tuple[str, str]] = set()
+    items = []
+    for ts, m, u in rows:
+        key = (m.tmdb_id, u.username)
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(
             {
                 "tmdbId": m.tmdb_id,
                 "title": m.title,
@@ -274,8 +316,10 @@ async def twins_now(
                     "name": u.name,
                     "avatarUrl": u.avatar_url,
                 },
-                "watchedAt": w.watched_at.isoformat(),
+                "watchedAt": ts.isoformat(),
             }
-            for w, m, u in rows
-        ]
-    }
+        )
+        if len(items) >= limit:
+            break
+
+    return {"items": items}

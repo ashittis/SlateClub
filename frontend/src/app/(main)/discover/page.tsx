@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import Section from "@/components/discover/Section";
@@ -20,8 +20,10 @@ import MoviesLikeBuilder, {
   type PickedFilm,
 } from "@/components/taste-engine/MoviesLikeBuilder";
 import SimilarResultsGrid, {
+  type SimilarFilm,
   type SimilarResponse,
 } from "@/components/discover/SimilarResultsGrid";
+import PaginationBar from "@/components/discover/PaginationBar";
 import MovieFilterModal, {
   languageLabel,
 } from "@/components/discover/MovieFilterModal";
@@ -36,6 +38,10 @@ export default function DiscoverPage() {
   const [seedFilm, setSeedFilm] = useState<PickedFilm | null>(null);
   const [languages, setLanguages] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Pages 2..N from "Show more" (page 1 lives in the query cache). pageIndex is
+  // the 0-based page currently shown.
+  const [extraPages, setExtraPages] = useState<SimilarFilm[][]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
 
   // Restore after a refresh: pre-seed the query cache with the saved response so
   // the query renders immediately and does not refetch (staleTime: Infinity).
@@ -47,6 +53,8 @@ export default function DiscoverPage() {
         seed: PickedFilm;
         languages?: string[];
         data?: SimilarResponse;
+        extra?: SimilarFilm[][];
+        pageIndex?: number;
       };
       if (!saved?.seed) return;
       if (saved.data) {
@@ -54,27 +62,41 @@ export default function DiscoverPage() {
       }
       setSeedFilm(saved.seed);
       setLanguages(saved.languages ?? []);
+      setExtraPages(saved.extra ?? []);
+      setPageIndex(saved.pageIndex ?? 0);
     } catch {
       /* ignore malformed storage */
     }
   }, [queryClient]);
 
   const similarQuery = useQuery<SimilarResponse>({
-    queryKey: ["movies-like", seedFilm?.id ?? null],
+    queryKey: ["movies-like", seedFilm?.id ?? null, seedFilm?.mediaType ?? "movie"],
     queryFn: () =>
       apiFetch("/api/taste-engine/similar", {
         method: "POST",
-        body: JSON.stringify({ tmdbId: seedFilm!.id, limit: 30 }),
+        body: JSON.stringify({
+          tmdbId: seedFilm!.id,
+          mediaType: seedFilm!.mediaType ?? "movie",
+          limit: 30,
+        }),
       }),
     enabled: !!seedFilm,
     staleTime: Infinity,
   });
 
-  // Persist the seed + filter IMMEDIATELY (decoupled from results) so an
-  // in-flight "movies like X" search resumes after navigating away and back —
-  // the running query stays alive in the cache (gcTime) and re-subscribes once
-  // the seed is restored. The full response is included once it arrives so a
-  // hard refresh restores instantly.
+  // page 0 = first batch (query cache), then the "Show more" pages.
+  const allPages = useMemo(
+    () => [similarQuery.data?.results ?? [], ...extraPages],
+    [similarQuery.data, extraPages],
+  );
+  const seenIds = useMemo(
+    () => new Set(allPages.flat().map((r) => r.tmdbId)),
+    [allPages],
+  );
+
+  // Persist the seed + filter + fetched pages IMMEDIATELY (decoupled from a
+  // single response) so an in-flight search resumes after navigating away, and
+  // a hard refresh restores every page and the current page index.
   useEffect(() => {
     if (!seedFilm) return;
     sessionStorage.setItem(
@@ -82,39 +104,83 @@ export default function DiscoverPage() {
       JSON.stringify({
         seed: seedFilm,
         languages,
+        pageIndex,
+        extra: extraPages,
         ...(similarQuery.data ? { data: similarQuery.data } : {}),
       }),
     );
-  }, [seedFilm, languages, similarQuery.data]);
+  }, [seedFilm, languages, pageIndex, extraPages, similarQuery.data]);
 
-  // Client-side language filter over the single fetched set (no re-call).
-  const fullResults = similarQuery.data?.results ?? [];
+  // Generate a fresh page that strictly excludes every film fetched so far.
+  const moreMut = useMutation({
+    mutationFn: (excludeIds: number[]) =>
+      apiFetch<SimilarResponse>("/api/taste-engine/similar", {
+        method: "POST",
+        body: JSON.stringify({
+          tmdbId: seedFilm!.id,
+          mediaType: seedFilm!.mediaType ?? "movie",
+          limit: 30,
+          excludeIds,
+        }),
+      }),
+    onSuccess: (resp) => {
+      const fresh = resp.results.filter((r) => !seenIds.has(r.tmdbId));
+      setExtraPages((prev) => [...prev, fresh]);
+      setPageIndex(allPages.length); // jump to the new page
+    },
+  });
+
+  // "Show more": move to the next page, generating it via the LLM only when it
+  // doesn't exist yet. Navigating to an already-fetched page never re-calls.
+  function showMore() {
+    if (pageIndex < allPages.length - 1) {
+      setPageIndex(pageIndex + 1);
+      return;
+    }
+    const creatorIds = (similarQuery.data?.creatorRow?.results ?? []).map(
+      (r) => r.tmdbId,
+    );
+    moreMut.mutate([...seenIds, ...creatorIds]);
+  }
+
+  // Client-side language filter over the CURRENT page (no re-call). Options are
+  // drawn from every fetched page so they stay stable across navigation.
   const presentLanguages = useMemo(
-    () => [...new Set(fullResults.map((f) => f.originalLanguage).filter(Boolean))] as string[],
-    [fullResults],
+    () =>
+      [
+        ...new Set(allPages.flat().map((f) => f.originalLanguage).filter(Boolean)),
+      ] as string[],
+    [allPages],
   );
   const similarDisplay: SimilarResponse | undefined = useMemo(() => {
     if (!similarQuery.data) return undefined;
+    const current = allPages[pageIndex] ?? [];
     const filtered = languages.length
-      ? fullResults.filter(
+      ? current.filter(
           (f) => f.originalLanguage && languages.includes(f.originalLanguage),
         )
-      : fullResults;
+      : current;
     return {
       ...similarQuery.data,
-      results: filtered.slice(0, 18), // ~3 rows
-      creatorRow: languages.length ? null : similarQuery.data.creatorRow,
+      results: filtered,
+      // Creator row belongs to the seed — show it on the first page only.
+      creatorRow:
+        pageIndex === 0 && !languages.length ? similarQuery.data.creatorRow : null,
     };
-  }, [similarQuery.data, fullResults, languages]);
+  }, [similarQuery.data, allPages, pageIndex, languages]);
 
   function runSimilar(film: PickedFilm) {
     setSeedFilm(film);
     setLanguages([]);
+    setExtraPages([]);
+    setPageIndex(0);
   }
 
   function clearSimilar() {
     setSeedFilm(null);
     setLanguages([]);
+    setExtraPages([]);
+    setPageIndex(0);
     sessionStorage.removeItem(LIKE_KEY);
   }
 
@@ -177,13 +243,17 @@ export default function DiscoverPage() {
       <div>
         <MoviesLikeBuilder
           onSubmit={(film) => runSimilar(film)}
-          pending={similarQuery.isFetching}
+          pending={similarQuery.isFetching || moreMut.isPending}
           value={seedFilm}
           onClear={clearSimilar}
+          hasResults={!!similarQuery.data && !similarQuery.isLoading}
+          onMore={showMore}
         />
         <SimilarResultsGrid
           data={similarDisplay}
-          loading={similarQuery.isLoading && !!seedFilm}
+          loading={
+            (similarQuery.isLoading || moreMut.isPending) && !!seedFilm
+          }
           languageLabel={languages.length ? languageLabel(languages) : undefined}
           onOpenFilter={
             similarQuery.data && seedFilm
@@ -191,6 +261,13 @@ export default function DiscoverPage() {
               : undefined
           }
         />
+        {!!similarQuery.data && !similarQuery.isLoading && (
+          <PaginationBar
+            page={pageIndex}
+            total={allPages.length}
+            onSelect={setPageIndex}
+          />
+        )}
         <MovieFilterModal
           open={filterOpen}
           initial={languages}

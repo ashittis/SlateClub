@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -9,6 +9,12 @@ import type { Movie } from "@/types/movie";
 import Button from "@/components/ui/Button";
 import StarRating from "@/components/ratings/StarRating";
 import RecommendSheet from "@/components/film/RecommendSheet";
+import ShelfNoteSheet, {
+  type ShelfNotePayload,
+} from "@/components/film/ShelfNoteSheet";
+import DNFSheet, { type DnfPayload } from "@/components/film/DNFSheet";
+import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
+import { addRecentlyViewed } from "@/lib/searchHistory";
 import FilmDiscussSection from "@/components/discourse/FilmDiscussSection";
 import ConnectorRail from "@/components/cultural/ConnectorRail";
 import CulturalContextCard from "@/components/cultural/CulturalContextCard";
@@ -18,7 +24,10 @@ import NowShowingSection from "@/components/theatres/NowShowingSection";
 
 interface UserMovieStatus {
   inWatchlist: boolean;
+  shelf: { reasonType: string | null; reasonReference: string | null; note: string | null } | null;
+  watching: { progressPct: number; startedAt: string } | null;
   watched: boolean;
+  dnf: { reason: string | null; stoppedAt: string | null; progressPct: number | null } | null;
   rating: number | null;
 }
 
@@ -26,6 +35,9 @@ export default function FilmDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const queryClient = useQueryClient();
   const [recOpen, setRecOpen] = useState(false);
+  const [slateOpen, setSlateOpen] = useState(false);
+  const [shelfOpen, setShelfOpen] = useState(false);
+  const [dnfOpen, setDnfOpen] = useState(false);
 
   // Fetch movie details
   const {
@@ -37,6 +49,18 @@ export default function FilmDetailPage() {
     queryFn: () => apiFetch<Movie>(`/api/movies/${slug}`),
     enabled: !!slug,
   });
+
+  // Record for the search page's "Recently viewed".
+  useEffect(() => {
+    if (movie)
+      addRecentlyViewed({
+        tmdbId: movie.tmdbId,
+        mediaType: "movie",
+        title: movie.title,
+        posterPath: movie.posterPath,
+        year: movie.releaseDate?.slice(0, 4) ?? null,
+      });
+  }, [movie?.tmdbId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch user's status for this movie (watchlist, watched, rating)
   const { data: status } = useQuery<UserMovieStatus>({
@@ -52,13 +76,26 @@ export default function FilmDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
     queryClient.invalidateQueries({ queryKey: ["profile", "watched"] });
     queryClient.invalidateQueries({ queryKey: ["profile", "watchlist"] });
+    queryClient.invalidateQueries({ queryKey: ["profile", "dnf"] });
   };
 
-  const watchlistMutation = useMutation({
-    mutationFn: () =>
+  // Shelf: saving opens the note sheet (POST with reason/note); the toggle-off
+  // path removes it directly.
+  const shelfMutation = useMutation({
+    mutationFn: (payload: ShelfNotePayload) =>
       apiFetch(`/api/movies/${slug}/watchlist`, {
-        method: status?.inWatchlist ? "DELETE" : "POST",
+        method: "POST",
+        body: JSON.stringify(payload),
       }),
+    onSuccess: () => {
+      setShelfOpen(false);
+      refreshProfileTabs();
+    },
+  });
+
+  const unshelfMutation = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/movies/${slug}/watchlist`, { method: "DELETE" }),
     onSuccess: refreshProfileTabs,
   });
 
@@ -68,6 +105,18 @@ export default function FilmDetailPage() {
         method: status?.watched ? "DELETE" : "POST",
       }),
     onSuccess: refreshProfileTabs,
+  });
+
+  const dnfMutation = useMutation({
+    mutationFn: (payload: DnfPayload) =>
+      apiFetch(`/api/movies/${slug}/dnf`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      setDnfOpen(false);
+      refreshProfileTabs();
+    },
   });
 
   const ratingMutation = useMutation({
@@ -185,11 +234,15 @@ export default function FilmDetailPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button
               variant={status?.inWatchlist ? "primary" : "secondary"}
-              onClick={() => watchlistMutation.mutate()}
-              disabled={watchlistMutation.isPending}
+              onClick={() =>
+                status?.inWatchlist
+                  ? unshelfMutation.mutate()
+                  : setShelfOpen(true)
+              }
+              disabled={unshelfMutation.isPending}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -226,6 +279,13 @@ export default function FilmDetailPage() {
               {status?.watched ? "Watched" : "Mark Watched"}
             </Button>
 
+            <Button variant="secondary" onClick={() => setSlateOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+              </svg>
+              Add to Slate
+            </Button>
+
             <Button variant="secondary" onClick={() => setRecOpen(true)}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                 <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
@@ -234,13 +294,46 @@ export default function FilmDetailPage() {
             </Button>
           </div>
 
+          {/* DNF — quiet affordance; once marked, shows the abandon state. */}
+          <button
+            type="button"
+            onClick={() => setDnfOpen(true)}
+            className="-mt-1 self-start text-xs transition-opacity hover:opacity-80 cursor-pointer"
+            style={{ color: "var(--text-faint)" }}
+          >
+            {status?.dnf ? "Marked as didn’t finish · edit" : "Didn’t finish?"}
+          </button>
+
           {movie && (
-            <RecommendSheet
-              open={recOpen}
-              onClose={() => setRecOpen(false)}
-              tmdbId={Number(slug)}
-              title={movie.title}
-            />
+            <>
+              <RecommendSheet
+                open={recOpen}
+                onClose={() => setRecOpen(false)}
+                tmdbId={Number(slug)}
+                title={movie.title}
+              />
+              <ShelfNoteSheet
+                open={shelfOpen}
+                title={movie.title}
+                onClose={() => setShelfOpen(false)}
+                onSubmit={(payload) => shelfMutation.mutate(payload)}
+                pending={shelfMutation.isPending}
+              />
+              <DNFSheet
+                open={dnfOpen}
+                title={movie.title}
+                onClose={() => setDnfOpen(false)}
+                onSubmit={(payload) => dnfMutation.mutate(payload)}
+                pending={dnfMutation.isPending}
+              />
+              <AddToSlateSheet
+                open={slateOpen}
+                onClose={() => setSlateOpen(false)}
+                tmdbId={Number(slug)}
+                mediaType="movie"
+                title={movie.title}
+              />
+            </>
           )}
 
           {/* Overview */}
