@@ -108,8 +108,12 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="auth-reveal h-14 w-full rounded-full text-base font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
-          style={{ background: "var(--cta-gradient)", boxShadow: "var(--cta-glow)" }}
+          className="auth-reveal h-14 w-full rounded-full text-base font-semibold transition active:scale-[0.99] disabled:opacity-60"
+          style={{
+            background: "linear-gradient(95deg, #FF4D00 0%, #FF9800 100%)",
+            boxShadow: "0 0 40px rgba(255,120,0,0.28)",
+            color: "#ffffff",
+          }}
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>
