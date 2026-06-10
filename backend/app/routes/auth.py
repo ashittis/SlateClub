@@ -51,15 +51,16 @@ def _set_auth_cookies(response: Response, user_id: str) -> None:
     access = create_access_token({"id": user_id})
     refresh = create_refresh_token({"id": user_id})
     is_prod = "localhost" not in settings.FRONTEND_URL
+    samesite = "none" if is_prod else "lax"
     response.set_cookie(
         "access_token", access,
-        httponly=True, samesite="lax", path="/",
+        httponly=True, samesite=samesite, path="/",
         secure=is_prod,
         max_age=settings.JWT_ACCESS_EXPIRE_MINUTES * 60,
     )
     response.set_cookie(
         "refresh_token", refresh,
-        httponly=True, samesite="lax", path="/",
+        httponly=True, samesite=samesite, path="/",
         secure=is_prod,
         max_age=settings.JWT_REFRESH_EXPIRE_DAYS * 86400,
     )
