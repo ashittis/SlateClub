@@ -60,28 +60,39 @@ async def _get_or_create_artist(
     roles: list[str] = []
     bio: str | None = None
     try:
-        # Cheap probe — search popular people by id is not first-class on
-        # TMDB; reuse credits to verify the id exists, take the most
-        # common department as the role hint.
-        credits = await tmdb.get_person_movie_credits(tmdb_person_id)
-        cast = credits.get("cast", []) or []
-        crew = credits.get("crew", []) or []
-        if cast and "name" in cast[0]:
-            name = cast[0].get("name", name)  # rare but stamped here
-        if crew and "name" in crew[0] and not cast:
-            name = crew[0].get("name", name)
-        # Coarse role inference.
-        if cast:
-            roles.append("Acting")
-        depts = {c.get("job") or c.get("department") for c in crew}
-        if "Director" in depts or "Directing" in depts:
+        # Fetch person details for name, headshot, and biography.
+        details = await tmdb.get_person_details(tmdb_person_id)
+        if details.get("name"):
+            name = details["name"]
+        if details.get("profile_path"):
+            headshot = details["profile_path"]
+        if details.get("biography"):
+            bio = details["biography"][:2000]
+        dept = details.get("known_for_department", "Acting")
+        if dept == "Directing":
             roles.append("Directing")
-        if "Cinematography" in depts or "Director of Photography" in depts:
-            roles.append("Cinematography")
-        if "Music" in depts or "Original Music Composer" in depts:
+        elif dept == "Sound":
             roles.append("Music")
+        elif dept == "Camera":
+            roles.append("Cinematography")
+        else:
+            roles.append("Acting")
     except Exception:
         pass
+
+    if not roles:
+        try:
+            credits = await tmdb.get_person_movie_credits(tmdb_person_id)
+            cast = credits.get("cast", []) or []
+            crew = credits.get("crew", []) or []
+            if cast:
+                roles.append("Acting")
+            depts = {c.get("job") or c.get("department") for c in crew}
+            if "Director" in depts or "Directing" in depts:
+                if "Directing" not in roles:
+                    roles.append("Directing")
+        except Exception:
+            pass
 
     row = Artist(
         tmdb_person_id=tmdb_person_id,
@@ -111,6 +122,29 @@ def _artist_payload(a: Artist, follower_count: int, is_following: bool) -> dict:
 
 
 # ── Routes ────────────────────────────────────────────────────
+
+
+@router.get("/search")
+async def search_artists(
+    q: str = Query(..., min_length=1),
+    user: User | None = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search people via TMDB, returning lightweight results for typeahead."""
+    results = await tmdb.search_people(q)
+    people = results.get("results", [])[:10]
+    return {
+        "results": [
+            {
+                "tmdbPersonId": p["id"],
+                "name": p["name"],
+                "profilePath": p.get("profile_path"),
+                "knownFor": p.get("known_for_department", "Acting"),
+            }
+            for p in people
+            if p.get("name")
+        ]
+    }
 
 
 @router.get("/by-tmdb/{tmdb_person_id}")

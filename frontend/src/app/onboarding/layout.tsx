@@ -11,24 +11,23 @@ const STEP_MAP: Record<string, number> = {
   "/onboarding/mood": 4,
   "/onboarding/platforms": 5,
   "/onboarding/people": 6,
-  "/onboarding/origin": 7,
-  "/onboarding/ready": 8,
-  // Legacy alias — old flow used /movies as the final step.
-  "/onboarding/movies": 7,
+  "/onboarding/ready": 7,
+  // Legacy paths — keep routing but map to nearest valid step
+  "/onboarding/origin": 6,
+  "/onboarding/movies": 6,
 };
 
 const STEP_LABELS: Record<number, string> = {
   1: "Welcome",
   2: "Languages",
-  3: "Posters",
-  4: "Mood",
+  3: "Favourites",
+  4: "Taste",
   5: "Platforms",
   6: "Artists",
-  7: "Origin",
-  8: "Ready",
+  7: "Ready",
 };
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 export default function OnboardingLayout({
   children,

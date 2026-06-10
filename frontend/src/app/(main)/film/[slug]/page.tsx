@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { apiFetch, tmdbImage } from "@/lib/api";
@@ -154,7 +155,8 @@ export default function FilmDetailPage() {
   const year = movie.releaseDate
     ? new Date(movie.releaseDate).getFullYear()
     : null;
-  const director = movie.credits?.director?.name;
+  const director = movie.credits?.director;
+  const directorName = director?.name;
   const runtimeDisplay = movie.runtime
     ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m`
     : null;
@@ -190,8 +192,12 @@ export default function FilmDetailPage() {
               {movie.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-glass-40">
-              {director && <span>{director}</span>}
-              {director && year && <span aria-hidden="true">&middot;</span>}
+              {directorName && director?.id ? (
+                <Link href={`/artists/${director.id}`} className="hover:underline">{directorName}</Link>
+              ) : directorName ? (
+                <span>{directorName}</span>
+              ) : null}
+              {directorName && year && <span aria-hidden="true">&middot;</span>}
               {year && <span>{year}</span>}
               {runtimeDisplay && (
                 <>
@@ -352,9 +358,10 @@ export default function FilmDetailPage() {
               <h2 className="text-lg font-semibold text-text-primary">Cast</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {movie.credits.cast.slice(0, 6).map((member) => (
-                  <div
+                  <Link
                     key={member.id}
-                    className="flex items-center gap-3 rounded-lg bg-glass-6 p-2"
+                    href={`/artists/${member.id}`}
+                    className="flex items-center gap-3 rounded-lg bg-glass-6 p-2 transition-colors hover:bg-glass-10 group"
                   >
                     <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-glass-8">
                       {member.profile_path ? (
@@ -370,14 +377,14 @@ export default function FilmDetailPage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-text-primary">
+                      <p className="truncate text-sm font-medium text-text-primary group-hover:underline">
                         {member.name}
                       </p>
                       <p className="truncate text-xs text-text-subtle">
                         {member.character}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

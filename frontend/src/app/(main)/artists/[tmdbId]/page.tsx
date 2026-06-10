@@ -134,7 +134,7 @@ export default function ArtistPage({
           {a.headshotUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={a.headshotUrl}
+              src={a.headshotUrl.startsWith("/") ? tmdbImage(a.headshotUrl, "w300") : a.headshotUrl}
               alt={a.name}
               className="w-full h-full object-cover"
             />

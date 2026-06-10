@@ -36,6 +36,7 @@ from .posts import router as posts_router
 from .match_cut import router as match_cut_router
 from .orbits import router as orbits_router
 from .dms import router as dms_router
+from .chat import router as chat_router
 
 all_routers = [
     auth_router,
@@ -76,4 +77,5 @@ all_routers = [
     match_cut_router,
     orbits_router,
     dms_router,
+    chat_router,
 ]

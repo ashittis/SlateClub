@@ -117,3 +117,7 @@ async def get_popular_people(page: int = 1) -> dict:
 
 async def get_person_movie_credits(person_id: int) -> dict:
     return await _fetch(f"/person/{person_id}/movie_credits")
+
+
+async def get_person_details(person_id: int) -> dict:
+    return await _fetch(f"/person/{person_id}")

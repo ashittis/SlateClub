@@ -445,11 +445,13 @@ async def get_slate(
     summary = _slate_summary(slate, films, saves, [c for c, _ in collab_rows])
     like_count, liked_by_me = await _like_info(db, slate.id, user)
     can_edit = user is not None and await _can_edit(slate, user.id, db)
+    cover_posters = [f.get("posterPath") for f in enriched_films if f.get("posterPath")][:4]
     return {
         **summary,
         "likeCount": like_count,
         "likedByMe": liked_by_me,
         "canEdit": can_edit,
+        "coverPosters": cover_posters,
         "creator": creator
         and {
             "id": creator.id,

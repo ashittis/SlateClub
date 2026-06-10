@@ -28,6 +28,7 @@ from .models import (  # noqa: F401
     posts,
     match_cut,
     dms,
+    chat,
     similar_cache,
 )
 

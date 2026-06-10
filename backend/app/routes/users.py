@@ -14,6 +14,7 @@ from ..models.actions import (
     WatchlistItem,
 )
 from ..models.movie import Movie
+from ..models.onboarding import FavoriteMovie
 from ..models.social import Follow
 from ..models.user import User, UserPreferences
 
@@ -255,7 +256,7 @@ async def my_watched(
             .order_by(WatchHistory.watched_at.desc())
         )
     ).all()
-    return [_movie_payload(m) for _, m in rows]
+    return [{**_movie_payload(m), "watchedAt": wh.watched_at.isoformat() if wh.watched_at else None} for wh, m in rows]
 
 
 @router.get("/me/ratings")
@@ -271,7 +272,26 @@ async def my_ratings(
             .order_by(Rating.updated_at.desc())
         )
     ).all()
-    return [{**_movie_payload(m), "userRating": r.value} for r, m in rows]
+    return [{**_movie_payload(m), "userRating": r.value, "ratedAt": r.updated_at.isoformat() if r.updated_at else None} for r, m in rows]
+
+
+@router.get("/me/favorites")
+async def my_favorites(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns the user's onboarding favourite films (added during sign-up)."""
+    rows = (
+        await db.execute(
+            select(FavoriteMovie)
+            .where(FavoriteMovie.user_id == user.id)
+            .order_by(FavoriteMovie.created_at.asc())
+        )
+    ).scalars().all()
+    return [
+        {"tmdbId": f.tmdb_id, "title": f.title, "posterPath": f.poster_path}
+        for f in rows
+    ]
 
 
 @router.patch("/me")

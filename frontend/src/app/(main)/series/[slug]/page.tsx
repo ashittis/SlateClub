@@ -11,6 +11,7 @@ import ShelfNoteSheet, { type ShelfNotePayload } from "@/components/film/ShelfNo
 import DNFSheet, { type DnfPayload } from "@/components/film/DNFSheet";
 import SeasonAccordion from "@/components/series/SeasonAccordion";
 import SeriesReviews from "@/components/series/SeriesReviews";
+import SeriesRatingSummary from "@/components/series/SeriesRatingSummary";
 import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
 import { addRecentlyViewed } from "@/lib/searchHistory";
 
@@ -244,15 +245,15 @@ export default function SeriesDetailPage() {
               <h2 className="mb-3 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Cast</h2>
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
                 {series.credits.cast.slice(0, 12).map((c) => (
-                  <div key={c.id} className="text-center">
-                    <div className="aspect-[2/3] overflow-hidden rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                  <a key={c.id} href={`/artists/${c.id}`} className="text-center group block">
+                    <div className="aspect-[2/3] overflow-hidden rounded-lg transition-transform group-hover:scale-105" style={{ background: "var(--bg-elevated)" }}>
                       {c.profile_path && (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={tmdbImage(c.profile_path, "w200")} alt={c.name} className="h-full w-full object-cover" loading="lazy" />
                       )}
                     </div>
-                    <p className="mt-1 truncate text-xs" style={{ color: "var(--text-primary)" }}>{c.name}</p>
-                  </div>
+                    <p className="mt-1 truncate text-xs group-hover:underline" style={{ color: "var(--text-primary)" }}>{c.name}</p>
+                  </a>
                 ))}
               </div>
             </div>
@@ -262,6 +263,12 @@ export default function SeriesDetailPage() {
 
       {tab === "episodes" && (
         <div className="space-y-3">
+          <SeriesRatingSummary
+            seasons={series.seasons}
+            myRatings={myRatings}
+            overallRating={status?.rating ?? null}
+            onRateOverall={(v) => rateMut.mutate(v)}
+          />
           {series.seasons.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--text-faint)" }}>No seasons listed.</p>
           ) : (

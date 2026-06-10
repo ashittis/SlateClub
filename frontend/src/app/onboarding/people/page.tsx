@@ -13,7 +13,7 @@ const MIN_PEOPLE = 1;
 
 export default function PeoplePage() {
   const router = useRouter();
-  const { selectedPeople, addPerson, removePerson, submitPeople, setStep } =
+  const { selectedPeople, addPerson, removePerson, submitPeople, submitMovies, setStep } =
     useOnboardingStore();
 
   const [query, setQuery] = useState("");
@@ -65,7 +65,9 @@ export default function PeoplePage() {
     setError(null);
     try {
       await submitPeople();
-      router.push("/onboarding/origin");
+      // submitMovies marks the user as onboarded (origin step removed)
+      await submitMovies();
+      router.push("/onboarding/ready");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setSubmitting(false);

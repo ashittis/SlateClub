@@ -120,7 +120,8 @@ export default function SlateDetailPage({ params }: PageProps) {
   const isCreator = user?.id === data.creator?.id;
   const movieCount = data.films.filter((f) => f.mediaType !== "tv").length;
   const seriesCount = data.films.filter((f) => f.mediaType === "tv").length;
-  const heroPoster = data.coverPosters?.[0];
+  const coverPosters: string[] = data.coverPosters ?? [];
+  const heroPoster = coverPosters[0];
 
   return (
     <div className="mx-auto max-w-7xl px-4 lg:px-6 pt-6 pb-24">
@@ -142,7 +143,7 @@ export default function SlateDetailPage({ params }: PageProps) {
         />
         <div className="relative flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:p-8">
           <div className="grid h-40 w-28 shrink-0 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl shadow-2xl">
-            {(data.coverPosters.length ? data.coverPosters : [null, null, null, null])
+            {(coverPosters.length ? coverPosters : [null, null, null, null])
               .slice(0, 4)
               .map((p, i) => (
                 <div key={i} style={{ background: "var(--bg-elevated)" }}>

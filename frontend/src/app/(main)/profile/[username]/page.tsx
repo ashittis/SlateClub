@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { apiFetch, tmdbImage } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -31,8 +31,15 @@ type Tab = "ratings" | "watchlist" | "watching" | "dnf" | "slates";
 
 export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
+  const router = useRouter();
   const username = params.username;
   const { user: currentUser } = useAuthStore();
+
+  const startChat = useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<{ conversationId: string }>(`/api/chat/conversations/with/${userId}`, { method: "POST" }),
+    onSuccess: (data) => router.push(`/messages/${data.conversationId}`),
+  });
   const [activeTab, setActiveTab] = useState<Tab>("ratings");
   const [media, setMedia] = useState<MediaFilterValue>("all");
 
@@ -158,7 +165,17 @@ export default function UserProfilePage() {
             />
           )}
           {!isOwnProfile && currentUser && profile.id && (
-            <OrbitButton userId={profile.id} />
+            <>
+              <button
+                onClick={() => startChat.mutate(profile.id)}
+                disabled={startChat.isPending}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-60"
+                style={{ background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                {startChat.isPending ? "…" : "Message"}
+              </button>
+              <OrbitButton userId={profile.id} />
+            </>
           )}
           {isOwnProfile && (
             <Link
