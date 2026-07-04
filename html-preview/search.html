@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Search — SlateClub</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-screening: #0A0A0B;
+    --bg-card: #111114;
+    --bg-elevated: #1A1A1F;
+    --text-primary: #FAFAF7;
+    --text-muted: #9A9AA0;
+    --text-faint: #6A6A70;
+    --pill-mood: #E0A050;
+    --pill-genre: #5CA572;
+    --pill-language: #B8956A;
+    --pill-platform: #8B6FB5;
+    --pill-era: #6E5BA8;
+    --cta-primary: #FF7A00;
+    --nav-active: #C4716E;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg-screening);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── TOP NAV ── */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 56px;
+    background: var(--bg-screening);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+  }
+  .topnav-logo {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    text-decoration: none;
+    margin-right: auto;
+  }
+  .topnav-logo .slate { color: var(--text-primary); }
+  .topnav-logo .club  { color: var(--cta-primary); }
+  .topnav-links {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .topnav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .topnav-links a:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+  .topnav-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+  }
+  .bell-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 18px; padding: 4px;
+    line-height: 1; transition: color 0.15s; display: flex; align-items: center;
+  }
+  .bell-btn:hover { color: var(--text-primary); }
+  .avatar-chip {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #FF7A00, #C4716E);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; cursor: pointer;
+  }
+
+  /* ── PAGE ── */
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 100px;
+  }
+
+  /* ── SEARCH BAR ── */
+  .search-bar-wrap {
+    position: relative;
+    margin-bottom: 32px;
+  }
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    display: flex;
+  }
+  .search-input {
+    width: 100%;
+    height: 52px;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    color: var(--text-primary);
+    font-size: 16px;
+    padding: 0 48px 0 50px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .search-input::placeholder { color: var(--text-faint); }
+  .search-input:focus {
+    border-color: var(--cta-primary);
+    box-shadow: 0 0 0 3px rgba(255,122,0,0.12);
+  }
+  .clear-btn {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .clear-btn:hover { background: rgba(255,255,255,0.15); color: var(--text-primary); }
+
+  /* ── SECTIONS ── */
+  .section { margin-bottom: 32px; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+  .section-footer {
+    margin-top: 12px;
+  }
+  .see-all-link {
+    font-size: 13px;
+    color: var(--cta-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .see-all-link:hover { opacity: 0.75; }
+
+  /* ── RECENT CHIPS ── */
+  .recent-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .recent-scroll::-webkit-scrollbar { display: none; }
+  .recent-chip {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .recent-chip:hover { border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.04); }
+  .recent-chip svg { color: var(--text-faint); }
+
+  /* ── TRENDING LIST ── */
+  .trending-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .trend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .trend-item:hover { background: var(--bg-elevated); }
+  .trend-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-faint);
+    width: 18px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .trend-item:nth-child(-n+3) .trend-num { color: var(--cta-primary); }
+  .trend-name {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* ── RESULTS ── */
+  .results-wrap { display: flex; flex-direction: column; gap: 28px; }
+
+  /* Film result row */
+  .film-result {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .film-result:hover { background: var(--bg-card); }
+  .film-poster {
+    width: 48px;
+    height: 72px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    padding: 4px;
+    font-size: 7px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: center;
+    line-height: 1.3;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .film-meta { flex: 1; min-width: 0; }
+  .film-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+  .film-sub {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .film-sub .dot { color: var(--text-faint); }
+  .film-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pill-mood);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .genre-badge {
+    background: rgba(92,165,114,0.15);
+    color: var(--pill-genre);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 5px;
+    padding: 2px 6px;
+    border: 1px solid rgba(92,165,114,0.25);
+  }
+  .tv-badge {
+    background: rgba(139,111,181,0.15);
+    color: var(--pill-platform);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 5px;
+    padding: 2px 6px;
+    border: 1px solid rgba(139,111,181,0.25);
+  }
+
+  /* People results */
+  .person-result {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .person-result:hover { background: var(--bg-card); }
+  .person-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .person-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .person-role { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Slates results */
+  .slate-result {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .slate-result:hover { background: var(--bg-card); }
+  .slate-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 18px;
+  }
+  .slate-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .slate-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── MOBILE BOTTOM TAB ── */
+  .mobile-tabs {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 64px;
+    background: rgba(10,10,11,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 200;
+    align-items: center;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; text-decoration: none;
+    color: var(--text-faint); font-size: 10px; font-weight: 500;
+    min-width: 44px; padding: 8px 4px; transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-tab .icon { font-size: 20px; line-height: 1; }
+  .mobile-tab:hover, .mobile-tab.active { color: var(--text-primary); }
+
+  @media (max-width: 768px) {
+    .mobile-tabs { display: flex; }
+    .topnav-links { display: none; }
+    .trending-list { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="home.html" class="topnav-logo"><span class="slate">Slate</span><span class="club">Club</span></a>
+  <div class="topnav-links">
+    <a href="home.html">Home</a>
+    <a href="discover.html">Discover</a>
+    <a href="releases.html">Releases</a>
+    <a href="community.html">Community</a>
+  </div>
+  <div class="topnav-right">
+    <button class="bell-btn" aria-label="Notifications">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </button>
+    <a href="profile.html"><div class="avatar-chip">AK</div></a>
+  </div>
+</nav>
+
+<main class="page">
+
+  <!-- SEARCH BAR -->
+  <div class="search-bar-wrap">
+    <span class="search-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </span>
+    <input
+      class="search-input"
+      type="search"
+      id="searchInput"
+      placeholder="Search films, directors, slates, people..."
+      value="dune"
+      autocomplete="off"
+      spellcheck="false"
+      oninput="toggleResults()"
+    />
+    <button class="clear-btn" onclick="clearSearch()" aria-label="Clear search">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- DEFAULT STATE (no query) -->
+  <div id="default-state">
+    <!-- RECENTLY VIEWED -->
+    <div class="section">
+      <div class="section-label">Recently Viewed</div>
+      <div class="recent-scroll">
+        <button class="recent-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          Dune: Part Two
+        </button>
+        <button class="recent-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          Denis Villeneuve
+        </button>
+        <button class="recent-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          The Bear
+        </button>
+        <button class="recent-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          Anora
+        </button>
+        <button class="recent-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          The Substance
+        </button>
+      </div>
+    </div>
+
+    <!-- TRENDING SEARCHES -->
+    <div class="section">
+      <div class="section-label">Trending Searches</div>
+      <div class="trending-list">
+        <a href="#" class="trend-item"><span class="trend-num">1</span><span class="trend-name">Emilia Pérez</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">2</span><span class="trend-name">Conclave</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">3</span><span class="trend-name">The Brutalist</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">4</span><span class="trend-name">Anora</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">5</span><span class="trend-name">Nosferatu 2024</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">6</span><span class="trend-name">I Saw the TV Glow</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">7</span><span class="trend-name">Nickel Boys</span></a>
+        <a href="#" class="trend-item"><span class="trend-num">8</span><span class="trend-name">Sing Sing</span></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS STATE (shown when input has value "dune") -->
+  <div id="results-state">
+    <div class="results-wrap">
+
+      <!-- FILMS -->
+      <div class="section">
+        <div class="section-label">Films</div>
+        <a href="film.html" class="film-result">
+          <div class="film-poster" style="background: linear-gradient(160deg,#1A2A4A 0%,#0D1520 60%,#050A10 100%);">DUNE<br/>PT.2</div>
+          <div class="film-meta">
+            <div class="film-title">Dune: Part Two</div>
+            <div class="film-sub">
+              <span>2024</span>
+              <span class="dot">·</span>
+              <span class="genre-badge">Sci-Fi</span>
+            </div>
+          </div>
+          <div class="film-rating">★ 8.4</div>
+        </a>
+        <a href="film.html" class="film-result">
+          <div class="film-poster" style="background: linear-gradient(160deg,#2A1A0A 0%,#1A0D05 60%,#0A0805 100%);">DUNE<br/>2021</div>
+          <div class="film-meta">
+            <div class="film-title">Dune</div>
+            <div class="film-sub">
+              <span>2021</span>
+              <span class="dot">·</span>
+              <span class="genre-badge">Sci-Fi</span>
+            </div>
+          </div>
+          <div class="film-rating">★ 8.0</div>
+        </a>
+        <a href="series.html" class="film-result">
+          <div class="film-poster" style="background: linear-gradient(160deg,#2A1A3A 0%,#1A0D2A 60%,#0A081A 100%);">THE<br/>PRPH</div>
+          <div class="film-meta">
+            <div class="film-title">Dune: The Prophecy</div>
+            <div class="film-sub">
+              <span>2024</span>
+              <span class="dot">·</span>
+              <span class="tv-badge">Series · TV</span>
+            </div>
+          </div>
+        </a>
+        <div class="section-footer"><a href="#" class="see-all-link">See all films →</a></div>
+      </div>
+
+      <!-- PEOPLE -->
+      <div class="section">
+        <div class="section-label">People</div>
+        <a href="artist.html" class="person-result">
+          <div class="person-avatar" style="background: linear-gradient(135deg,#4A6FA5,#2D4A7A);">DV</div>
+          <div>
+            <div class="person-name">Denis Villeneuve</div>
+            <div class="person-role">Director</div>
+          </div>
+        </a>
+        <a href="artist.html" class="person-result">
+          <div class="person-avatar" style="background: linear-gradient(135deg,#C4716E,#8A3A38);">TC</div>
+          <div>
+            <div class="person-name">Timothée Chalamet</div>
+            <div class="person-role">Actor</div>
+          </div>
+        </a>
+        <div class="section-footer"><a href="#" class="see-all-link">See all people →</a></div>
+      </div>
+
+      <!-- SLATES -->
+      <div class="section">
+        <div class="section-label">Slates</div>
+        <a href="slates.html" class="slate-result">
+          <div class="slate-icon" style="background: linear-gradient(135deg,#1A2A4A,#0D1520);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div>
+            <div class="slate-name">Sci-Fi Epics Worth Rewatching</div>
+            <div class="slate-meta">by @hiroshi_t · 14 films</div>
+          </div>
+        </a>
+        <a href="slates.html" class="slate-result">
+          <div class="slate-icon" style="background: linear-gradient(135deg,#2A1A3A,#1A0D2A);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div>
+            <div class="slate-name">Denis Villeneuve Ranked</div>
+            <div class="slate-meta">by @maya_cinema · 8 films</div>
+          </div>
+        </a>
+        <div class="section-footer"><a href="#" class="see-all-link">See all slates →</a></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- MOBILE BOTTOM TABS -->
+<nav class="mobile-tabs">
+  <a href="home.html" class="mobile-tab"><span class="icon">🏠</span>Home</a>
+  <a href="discover.html" class="mobile-tab"><span class="icon">🧭</span>Discover</a>
+  <a href="search.html" class="mobile-tab active"><span class="icon">🔍</span>Search</a>
+  <a href="activity.html" class="mobile-tab"><span class="icon">❤️</span>Activity</a>
+  <a href="profile.html" class="mobile-tab"><span class="icon">👤</span>Profile</a>
+</nav>
+
+<script>
+  function toggleResults() {
+    const val = document.getElementById('searchInput').value.trim();
+    document.getElementById('default-state').style.display = val ? 'none' : 'block';
+    document.getElementById('results-state').style.display = val ? 'block' : 'none';
+  }
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    toggleResults();
+  }
+  // Init
+  toggleResults();
+</script>
+</body>
+</html>

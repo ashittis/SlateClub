@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity — SlateClub</title>
+  <style>
+    :root {
+      --bg-screening: #0A0A0B;
+      --bg-card: #111114;
+      --bg-elevated: #1A1A1F;
+      --text-primary: #FAFAF7;
+      --text-muted: #9A9AA0;
+      --text-faint: #6A6A70;
+      --pill-mood: #E0A050;
+      --pill-genre: #5CA572;
+      --pill-language: #B8956A;
+      --pill-platform: #8B6FB5;
+      --pill-era: #6E5BA8;
+      --cta-primary: #FF7A00;
+      --nav-active: #C4716E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-screening);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding-bottom: 80px;
+    }
+
+    /* ── TOP NAV ── */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: var(--bg-screening);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+    .topnav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .topnav-logo .slate { color: var(--text-primary); }
+    .topnav-logo .club  { color: var(--cta-primary); }
+    .topnav-links {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      justify-content: center;
+      list-style: none;
+    }
+    .topnav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .topnav-links a:hover { color: var(--text-primary); }
+    .topnav-links a.active {
+      background: var(--cta-primary);
+      color: #fff;
+    }
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .notif-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .avatar-nav {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C4716E, #FF7A00);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 24px 0;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+
+    /* ── FEED TABS ── */
+    .feed-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 24px;
+    }
+    .feed-tab {
+      padding: 10px 20px 10px 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      margin-right: 8px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .feed-tab.active { color: var(--text-primary); border-bottom-color: var(--cta-primary); }
+    .feed-tab:hover:not(.active) { color: var(--text-primary); }
+
+    /* ── FEED CARD COMMON ── */
+    .feed-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 18px 18px 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .feed-card:hover { border-color: rgba(255,255,255,0.1); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .feed-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .card-meta { flex: 1; min-width: 0; }
+    .card-byline {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .card-byline strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .card-time {
+      font-size: 12px;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    /* ── REVIEW CARD ── */
+    .star-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+    .star { color: var(--cta-primary); font-size: 14px; }
+    .star-empty { color: rgba(255,255,255,0.15); font-size: 14px; }
+    .review-quote {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      font-style: italic;
+      border-left: 2px solid rgba(255,255,255,0.1);
+      padding-left: 14px;
+      margin-bottom: 12px;
+    }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .footer-action {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .footer-action:hover { color: var(--text-muted); }
+    .footer-btn {
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: var(--text-faint);
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .footer-btn:hover { color: var(--cta-primary); }
+
+    /* ── RATING CARD ── */
+    .rating-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .mini-poster {
+      width: 60px;
+      height: 90px;
+      border-radius: 7px;
+      flex-shrink: 0;
+    }
+    .rating-info { flex: 1; }
+    .rating-film-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+    .rating-film-meta {
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    /* ── SLATE UPDATE CARD ── */
+    .poster-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tiny-poster {
+      width: 50px;
+      height: 75px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .view-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--cta-primary);
+      text-decoration: none;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .view-link:hover { opacity: 0.8; }
+
+    /* ── WATCHED CARD ── */
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ── COMMENT CARD ── */
+    .comment-quote {
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+
+    /* ── MOBILE BOTTOM TAB ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      height: 64px;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 200;
+    }
+    @media (max-width: 767px) {
+      .mobile-nav { display: flex; }
+      .topnav-links { display: none; }
+    }
+    .mobile-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--text-faint);
+      text-decoration: none;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+    .mobile-tab .icon { font-size: 20px; }
+    .mobile-tab.active { color: var(--cta-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <a href="home.html" class="topnav-logo"><span class="slate">Slate</span><span class="club">Club</span></a>
+    <ul class="topnav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="discover.html">Discover</a></li>
+      <li><a href="releases.html">Releases</a></li>
+      <li><a href="community.html">Community</a></li>
+    </ul>
+    <div class="topnav-right">
+      <a href="notifications.html"><button class="notif-btn" aria-label="Notifications">🔔</button></a>
+      <a href="profile.html" class="avatar-nav">AK</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- PAGE HEADER -->
+    <h1 class="page-title">Activity</h1>
+
+    <!-- FEED TABS -->
+    <div class="feed-tabs">
+      <div class="feed-tab active">Following</div>
+      <div class="feed-tab">For You</div>
+      <div class="feed-tab">Global</div>
+    </div>
+
+    <!-- 1. REVIEW CARD: Hiroshi reviewed Conclave -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #1E4A8A, #3A6EA8);">H</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>Hiroshi Tanaka</strong> reviewed <strong>Conclave</strong></div>
+        </div>
+        <div class="card-time">2h ago</div>
+      </div>
+      <div class="star-row">
+        <span class="star">★</span>
+        <span class="star">★</span>
+        <span class="star">★</span>
+        <span class="star">★</span>
+        <span class="star-empty">★</span>
+      </div>
+      <div class="review-quote">
+        "A masterclass in slow-burn dread. Finney carries the whole film."
+      </div>
+      <div class="card-footer">
+        <div class="footer-action">❤️ <span>12</span></div>
+        <button class="footer-btn">💬 3 Reply</button>
+      </div>
+    </div>
+
+    <!-- 2. RATING CARD: Maya rated Emilia Pérez -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #5A2A6A, #8A4A9A);">M</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>Maya Rahman</strong> rated <strong>Emilia Pérez</strong> ★★★★★</div>
+        </div>
+        <div class="card-time">5h ago</div>
+      </div>
+      <div class="rating-row">
+        <div class="mini-poster" style="background: radial-gradient(ellipse at 50% 30%, #3A1A5A 0%, #1A0A2A 60%, #0A0A0A 100%);"></div>
+        <div class="rating-info">
+          <div class="rating-film-title">Emilia Pérez</div>
+          <div class="rating-film-meta">2024 · Jacques Audiard · ES</div>
+          <div class="star-row" style="margin-top:6px;">
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="footer-action">❤️ <span>8</span></div>
+        <button class="footer-btn">💬 1</button>
+      </div>
+    </div>
+
+    <!-- 3. SLATE UPDATE: Reza added films -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #1A5A3A, #2A8A5A);">R</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>Reza</strong> added 3 films to his Slate <strong>'Iranian New Wave Essentials'</strong></div>
+        </div>
+        <div class="card-time">8h ago</div>
+      </div>
+      <div class="poster-row">
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #2A1A0A 0%, #100C06 100%);"></div>
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #0A1A2A 0%, #060C10 100%);"></div>
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #1A0A2A 0%, #0C0610 100%);"></div>
+      </div>
+      <a href="slates.html" class="view-link">View Slate →</a>
+    </div>
+
+    <!-- 4. WATCHED CARD: Sara watched The Wild Robot -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #E0A050, #C07030);">S</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>Sara</strong> marked <strong>The Wild Robot</strong> as watched</div>
+        </div>
+        <div class="card-time">12h ago</div>
+      </div>
+      <div class="rating-row">
+        <div class="mini-poster" style="background: radial-gradient(ellipse at 50% 30%, #1A3A1A 0%, #0A1A0A 60%, #0A0A0A 100%);"></div>
+        <div class="rating-info">
+          <div class="rating-film-title">The Wild Robot</div>
+          <div class="rating-film-meta">2024 · Chris Sanders · EN</div>
+          <div class="stat-pill">Has seen 23 animated films this year</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. COMMENT CARD: Lena commented -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #3A5A2A, #5A8A4A);">L</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>Lena</strong> commented on your review of <strong>All We Imagine as Light</strong></div>
+        </div>
+        <div class="card-time">1d ago</div>
+      </div>
+      <div class="comment-quote">
+        "Completely agree — Payal Kapadia is the real deal."
+      </div>
+      <div class="card-footer">
+        <div class="footer-action">❤️ <span>5</span></div>
+        <button class="footer-btn">💬 Reply</button>
+      </div>
+    </div>
+
+    <!-- 6. NEW SLATE CARD: AK created a slate -->
+    <div class="feed-card">
+      <div class="card-header">
+        <div class="feed-avatar" style="background: linear-gradient(135deg, #C4716E, #FF7A00);">AK</div>
+        <div class="card-meta">
+          <div class="card-byline"><strong>You</strong> created a new Slate: <strong>'Slow Burns of 2024'</strong></div>
+        </div>
+        <div class="card-time">2d ago</div>
+      </div>
+      <div class="poster-row">
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #3A0A0A 0%, #120404 100%);"></div>
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #0A2A1A 0%, #041208 100%);"></div>
+        <div class="tiny-poster" style="background: radial-gradient(ellipse at 50% 30%, #1A1A3A 0%, #080812 100%);"></div>
+      </div>
+      <a href="slates.html" class="view-link">View Slate →</a>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM TAB -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a href="home.html"          class="mobile-tab"><span class="icon">🏠</span>Home</a>
+    <a href="discover.html"      class="mobile-tab"><span class="icon">🧭</span>Discover</a>
+    <a href="search.html"        class="mobile-tab"><span class="icon">🔍</span>Search</a>
+    <a href="activity.html"      class="mobile-tab active"><span class="icon">❤️</span>Activity</a>
+    <a href="profile.html"       class="mobile-tab"><span class="icon">👤</span>Profile</a>
+  </nav>
+
+</body>
+</html>

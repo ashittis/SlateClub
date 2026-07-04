@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dune: Part Two — SlateClub</title>
+  <style>
+    :root {
+      --bg-screening: #0A0A0B;
+      --bg-card: #111114;
+      --bg-elevated: #1A1A1F;
+      --text-primary: #FAFAF7;
+      --text-muted: #9A9AA0;
+      --text-faint: #6A6A70;
+      --pill-mood: #E0A050;
+      --pill-genre: #5CA572;
+      --pill-language: #B8956A;
+      --pill-platform: #8B6FB5;
+      --pill-era: #6E5BA8;
+      --cta-primary: #FF7A00;
+      --nav-active: #C4716E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-screening);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding-bottom: 80px;
+    }
+
+    /* ── TOP NAV ── */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: var(--bg-screening);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+    .topnav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .topnav-logo .slate { color: var(--text-primary); }
+    .topnav-logo .club  { color: var(--cta-primary); }
+    .topnav-links {
+      display: flex;
+      gap: 28px;
+      flex: 1;
+      justify-content: center;
+      list-style: none;
+    }
+    .topnav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .topnav-links a:hover { color: var(--text-primary); }
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .notif-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C4716E, #FF7A00);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 24px 0;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      margin-bottom: 48px;
+    }
+    .poster {
+      width: 200px;
+      height: 300px;
+      border-radius: 16px;
+      flex-shrink: 0;
+      background: radial-gradient(ellipse at 40% 30%, #1E3A5F 0%, #8B6914 60%, #0A0A0B 100%);
+      box-shadow: 0 0 40px rgba(30, 58, 95, 0.5), 0 4px 24px rgba(0,0,0,0.6);
+      position: relative;
+      overflow: hidden;
+    }
+    .poster::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.5) 100%);
+    }
+    .hero-info { flex: 1; min-width: 0; }
+    .hero-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    .hero-meta {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .director-row {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .director-row a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .director-row a:hover { color: var(--cta-primary); }
+    .pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .pill-genre    { background: rgba(92,165,114,0.15); color: var(--pill-genre); border: 1px solid rgba(92,165,114,0.3); }
+    .pill-mood     { background: rgba(224,160,80,0.15);  color: var(--pill-mood);  border: 1px solid rgba(224,160,80,0.3); }
+    .pill-language { background: rgba(184,149,106,0.15); color: var(--pill-language); border: 1px solid rgba(184,149,106,0.3); }
+    .pill-platform { background: rgba(139,111,181,0.15); color: var(--pill-platform); border: 1px solid rgba(139,111,181,0.3); }
+    .pill-era      { background: rgba(110,91,168,0.15);  color: var(--pill-era);  border: 1px solid rgba(110,91,168,0.3); }
+
+    /* ── STAR RATING ── */
+    .stars-widget { display: flex; gap: 4px; margin: 16px 0 20px; }
+    .star { font-size: 28px; line-height: 1; cursor: pointer; position: relative; }
+    .star.filled { color: var(--cta-primary); }
+    .star.half {
+      color: transparent;
+      position: relative;
+    }
+    .star.half::before {
+      content: '★';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50%;
+      overflow: hidden;
+      color: var(--cta-primary);
+    }
+    .star.half::after {
+      content: '★';
+      color: rgba(255,255,255,0.15);
+    }
+    .star.empty { color: rgba(255,255,255,0.15); }
+
+    /* ── ACTION BUTTONS ── */
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.18s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn-primary { background: var(--cta-primary); color: #fff; border: none; }
+    .btn-outlined { background: transparent; color: var(--text-primary); border: 1px solid rgba(255,255,255,0.18); }
+    .dnf-link {
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: underline;
+      cursor: pointer;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .overview-text {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.7;
+      margin-top: 14px;
+      max-width: 560px;
+    }
+
+    /* ── TAB BAR ── */
+    .tabbar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 32px;
+    }
+    .tab {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--cta-primary); }
+    .tab:hover:not(.active) { color: var(--text-primary); }
+
+    /* ── OVERVIEW CONTENT ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+    }
+    .tone-tags {
+      background: var(--bg-elevated);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .tone-tag {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 32px;
+      margin-bottom: 40px;
+    }
+    .detail-item { }
+    .detail-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin-bottom: 3px;
+    }
+    .detail-value {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    /* ── CAST GRID ── */
+    .cast-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    @media (min-width: 600px) { .cast-grid { grid-template-columns: repeat(6, 1fr); } }
+    .cast-card { text-align: center; }
+    .cast-portrait {
+      width: 100%;
+      aspect-ratio: 2/3;
+      border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .cast-name { font-size: 12px; color: var(--text-primary); font-weight: 500; line-height: 1.3; }
+    .cast-character { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+    /* ── REVIEWS ── */
+    .reviews-section { margin-bottom: 40px; }
+    .reviews-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .review-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .review-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .review-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .review-meta { flex: 1; }
+    .review-username { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .review-date { font-size: 12px; color: var(--text-faint); }
+    .review-stars { font-size: 13px; color: var(--cta-primary); margin-bottom: 2px; }
+    .review-text { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+    .review-likes { font-size: 12px; color: var(--text-faint); margin-top: 10px; }
+
+    /* ── MOBILE BOTTOM TAB ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      height: 64px;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 200;
+    }
+    @media (max-width: 767px) {
+      .mobile-nav { display: flex; }
+      .topnav-links { display: none; }
+      .hero { flex-direction: column; }
+      .poster { width: 140px; height: 210px; }
+    }
+    .mobile-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--text-faint);
+      text-decoration: none;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+    .mobile-tab .icon { font-size: 20px; }
+    .mobile-tab.active { color: var(--cta-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <a href="home.html" class="topnav-logo"><span class="slate">Slate</span><span class="club">Club</span></a>
+    <ul class="topnav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="discover.html">Discover</a></li>
+      <li><a href="releases.html">Releases</a></li>
+      <li><a href="community.html">Community</a></li>
+    </ul>
+    <div class="topnav-right">
+      <button class="notif-btn" aria-label="Notifications">🔔</button>
+      <a href="profile.html"><div class="avatar">AK</div></a>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="poster"></div>
+
+      <div class="hero-info">
+        <h1 class="hero-title">Dune: Part Two</h1>
+        <p class="hero-meta">2024 · EN · 2h 46m · USA</p>
+
+        <p class="director-row">Directed by <a href="artist.html">Denis Villeneuve</a></p>
+
+        <div class="pills-row">
+          <span class="pill pill-genre">Sci-Fi</span>
+          <span class="pill pill-genre">Adventure</span>
+          <span class="pill pill-genre">Drama</span>
+        </div>
+        <div class="pills-row">
+          <span class="pill pill-mood">Epic &amp; Grand</span>
+          <span class="pill pill-mood">Slow Burn</span>
+          <span class="pill pill-mood">Cerebral</span>
+        </div>
+        <div class="pills-row">
+          <span class="pill pill-language">English</span>
+        </div>
+
+        <!-- STAR RATING -->
+        <div class="stars-widget" aria-label="Rating: 4.5 out of 5">
+          <span class="star filled">★</span>
+          <span class="star filled">★</span>
+          <span class="star filled">★</span>
+          <span class="star filled">★</span>
+          <span class="star" style="position:relative; display:inline-block; color:rgba(255,255,255,0.15);">
+            ★
+            <span style="position:absolute;left:0;top:0;width:50%;overflow:hidden;color:var(--cta-primary);display:inline-block;">★</span>
+          </span>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="action-row">
+          <button class="btn btn-primary">✓ Watched</button>
+          <button class="btn btn-outlined">Shelf</button>
+          <button class="btn btn-outlined">Watching</button>
+          <button class="btn btn-outlined">Add to Slate</button>
+        </div>
+        <span class="dnf-link">Didn't finish?</span>
+
+        <p class="overview-text">Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the known universe, he endeavors to prevent a terrible future only he can foresee.</p>
+      </div>
+    </section>
+
+    <!-- TAB BAR -->
+    <div class="tabbar">
+      <div class="tab active">Overview</div>
+      <div class="tab">Cast</div>
+      <div class="tab">Reviews</div>
+      <div class="tab">Similar</div>
+    </div>
+
+    <!-- TONE TAGS -->
+    <div>
+      <div class="section-label">Tone Tags</div>
+      <div class="tone-tags">
+        <span class="tone-tag">Existential</span>
+        <span class="tone-tag">Mythological</span>
+        <span class="tone-tag">Visually Stunning</span>
+        <span class="tone-tag">Political</span>
+        <span class="tone-tag">Operatic</span>
+      </div>
+    </div>
+
+    <!-- DETAILS GRID -->
+    <div class="section-label">Details</div>
+    <div class="details-grid">
+      <div class="detail-item">
+        <div class="detail-label">Runtime</div>
+        <div class="detail-value">166 min</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Budget</div>
+        <div class="detail-value">$190M</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Box Office</div>
+        <div class="detail-value">$714M</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Languages</div>
+        <div class="detail-value">English, Arabic, Chakobsa</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Released</div>
+        <div class="detail-value">March 1, 2024</div>
+      </div>
+    </div>
+
+    <!-- CAST -->
+    <div class="section-label">Cast</div>
+    <div class="cast-grid">
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #2A3A5C 0%, #0D1520 100%);"></div>
+        <div class="cast-name">Timothée Chalamet</div>
+        <div class="cast-character">Paul Atreides</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #3A2A2A 0%, #1A0D0D 100%);"></div>
+        <div class="cast-name">Zendaya</div>
+        <div class="cast-character">Chani</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #2A3A2A 0%, #0D150D 100%);"></div>
+        <div class="cast-name">Rebecca Ferguson</div>
+        <div class="cast-character">Lady Jessica</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #3A2E1A 0%, #1A1408 100%);"></div>
+        <div class="cast-name">Josh Brolin</div>
+        <div class="cast-character">Gurney Halleck</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #2A1A3A 0%, #0D081A 100%);"></div>
+        <div class="cast-name">Austin Butler</div>
+        <div class="cast-character">Feyd-Rautha</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-portrait" style="background: radial-gradient(ellipse at 50% 20%, #3A2A3A 0%, #160D16 100%);"></div>
+        <div class="cast-name">Florence Pugh</div>
+        <div class="cast-character">Princess Irulan</div>
+      </div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div class="reviews-section">
+      <div class="reviews-header">
+        <div class="section-label" style="margin-bottom:0;">Community Reviews</div>
+        <a href="community.html" style="font-size:13px; color:var(--cta-primary); text-decoration:none;">See all</a>
+      </div>
+
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background: linear-gradient(135deg, #2A4A8A, #5A3A6A);">H</div>
+          <div class="review-meta">
+            <div class="review-stars">★★★★★</div>
+            <div class="review-username">hiroshi_t</div>
+            <div class="review-date">March 8, 2024</div>
+          </div>
+        </div>
+        <p class="review-text">Villeneuve delivers the unmakeable. The sandworm sequences alone justify the budget. A rare case where the sequel transcends the original in scope, confidence, and raw cinematic power. This is what blockbuster filmmaking can be.</p>
+        <div class="review-likes">❤ 847 likes</div>
+      </div>
+
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background: linear-gradient(135deg, #5A3A2A, #8A4A3A);">M</div>
+          <div class="review-meta">
+            <div class="review-stars">★★★★</div>
+            <div class="review-username">maya_cinema</div>
+            <div class="review-date">March 4, 2024</div>
+          </div>
+        </div>
+        <p class="review-text">Stunning but emotionally distant at times. Zendaya carries the human heart of the film and the desert photography is jaw-dropping. Loses some of Herbert's political nuance in the third act but never stops being visually magnificent.</p>
+        <div class="review-likes">❤ 412 likes</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM TAB -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a href="home.html"     class="mobile-tab"><span class="icon">🏠</span>Home</a>
+    <a href="discover.html" class="mobile-tab"><span class="icon">🧭</span>Discover</a>
+    <a href="search.html"   class="mobile-tab"><span class="icon">🔍</span>Search</a>
+    <a href="activity.html" class="mobile-tab"><span class="icon">❤️</span>Activity</a>
+    <a href="profile.html"  class="mobile-tab"><span class="icon">👤</span>Profile</a>
+  </nav>
+
+</body>
+</html>

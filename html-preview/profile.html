@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Akram K — SlateClub</title>
+  <style>
+    :root {
+      --bg-screening: #0A0A0B;
+      --bg-card: #111114;
+      --bg-elevated: #1A1A1F;
+      --text-primary: #FAFAF7;
+      --text-muted: #9A9AA0;
+      --text-faint: #6A6A70;
+      --pill-mood: #E0A050;
+      --pill-genre: #5CA572;
+      --pill-language: #B8956A;
+      --pill-platform: #8B6FB5;
+      --pill-era: #6E5BA8;
+      --cta-primary: #FF7A00;
+      --nav-active: #C4716E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-screening);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding-bottom: 80px;
+    }
+
+    /* ── TOP NAV ── */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: var(--bg-screening);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+    .topnav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .topnav-logo .slate { color: var(--text-primary); }
+    .topnav-logo .club  { color: var(--cta-primary); }
+    .topnav-links {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      justify-content: center;
+      list-style: none;
+    }
+    .topnav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .topnav-links a:hover { color: var(--text-primary); }
+    .topnav-links a.active {
+      background: var(--cta-primary);
+      color: #fff;
+    }
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .notif-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .avatar-nav {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C4716E, #FF7A00);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 0 40px;
+    }
+
+    /* ── PROFILE HERO / BANNER ── */
+    .profile-banner {
+      height: 180px;
+      background: radial-gradient(ellipse at 60% 50%, rgba(255,120,0,0.18) 0%, rgba(196,113,110,0.08) 50%, transparent 80%), var(--bg-screening);
+      position: relative;
+    }
+    .profile-header {
+      padding: 0 24px 24px;
+      position: relative;
+    }
+    .profile-avatar-wrap {
+      margin-top: -44px;
+      margin-bottom: 14px;
+    }
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid var(--cta-primary);
+      background: linear-gradient(135deg, #C4716E, #FF7A00);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .profile-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .profile-username {
+      font-size: 14px;
+      color: var(--text-faint);
+      margin-bottom: 10px;
+    }
+    .profile-bio {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 16px;
+      max-width: 500px;
+    }
+    .profile-stats {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stat-num {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .stat-dot {
+      margin: 0 12px;
+      color: var(--text-faint);
+      font-size: 16px;
+    }
+    .profile-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-outlined {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: transparent;
+      color: var(--text-primary);
+      transition: opacity 0.18s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn-outlined:hover { opacity: 0.8; transform: translateY(-1px); }
+    .btn-text {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 8px 4px;
+      transition: color 0.2s;
+    }
+    .btn-text:hover { color: var(--text-primary); }
+
+    /* ── FAVOURITES STRIP ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+    }
+    .see-all {
+      font-size: 12px;
+      color: var(--cta-primary);
+      text-decoration: none;
+    }
+    .favourites-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 0 24px 8px;
+      scrollbar-width: none;
+      margin-bottom: 28px;
+    }
+    .favourites-strip::-webkit-scrollbar { display: none; }
+    .fav-card {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .fav-poster {
+      width: 90px;
+      height: 135px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .fav-poster-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      transition: transform 0.2s;
+    }
+    .fav-card:hover .fav-poster-inner { transform: scale(1.04); }
+    .fav-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      width: 90px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── PILL ── */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .pill-genre { background: rgba(92,165,114,0.15); color: var(--pill-genre); border: 1px solid rgba(92,165,114,0.3); }
+
+    /* ── TAB BAR ── */
+    .tabbar {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin: 0 0 24px;
+      padding: 0 24px;
+    }
+    .tab {
+      padding: 12px 20px 12px 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+      margin-right: 8px;
+    }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--cta-primary); }
+    .tab:hover:not(.active) { color: var(--text-primary); }
+
+    /* ── WATCHED LIST ── */
+    .watched-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 24px;
+      margin-bottom: 40px;
+    }
+    .watched-row {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      transition: border-color 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+    .watched-row:hover { border-color: rgba(255,255,255,0.12); }
+    .watched-poster {
+      width: 70px;
+      height: 105px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .watched-info { flex: 1; min-width: 0; }
+    .watched-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .watched-year {
+      font-size: 13px;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+    .watched-genres {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+    .watched-date {
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    /* ── RECENT ACTIVITY ── */
+    .recent-activity {
+      padding: 0 24px;
+    }
+    .activity-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .activity-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .activity-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .activity-text strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .activity-time {
+      font-size: 11px;
+      color: var(--text-faint);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── MOBILE BOTTOM TAB ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      height: 64px;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 200;
+    }
+    @media (max-width: 767px) {
+      .mobile-nav { display: flex; }
+      .topnav-links { display: none; }
+      .profile-stats { gap: 0; }
+    }
+    .mobile-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--text-faint);
+      text-decoration: none;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+    .mobile-tab .icon { font-size: 20px; }
+    .mobile-tab.active { color: var(--cta-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <a href="home.html" class="topnav-logo"><span class="slate">Slate</span><span class="club">Club</span></a>
+    <ul class="topnav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="discover.html">Discover</a></li>
+      <li><a href="releases.html">Releases</a></li>
+      <li><a href="community.html">Community</a></li>
+    </ul>
+    <div class="topnav-right">
+      <a href="notifications.html"><button class="notif-btn" aria-label="Notifications">🔔</button></a>
+      <a href="profile.html" class="avatar-nav">AK</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- PROFILE BANNER -->
+    <div class="profile-banner"></div>
+
+    <!-- PROFILE HEADER -->
+    <div class="profile-header">
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar">AK</div>
+      </div>
+
+      <div class="profile-name">Akram K</div>
+      <div class="profile-username">@akramk</div>
+      <div class="profile-bio">Cinema is my meditation. Always chasing the slow burn.</div>
+
+      <div class="profile-stats">
+        <div class="stat-item">
+          <span class="stat-num">142</span>
+          <span class="stat-label">&nbsp;Films</span>
+        </div>
+        <span class="stat-dot">·</span>
+        <div class="stat-item">
+          <span class="stat-num">38</span>
+          <span class="stat-label">&nbsp;Ratings</span>
+        </div>
+        <span class="stat-dot">·</span>
+        <div class="stat-item">
+          <span class="stat-num">12</span>
+          <span class="stat-label">&nbsp;Slates</span>
+        </div>
+        <span class="stat-dot">·</span>
+        <div class="stat-item">
+          <span class="stat-num">8</span>
+          <span class="stat-label">&nbsp;Circles</span>
+        </div>
+      </div>
+
+      <div class="profile-actions">
+        <button class="btn-outlined">Edit Profile</button>
+        <button class="btn-text">Share Profile</button>
+      </div>
+    </div>
+
+    <!-- ONBOARDING FAVOURITES STRIP -->
+    <div class="section-header">
+      <span class="section-title">Picked During Onboarding</span>
+    </div>
+    <div class="favourites-strip">
+      <!-- 2001: A Space Odyssey -->
+      <div class="fav-card">
+        <div class="fav-poster">
+          <div class="fav-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #1A2A5A 0%, #0B1020 60%, #080808 100%);"></div>
+        </div>
+        <div class="fav-title">2001: A Space Odyssey</div>
+      </div>
+      <!-- Stalker -->
+      <div class="fav-card">
+        <div class="fav-poster">
+          <div class="fav-poster-inner" style="background: radial-gradient(ellipse at 50% 40%, #2A3A1A 0%, #141F0C 60%, #080808 100%);"></div>
+        </div>
+        <div class="fav-title">Stalker</div>
+      </div>
+      <!-- There Will Be Blood -->
+      <div class="fav-card">
+        <div class="fav-poster">
+          <div class="fav-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #3A1A0A 0%, #1F0D06 60%, #080808 100%);"></div>
+        </div>
+        <div class="fav-title">There Will Be Blood</div>
+      </div>
+      <!-- Mulholland Drive -->
+      <div class="fav-card">
+        <div class="fav-poster">
+          <div class="fav-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #2A1A3A 0%, #140C1F 60%, #080808 100%);"></div>
+        </div>
+        <div class="fav-title">Mulholland Drive</div>
+      </div>
+      <!-- Spirited Away -->
+      <div class="fav-card">
+        <div class="fav-poster">
+          <div class="fav-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #1A3A3A 0%, #0C1F1F 60%, #080808 100%);"></div>
+        </div>
+        <div class="fav-title">Spirited Away</div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div class="tabbar">
+      <div class="tab active">Watched</div>
+      <div class="tab">Ratings</div>
+      <div class="tab">Shelf</div>
+      <div class="tab">Slates</div>
+    </div>
+
+    <!-- WATCHED LIST -->
+    <div class="watched-list">
+
+      <!-- The Substance -->
+      <a href="film.html" class="watched-row">
+        <div class="watched-poster" style="background: radial-gradient(ellipse at 50% 30%, #4A0A0A 0%, #1A0505 60%, #0A0A0A 100%);"></div>
+        <div class="watched-info">
+          <div class="watched-title">The Substance</div>
+          <div class="watched-year">2024</div>
+          <div class="watched-genres">
+            <span class="pill pill-genre">Body Horror</span>
+            <span class="pill pill-genre">Thriller</span>
+          </div>
+          <div class="watched-date">Watched June 15, 2025</div>
+        </div>
+      </a>
+
+      <!-- Anora -->
+      <a href="film.html" class="watched-row">
+        <div class="watched-poster" style="background: radial-gradient(ellipse at 50% 30%, #1A3A4A 0%, #0A1A22 60%, #0A0A0A 100%);"></div>
+        <div class="watched-info">
+          <div class="watched-title">Anora</div>
+          <div class="watched-year">2024</div>
+          <div class="watched-genres">
+            <span class="pill pill-genre">Drama</span>
+            <span class="pill pill-genre">Romance</span>
+          </div>
+          <div class="watched-date">Watched June 10, 2025</div>
+        </div>
+      </a>
+
+      <!-- All We Imagine as Light -->
+      <a href="film.html" class="watched-row">
+        <div class="watched-poster" style="background: radial-gradient(ellipse at 50% 30%, #2A1A3A 0%, #120A1C 60%, #0A0A0A 100%);"></div>
+        <div class="watched-info">
+          <div class="watched-title">All We Imagine as Light</div>
+          <div class="watched-year">2024</div>
+          <div class="watched-genres">
+            <span class="pill pill-genre">Drama</span>
+          </div>
+          <div class="watched-date">Watched June 3, 2025</div>
+        </div>
+      </a>
+
+      <!-- Conclave -->
+      <a href="film.html" class="watched-row">
+        <div class="watched-poster" style="background: radial-gradient(ellipse at 50% 30%, #1A1A3A 0%, #0A0A1C 60%, #0A0A0A 100%);"></div>
+        <div class="watched-info">
+          <div class="watched-title">Conclave</div>
+          <div class="watched-year">2024</div>
+          <div class="watched-genres">
+            <span class="pill pill-genre">Thriller</span>
+          </div>
+          <div class="watched-date">Watched May 28, 2025</div>
+        </div>
+      </a>
+
+      <!-- The Brutalist -->
+      <a href="film.html" class="watched-row">
+        <div class="watched-poster" style="background: radial-gradient(ellipse at 50% 30%, #2A1E0A 0%, #16100A 60%, #0A0A0A 100%);"></div>
+        <div class="watched-info">
+          <div class="watched-title">The Brutalist</div>
+          <div class="watched-year">2024</div>
+          <div class="watched-genres">
+            <span class="pill pill-genre">Drama</span>
+            <span class="pill pill-genre">Epic</span>
+          </div>
+          <div class="watched-date">Watched May 20, 2025</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- RECENT ACTIVITY -->
+    <div class="recent-activity">
+      <div class="activity-header">
+        <div class="activity-title">Recent Activity</div>
+        <a href="activity.html" class="see-all">See all →</a>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-badge">❤️</div>
+        <div class="activity-text">
+          <strong>Hiroshi</strong> liked your review of <strong>The Substance</strong>
+        </div>
+        <div class="activity-time">2h ago</div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-badge">💬</div>
+        <div class="activity-text">
+          <strong>Maya</strong> commented on your Slate <strong>'Awards Season 2025'</strong>
+        </div>
+        <div class="activity-time">5h ago</div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-badge">🎬</div>
+        <div class="activity-text">
+          New film from <strong>Denis Villeneuve</strong> on your watchlist alerts
+        </div>
+        <div class="activity-time">1d ago</div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-badge">⭐</div>
+        <div class="activity-text">
+          You rated <strong>Anora</strong> ★★★★½
+        </div>
+        <div class="activity-time">June 10</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM TAB -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a href="home.html"          class="mobile-tab"><span class="icon">🏠</span>Home</a>
+    <a href="discover.html"      class="mobile-tab"><span class="icon">🧭</span>Discover</a>
+    <a href="search.html"        class="mobile-tab"><span class="icon">🔍</span>Search</a>
+    <a href="activity.html"      class="mobile-tab"><span class="icon">❤️</span>Activity</a>
+    <a href="profile.html"       class="mobile-tab active"><span class="icon">👤</span>Profile</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications — SlateClub</title>
+  <style>
+    :root {
+      --bg-screening: #0A0A0B;
+      --bg-card: #111114;
+      --bg-elevated: #1A1A1F;
+      --text-primary: #FAFAF7;
+      --text-muted: #9A9AA0;
+      --text-faint: #6A6A70;
+      --pill-mood: #E0A050;
+      --pill-genre: #5CA572;
+      --pill-language: #B8956A;
+      --pill-platform: #8B6FB5;
+      --pill-era: #6E5BA8;
+      --cta-primary: #FF7A00;
+      --nav-active: #C4716E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-screening);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding-bottom: 80px;
+    }
+
+    /* ── TOP NAV ── */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 56px;
+      background: var(--bg-screening);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+    .topnav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .topnav-logo .slate { color: var(--text-primary); }
+    .topnav-logo .club  { color: var(--cta-primary); }
+    .topnav-links {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      justify-content: center;
+      list-style: none;
+    }
+    .topnav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 999px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .topnav-links a:hover { color: var(--text-primary); }
+    .topnav-links a.active {
+      background: var(--cta-primary);
+      color: #fff;
+    }
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .notif-btn {
+      background: none;
+      border: none;
+      color: var(--cta-primary);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .avatar-nav {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C4716E, #FF7A00);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 32px 24px 0;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .mark-all-btn {
+      background: none;
+      border: none;
+      font-size: 13px;
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: color 0.2s;
+      padding: 0;
+    }
+    .mark-all-btn:hover { color: var(--text-muted); }
+
+    /* ── FILTER TABS ── */
+    .filter-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 28px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .filter-tabs::-webkit-scrollbar { display: none; }
+    .filter-tab {
+      padding: 10px 16px 10px 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      white-space: nowrap;
+      margin-right: 8px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .filter-tab.active { color: var(--text-primary); border-bottom-color: var(--cta-primary); }
+    .filter-tab:hover:not(.active) { color: var(--text-primary); }
+
+    /* ── GROUP LABEL ── */
+    .group-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-variant: small-caps;
+      color: var(--text-faint);
+      margin-bottom: 10px;
+      margin-top: 8px;
+    }
+
+    /* ── NOTIFICATION ROW ── */
+    .notif-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px 14px 16px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.04);
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .notif-row:hover { border-color: rgba(255,255,255,0.1); }
+
+    /* Unread state */
+    .notif-row.unread {
+      background: #111114;
+      border-color: rgba(255,255,255,0.06);
+      border-left: 3px solid var(--cta-primary);
+      padding-left: 14px;
+    }
+    .notif-row.unread:hover { border-color: rgba(255,122,0,0.5); border-left-color: var(--cta-primary); }
+
+    /* Read state */
+    .notif-row.read {
+      background: rgba(10,10,11,0.6);
+      border-color: rgba(255,255,255,0.03);
+    }
+
+    /* Avatar in notification */
+    .notif-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .notif-avatar-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      border: 1.5px solid var(--bg-screening);
+    }
+
+    /* Content */
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 3px;
+    }
+    .notif-text strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .notif-quote {
+      font-size: 12px;
+      color: var(--text-faint);
+      font-style: italic;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      padding: 5px 10px;
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+    .notif-time {
+      font-size: 11px;
+      color: var(--text-faint);
+      display: block;
+      margin-top: 1px;
+    }
+
+    /* Thumbnail */
+    .notif-thumb {
+      width: 40px;
+      height: 60px;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+
+    /* Follow back button */
+    .follow-back-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--cta-primary);
+      background: transparent;
+      color: var(--cta-primary);
+      flex-shrink: 0;
+      transition: background 0.18s, color 0.18s;
+      white-space: nowrap;
+    }
+    .follow-back-btn:hover { background: var(--cta-primary); color: #fff; }
+
+    /* Trophy icon for milestones */
+    .trophy-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+
+    /* ── MOBILE BOTTOM TAB ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      height: 64px;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 200;
+    }
+    @media (max-width: 767px) {
+      .mobile-nav { display: flex; }
+      .topnav-links { display: none; }
+    }
+    .mobile-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--text-faint);
+      text-decoration: none;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+    .mobile-tab .icon { font-size: 20px; }
+    .mobile-tab.active { color: var(--cta-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <a href="home.html" class="topnav-logo"><span class="slate">Slate</span><span class="club">Club</span></a>
+    <ul class="topnav-links">
+      <li><a href="home.html">Home</a></li>
+      <li><a href="discover.html">Discover</a></li>
+      <li><a href="releases.html">Releases</a></li>
+      <li><a href="community.html">Community</a></li>
+    </ul>
+    <div class="topnav-right">
+      <button class="notif-btn" aria-label="Notifications">🔔</button>
+      <a href="profile.html" class="avatar-nav">AK</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <h1 class="page-title">Notifications</h1>
+      <button class="mark-all-btn">Mark all read</button>
+    </div>
+
+    <!-- FILTER TABS -->
+    <div class="filter-tabs">
+      <div class="filter-tab active">All</div>
+      <div class="filter-tab">Likes</div>
+      <div class="filter-tab">Comments</div>
+      <div class="filter-tab">Follows</div>
+      <div class="filter-tab">System</div>
+    </div>
+
+    <!-- ══ NEW (UNREAD) GROUP ══ -->
+    <div class="group-label">New</div>
+
+    <!-- 1. Hiroshi liked review -->
+    <div class="notif-row unread">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #1E4A8A, #3A6EA8);">
+        H
+        <div class="notif-avatar-badge">🔥</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Hiroshi Tanaka</strong> liked your review of The Substance</div>
+        <span class="notif-time">2h ago</span>
+      </div>
+      <div class="notif-thumb" style="background: radial-gradient(ellipse at 50% 30%, #4A0A0A 0%, #1A0505 60%, #0A0A0A 100%);"></div>
+    </div>
+
+    <!-- 2. Maya replied to comment -->
+    <div class="notif-row unread">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #5A2A6A, #8A4A9A);">
+        M
+        <div class="notif-avatar-badge">💬</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Maya Rahman</strong> replied to your comment</div>
+        <div class="notif-quote">"Exactly, the cinematography is stunning"</div>
+        <span class="notif-time">3h ago</span>
+      </div>
+    </div>
+
+    <!-- 3. Reza started following -->
+    <div class="notif-row unread">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #1A5A3A, #2A8A5A);">
+        R
+        <div class="notif-avatar-badge">👤</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Reza Ahmadi</strong> started following you</div>
+        <span class="notif-time">5h ago</span>
+      </div>
+      <button class="follow-back-btn">Follow back</button>
+    </div>
+
+    <!-- 4. Sara liked Slate -->
+    <div class="notif-row unread">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #E0A050, #C07030);">
+        S
+        <div class="notif-avatar-badge">❤️</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Sara Lee</strong> liked your Slate <strong>'Awards Season 2025'</strong></div>
+        <span class="notif-time">6h ago</span>
+      </div>
+    </div>
+
+    <!-- ══ EARLIER (READ) GROUP ══ -->
+    <div class="group-label" style="margin-top: 24px;">Earlier</div>
+
+    <!-- 5. Lena commented on Slate -->
+    <div class="notif-row read">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #3A5A2A, #5A8A4A);">
+        L
+        <div class="notif-avatar-badge">💬</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Lena Fischer</strong> commented on your Slate</div>
+        <span class="notif-time">1d ago</span>
+      </div>
+    </div>
+
+    <!-- 6. Denis Villeneuve new film alert -->
+    <div class="notif-row read">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #2A2A4A, #4A4A6A);">
+        DV
+        <div class="notif-avatar-badge">🎬</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Denis Villeneuve</strong> has a new film in your alerts: <strong>'Messiah'</strong></div>
+        <span class="notif-time">2d ago</span>
+      </div>
+    </div>
+
+    <!-- 7. Review milestone -->
+    <div class="notif-row read">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #4A3A0A, #7A6A2A);">
+        ⭐
+      </div>
+      <div class="notif-content">
+        <div class="notif-text">Your review of <strong>Anora</strong> reached 50 likes</div>
+        <span class="notif-time">3d ago</span>
+      </div>
+      <div class="trophy-icon">🏆</div>
+    </div>
+
+    <!-- 8. Paulo started following -->
+    <div class="notif-row read">
+      <div class="notif-avatar" style="background: linear-gradient(135deg, #5A2A2A, #8A4A4A);">
+        P
+        <div class="notif-avatar-badge">👤</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-text"><strong>Paulo Santos</strong> started following you</div>
+        <span class="notif-time">4d ago</span>
+      </div>
+      <button class="follow-back-btn">Follow back</button>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM TAB -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a href="home.html"          class="mobile-tab"><span class="icon">🏠</span>Home</a>
+    <a href="discover.html"      class="mobile-tab"><span class="icon">🧭</span>Discover</a>
+    <a href="search.html"        class="mobile-tab"><span class="icon">🔍</span>Search</a>
+    <a href="activity.html"      class="mobile-tab active"><span class="icon">❤️</span>Activity</a>
+    <a href="profile.html"       class="mobile-tab"><span class="icon">👤</span>Profile</a>
+  </nav>
+
+</body>
+</html>

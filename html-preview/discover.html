@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover — SlateClub</title>
+<style>
+  :root {
+    --bg-screening: #0A0A0B;
+    --bg-card: #111114;
+    --bg-elevated: #1A1A1F;
+    --text-primary: #FAFAF7;
+    --text-muted: #9A9AA0;
+    --text-faint: #6A6A70;
+    --pill-mood: #E0A050;
+    --pill-genre: #5CA572;
+    --pill-language: #B8956A;
+    --pill-platform: #8B6FB5;
+    --pill-era: #6E5BA8;
+    --pill-neutral: #3A3A42;
+    --cta-primary: #FF7A00;
+    --nav-active: #C4716E;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-screening);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* TOP NAV */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-screening);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 32px;
+  }
+  .topnav-logo {
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .topnav-logo .slate { color: var(--text-primary); }
+  .topnav-logo .club  { color: var(--cta-primary); }
+  .topnav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+  }
+  .topnav-links a {
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .topnav-links a:hover { color: var(--text-primary); }
+  .topnav-links a.active {
+    color: var(--cta-primary);
+    background: rgba(255,120,0,0.1);
+  }
+  .topnav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .topnav-icon {
+    width: 20px; height: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .topnav-icon:hover { color: var(--text-primary); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #C4716E, #FF7A00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* MOBILE BOTTOM TAB BAR */
+  .mobile-tabs {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 64px;
+    background: rgba(10,10,11,0.96);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    z-index: 200;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+  }
+  .mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-faint);
+    font-size: 10px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: color 0.15s;
+    cursor: pointer;
+  }
+  .mobile-tab.active { color: var(--cta-primary); }
+  .mobile-tab-icon { font-size: 20px; line-height: 1; }
+
+  /* CONTENT */
+  .content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    margin-bottom: 28px;
+  }
+  .page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .page-subtitle {
+    font-size: 15px;
+    color: var(--text-muted);
+  }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .see-all {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--cta-primary);
+    text-decoration: none;
+    font-weight: 500;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .see-all:hover { opacity: 1; }
+
+  /* MOOD CONSTELLATION STRIP */
+  .mood-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 32px;
+    scrollbar-width: none;
+  }
+  .mood-strip::-webkit-scrollbar { display: none; }
+  .mood-pill {
+    padding: 9px 18px;
+    border-radius: 24px;
+    background: rgba(224,160,80,0.12);
+    border: 1px solid rgba(224,160,80,0.3);
+    color: var(--pill-mood);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  .mood-pill:hover {
+    background: rgba(224,160,80,0.22);
+    border-color: rgba(224,160,80,0.5);
+    transform: translateY(-1px);
+  }
+  .mood-pill.active {
+    background: rgba(224,160,80,0.25);
+    border-color: var(--pill-mood);
+  }
+
+  /* GENRE SCROLL */
+  .genre-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 28px;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .genre-scroll::-webkit-scrollbar { display: none; }
+  .genre-pill {
+    padding: 7px 16px;
+    border-radius: 20px;
+    background: rgba(92,165,114,0.12);
+    border: 1px solid rgba(92,165,114,0.3);
+    color: var(--pill-genre);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .genre-pill:hover {
+    background: rgba(92,165,114,0.22);
+    border-color: rgba(92,165,114,0.5);
+  }
+
+  /* FILTERS ROW */
+  .filters-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .filter-pill {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .filter-pill:hover {
+    border-color: rgba(255,255,255,0.2);
+    color: var(--text-primary);
+  }
+  .filter-chevron {
+    font-size: 10px;
+    opacity: 0.6;
+  }
+  .filter-sort {
+    margin-left: auto;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* FILM CARD (larger for grid) */
+  .film-card-lg {
+    width: 180px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .film-card-lg:hover .poster-lg { transform: translateY(-4px); }
+  .poster-lg {
+    width: 180px;
+    height: 270px;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+  }
+  .poster-inner {
+    width: 100%;
+    height: 100%;
+  }
+  .rating-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid rgba(255,120,0,0.45);
+    color: var(--cta-primary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+  .film-title-lg {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .film-year-lg {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  /* TRENDING GRID */
+  .trending-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 40px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--pill-neutral) transparent;
+  }
+  .trending-scroll::-webkit-scrollbar { height: 4px; }
+  .trending-scroll::-webkit-scrollbar-thumb { background: var(--pill-neutral); border-radius: 2px; }
+
+  /* WORLD CINEMA scroll */
+  .wc-scroll {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 40px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--pill-neutral) transparent;
+  }
+  .wc-scroll::-webkit-scrollbar { height: 4px; }
+  .wc-scroll::-webkit-scrollbar-thumb { background: var(--pill-neutral); border-radius: 2px; }
+
+  .film-card-sm {
+    width: 140px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .film-card-sm:hover .poster-sm { transform: translateY(-3px); }
+  .poster-sm {
+    width: 140px;
+    height: 210px;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+  }
+  .lang-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(184,149,106,0.2);
+    border: 1px solid rgba(184,149,106,0.45);
+    color: var(--pill-language);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .film-title-sm {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .film-year-sm {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  /* DIRECTOR CARDS */
+  .director-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .director-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.2s;
+  }
+  .director-card:hover {
+    border-color: rgba(255,255,255,0.14);
+    transform: translateY(-2px);
+  }
+  .director-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .director-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .director-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+  .director-count {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .director-posters {
+    display: flex;
+    gap: 6px;
+  }
+  .dir-poster-mini {
+    width: 52px;
+    height: 78px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    .topnav-links { display: none; }
+    .mobile-tabs { display: flex; }
+    .page-title { font-size: 24px; }
+    .content { padding: 20px 16px; }
+    .director-grid { grid-template-columns: 1fr; }
+    .filters-row { flex-wrap: wrap; }
+    .filter-sort { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="topnav-logo" href="home.html"><span class="slate">Slate</span><span class="club">Club</span></a>
+  <div class="topnav-links">
+    <a href="home.html">Home</a>
+    <a href="discover.html" class="active">Discover</a>
+    <a href="releases.html">Releases</a>
+    <a href="community.html">Community</a>
+  </div>
+  <div class="topnav-right">
+    <svg class="topnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg class="topnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <div class="avatar">AK</div>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<main class="content">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1 class="page-title">Discover</h1>
+    <p class="page-subtitle">Explore by mood, genre, or vibe</p>
+  </div>
+
+  <!-- MOOD CONSTELLATION STRIP -->
+  <div class="mood-strip">
+    <button class="mood-pill active">Slow Burn</button>
+    <button class="mood-pill">Dark &amp; Cerebral</button>
+    <button class="mood-pill">Feel-Good</button>
+    <button class="mood-pill">Epic &amp; Grand</button>
+    <button class="mood-pill">Tense &amp; Gripping</button>
+    <button class="mood-pill">Dreamlike</button>
+    <button class="mood-pill">Funny &amp; Sharp</button>
+    <button class="mood-pill">Romantic</button>
+  </div>
+
+  <!-- GENRE PILLS -->
+  <div class="genre-scroll">
+    <button class="genre-pill">Action</button>
+    <button class="genre-pill">Drama</button>
+    <button class="genre-pill">Comedy</button>
+    <button class="genre-pill">Thriller</button>
+    <button class="genre-pill">Sci-Fi</button>
+    <button class="genre-pill">Horror</button>
+    <button class="genre-pill">Romance</button>
+    <button class="genre-pill">Animation</button>
+    <button class="genre-pill">Documentary</button>
+    <button class="genre-pill">Crime</button>
+    <button class="genre-pill">Mystery</button>
+    <button class="genre-pill">Biography</button>
+    <button class="genre-pill">History</button>
+    <button class="genre-pill">Fantasy</button>
+    <button class="genre-pill">Music</button>
+    <button class="genre-pill">War</button>
+    <button class="genre-pill">Western</button>
+    <button class="genre-pill">Sport</button>
+  </div>
+
+  <!-- FILTERS ROW -->
+  <div class="filters-row">
+    <button class="filter-pill">Language <span class="filter-chevron">▾</span></button>
+    <button class="filter-pill">Decade <span class="filter-chevron">▾</span></button>
+    <button class="filter-pill">Platform <span class="filter-chevron">▾</span></button>
+    <div class="filter-sort">Sort: Relevance ▾</div>
+  </div>
+
+  <!-- TRENDING FILMS -->
+  <div class="section-header">
+    <span class="section-title">Trending Films</span>
+    <a href="#" class="see-all">See all →</a>
+  </div>
+  <div class="trending-scroll">
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #2a4a1a 0%, #152510 60%, #0a1208 100%);"></div>
+        <span class="rating-badge">★ 8.1</span>
+      </div>
+      <p class="film-title-lg">The Wild Robot</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #1a1a2a 0%, #0d0d18 55%, #080812 100%);"></div>
+        <span class="rating-badge">★ 8.4</span>
+      </div>
+      <p class="film-title-lg">Conclave</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 60% 50%, #2a0a2a 0%, #180818 55%, #0e050e 100%);"></div>
+        <span class="rating-badge">★ 8.3</span>
+      </div>
+      <p class="film-title-lg">Emilia Pérez</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 40% 60%, #1a3020 0%, #0d1a12 55%, #060e08 100%);"></div>
+        <span class="rating-badge">★ 8.6</span>
+      </div>
+      <p class="film-title-lg">Nickel Boys</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 45% 20%, #2a1028 0%, #180a18 55%, #0e050e 100%);"></div>
+        <span class="rating-badge">★ 8.0</span>
+      </div>
+      <p class="film-title-lg">Nosferatu</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 55% 35%, #3a1010 0%, #200808 55%, #120505 100%);"></div>
+        <span class="rating-badge">★ 7.8</span>
+      </div>
+      <p class="film-title-lg">Queer</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 30% 30%, #2a2a10 0%, #181808 55%, #0e0e04 100%);"></div>
+        <span class="rating-badge">★ 7.5</span>
+      </div>
+      <p class="film-title-lg">September 5</p>
+      <p class="film-year-lg">2024</p>
+    </div>
+    <div class="film-card-lg" onclick="location.href='film.html'">
+      <div class="poster-lg">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 50% 50%, #1a2a3a 0%, #0d1520 55%, #060a12 100%);"></div>
+        <span class="rating-badge">★ 8.2</span>
+      </div>
+      <p class="film-title-lg">Sing Sing</p>
+      <p class="film-year-lg">2023</p>
+    </div>
+  </div>
+
+  <!-- NEW IN WORLD CINEMA -->
+  <div class="section-header">
+    <span class="section-title">New in World Cinema</span>
+    <a href="#" class="see-all">See all →</a>
+  </div>
+  <div class="wc-scroll">
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 50% 40%, #2a4a2a 0%, #0f1f0f 55%, #060f06 100%);"></div>
+        <span class="lang-badge">Malayalam</span>
+      </div>
+      <p class="film-title-sm">All We Imagine as Light</p>
+      <p class="film-year-sm">2024</p>
+    </div>
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 40% 30%, #1a3a4a 0%, #0a1e2a 55%, #061218 100%);"></div>
+        <span class="lang-badge">Japanese</span>
+      </div>
+      <p class="film-title-sm">Perfect Days</p>
+      <p class="film-year-sm">2023</p>
+    </div>
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 60% 50%, #3a1a2a 0%, #1e0a15 55%, #120610 100%);"></div>
+        <span class="lang-badge">French</span>
+      </div>
+      <p class="film-title-sm">Emilia Pérez</p>
+      <p class="film-year-sm">2024</p>
+    </div>
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 35% 55%, #2a3a1a 0%, #151e0a 55%, #0c1206 100%);"></div>
+        <span class="lang-badge">Korean</span>
+      </div>
+      <p class="film-title-sm">A Traveler's Needs</p>
+      <p class="film-year-sm">2024</p>
+    </div>
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 70% 30%, #3a2a10 0%, #1a1208 55%, #0a0a05 100%);"></div>
+        <span class="lang-badge">Italian</span>
+      </div>
+      <p class="film-title-sm">Parthenope</p>
+      <p class="film-year-sm">2024</p>
+    </div>
+    <div class="film-card-sm" onclick="location.href='film.html'">
+      <div class="poster-sm">
+        <div class="poster-inner" style="background: radial-gradient(ellipse at 50% 25%, #1a1a4a 0%, #0c0c25 55%, #060610 100%);"></div>
+        <span class="lang-badge">Spanish</span>
+      </div>
+      <p class="film-title-sm">The Seed of the Sacred Fig</p>
+      <p class="film-year-sm">2024</p>
+    </div>
+  </div>
+
+  <!-- BY DIRECTOR -->
+  <div class="section-header">
+    <span class="section-title">By Director</span>
+    <a href="artist.html" class="see-all">Browse all →</a>
+  </div>
+  <div class="director-grid">
+    <!-- Denis Villeneuve -->
+    <div class="director-card" onclick="location.href='artist.html'">
+      <div class="director-top">
+        <div class="director-avatar" style="background: linear-gradient(135deg, #1a3a5a, #0a1e35);">DV</div>
+        <div>
+          <div class="director-name">Denis Villeneuve</div>
+          <div class="director-count">12 films · 847 fans in your Tribe</div>
+        </div>
+      </div>
+      <div class="director-posters">
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 50% 30%, #0a2a4a 0%, #051520 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 50% 50%, #1a2a3a 0%, #0a1520 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 40% 60%, #2a1a0a 0%, #150d05 100%); border-radius: 6px;"></div>
+      </div>
+    </div>
+    <!-- Park Chan-wook -->
+    <div class="director-card" onclick="location.href='artist.html'">
+      <div class="director-top">
+        <div class="director-avatar" style="background: linear-gradient(135deg, #4a1a1a, #2a0808);">PC</div>
+        <div>
+          <div class="director-name">Park Chan-wook</div>
+          <div class="director-count">9 films · 623 fans in your Tribe</div>
+        </div>
+      </div>
+      <div class="director-posters">
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 50% 30%, #3a0a0a 0%, #200505 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 40% 50%, #2a1a2a 0%, #150a15 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 60% 40%, #1a2a1a 0%, #0a150a 100%); border-radius: 6px;"></div>
+      </div>
+    </div>
+    <!-- Chloé Zhao -->
+    <div class="director-card" onclick="location.href='artist.html'">
+      <div class="director-top">
+        <div class="director-avatar" style="background: linear-gradient(135deg, #2a3a1a, #151e0a);">CZ</div>
+        <div>
+          <div class="director-name">Chloé Zhao</div>
+          <div class="director-count">6 films · 412 fans in your Tribe</div>
+        </div>
+      </div>
+      <div class="director-posters">
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 50% 30%, #2a3a0a 0%, #151e05 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 50% 60%, #1a3a2a 0%, #0a1e15 100%); border-radius: 6px;"></div>
+        <div class="dir-poster-mini" style="background: radial-gradient(ellipse at 40% 40%, #3a2a0a 0%, #1e1505 100%); border-radius: 6px;"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MOBILE BOTTOM TABS -->
+<nav class="mobile-tabs">
+  <a class="mobile-tab" href="home.html">
+    <span class="mobile-tab-icon">🏠</span>Home
+  </a>
+  <a class="mobile-tab active" href="discover.html">
+    <span class="mobile-tab-icon">🧭</span>Discover
+  </a>
+  <a class="mobile-tab" href="search.html">
+    <span class="mobile-tab-icon">🔍</span>Search
+  </a>
+  <a class="mobile-tab" href="activity.html">
+    <span class="mobile-tab-icon">❤️</span>Activity
+  </a>
+  <a class="mobile-tab" href="profile.html">
+    <span class="mobile-tab-icon">👤</span>Profile
+  </a>
+</nav>
+
+</body>
+</html>

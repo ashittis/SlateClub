@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Releases — SlateClub</title>
+<style>
+  :root {
+    --bg-screening: #0A0A0B;
+    --bg-card: #111114;
+    --bg-elevated: #1A1A1F;
+    --text-primary: #FAFAF7;
+    --text-muted: #9A9AA0;
+    --text-faint: #6A6A70;
+    --pill-mood: #E0A050;
+    --pill-genre: #5CA572;
+    --pill-language: #B8956A;
+    --pill-platform: #8B6FB5;
+    --pill-era: #6E5BA8;
+    --pill-neutral: #3A3A42;
+    --cta-primary: #FF7A00;
+    --nav-active: #C4716E;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-screening);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* TOP NAV */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-screening);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 32px;
+  }
+  .topnav-logo {
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .topnav-logo .slate { color: var(--text-primary); }
+  .topnav-logo .club  { color: var(--cta-primary); }
+  .topnav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+  }
+  .topnav-links a {
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .topnav-links a:hover { color: var(--text-primary); }
+  .topnav-links a.active {
+    color: var(--cta-primary);
+    background: rgba(255,120,0,0.1);
+  }
+  .topnav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .topnav-icon {
+    width: 20px; height: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .topnav-icon:hover { color: var(--text-primary); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #C4716E, #FF7A00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* MOBILE BOTTOM TAB BAR */
+  .mobile-tabs {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 64px;
+    background: rgba(10,10,11,0.96);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    z-index: 200;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+  }
+  .mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-faint);
+    font-size: 10px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: color 0.15s;
+    cursor: pointer;
+  }
+  .mobile-tab.active { color: var(--cta-primary); }
+  .mobile-tab-icon { font-size: 20px; line-height: 1; }
+
+  /* CONTENT */
+  .content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  /* TAB TOGGLE */
+  .tab-toggle {
+    display: flex;
+    gap: 0;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 28px;
+    padding: 4px;
+  }
+  .tab-btn {
+    padding: 8px 20px;
+    border-radius: 24px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--cta-primary);
+    border-radius: 24px 24px 0 0;
+  }
+
+  /* Underline-style tabs */
+  .underline-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 32px;
+  }
+  .ul-tab {
+    padding: 12px 24px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s;
+  }
+  .ul-tab:hover { color: var(--text-primary); }
+  .ul-tab.active {
+    color: var(--text-primary);
+  }
+  .ul-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 2px;
+    background: var(--cta-primary);
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* DATE GROUP HEADING */
+  .date-group {
+    margin-bottom: 40px;
+  }
+  .date-heading {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .date-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* RELEASE CARDS GRID */
+  .release-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .release-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.2s;
+  }
+  .release-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    transform: translateY(-3px);
+  }
+  .release-poster {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: block;
+    position: relative;
+  }
+  .release-poster-inner {
+    width: 100%;
+    height: 100%;
+  }
+  .platform-badge-abs {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pb-cinema {
+    background: rgba(255,122,0,0.2);
+    border: 1px solid rgba(255,122,0,0.45);
+    color: var(--cta-primary);
+  }
+  .pb-netflix {
+    background: rgba(229,9,20,0.2);
+    border: 1px solid rgba(229,9,20,0.45);
+    color: #e50914;
+  }
+  .pb-prime {
+    background: rgba(0,168,225,0.15);
+    border: 1px solid rgba(0,168,225,0.4);
+    color: #00a8e1;
+  }
+  .pb-a24 {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--text-primary);
+  }
+  .pb-apple {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--text-primary);
+  }
+  .release-body {
+    padding: 16px;
+  }
+  .release-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .release-date {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .release-overview {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .release-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-outline {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-outline:hover {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.04);
+  }
+  .btn-primary {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: none;
+    background: var(--cta-primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s, transform 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+  }
+
+  /* STREAMING SECTION */
+  .streaming-section {
+    margin-bottom: 40px;
+  }
+  .platform-group {
+    margin-bottom: 28px;
+  }
+  .platform-row-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .platform-logo-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .plp-netflix { background: rgba(229,9,20,0.15); border: 1px solid rgba(229,9,20,0.35); color: #e50914; }
+  .plp-prime { background: rgba(0,168,225,0.12); border: 1px solid rgba(0,168,225,0.3); color: #00a8e1; }
+  .plp-a24 { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: var(--text-primary); }
+  .platform-row-count {
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .platform-row-link {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--cta-primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .streaming-list {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+  .streaming-list::-webkit-scrollbar { display: none; }
+  .stream-card {
+    width: 160px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .stream-card:hover { transform: translateY(-3px); }
+  .stream-poster {
+    width: 160px;
+    height: 90px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .stream-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .stream-meta {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  /* TAB PANELS */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  @media (max-width: 900px) {
+    .release-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .topnav-links { display: none; }
+    .mobile-tabs { display: flex; }
+    .page-title { font-size: 24px; }
+    .content { padding: 20px 16px; }
+    .release-grid { grid-template-columns: 1fr; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="topnav-logo" href="home.html"><span class="slate">Slate</span><span class="club">Club</span></a>
+  <div class="topnav-links">
+    <a href="home.html">Home</a>
+    <a href="discover.html">Discover</a>
+    <a href="releases.html" class="active">Releases</a>
+    <a href="community.html">Community</a>
+  </div>
+  <div class="topnav-right">
+    <svg class="topnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg class="topnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <div class="avatar">AK</div>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<main class="content">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1 class="page-title">Releases</h1>
+  </div>
+
+  <!-- UNDERLINE TABS -->
+  <div class="underline-tabs">
+    <button class="ul-tab active" onclick="switchTab('cinemas', this)">In Cinemas</button>
+    <button class="ul-tab" onclick="switchTab('streaming', this)">Streaming This Week</button>
+    <button class="ul-tab" onclick="switchTab('coming', this)">Coming Soon</button>
+  </div>
+
+  <!-- TAB: IN CINEMAS -->
+  <div id="panel-cinemas" class="tab-panel active">
+
+    <!-- WEEK 1 -->
+    <div class="date-group">
+      <div class="date-heading">This Week — June 16–22</div>
+      <div class="release-grid">
+
+        <!-- Twisters 2 -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #0a1a3a 0%, #04102a 50%, #020810 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Twisters 2</div>
+            <div class="release-date">June 19, 2025</div>
+            <div class="release-overview">Storm-chasers race against a new wave of catastrophic tornadoes across the American plains in this visceral summer sequel.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kinds of Kindness -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 60% 20%, #2a1a2a 0%, #150a15 50%, #0a060a 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Kinds of Kindness</div>
+            <div class="release-date">June 21, 2025</div>
+            <div class="release-overview">Yorgos Lanthimos returns with three darkly comic stories exploring power, desire, and the peculiar cruelties we perform for love.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Longlegs Director's Cut -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 40% 50%, #1a0a0a 0%, #120505 50%, #0a0303 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Longlegs Director's Cut</div>
+            <div class="release-date">June 20, 2025</div>
+            <div class="release-overview">Oz Perkins' cult satanic serial-killer thriller returns with 18 minutes of unseen footage restored to its original nightmarish vision.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- WEEK 2 -->
+    <div class="date-group">
+      <div class="date-heading">June 23–29</div>
+      <div class="release-grid">
+
+        <!-- Alien: Romulus Extended -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 50% 60%, #0a2a1a 0%, #041510 50%, #020a08 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Alien: Romulus Extended</div>
+            <div class="release-date">June 25, 2025</div>
+            <div class="release-overview">The definitive cut of Fede Álvarez's claustrophobic space horror adds a new opening act and an alternate third act sequence.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deadpool & Wolverine -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 30% 30%, #3a0a0a 0%, #200505 50%, #100303 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Deadpool &amp; Wolverine</div>
+            <div class="release-date">June 26, 2025</div>
+            <div class="release-overview">The Merc with a Mouth teams up with the feral mutant for a multiverse-hopping R-rated adventure that tears apart Marvel canon.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Borderlands -->
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 70% 40%, #2a2a0a 0%, #151508 50%, #0a0a04 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">In Cinemas</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Borderlands</div>
+            <div class="release-date">June 28, 2025</div>
+            <div class="release-overview">Treasure hunters and outlaws clash on a chaos planet in this chaotic video-game adaptation packed with cel-shaded visual splendour.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Add to Shelf</button>
+              <button class="btn-primary">✓ Watched</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /panel-cinemas -->
+
+  <!-- TAB: STREAMING -->
+  <div id="panel-streaming" class="tab-panel">
+    <div class="streaming-section">
+
+      <!-- NETFLIX -->
+      <div class="platform-group">
+        <div class="platform-row-header">
+          <span class="platform-logo-pill plp-netflix">Netflix</span>
+          <span class="platform-row-count">2 new titles this week</span>
+          <a href="#" class="platform-row-link">View all →</a>
+        </div>
+        <div class="streaming-list">
+          <div class="stream-card">
+            <div class="stream-poster" style="background: radial-gradient(ellipse at 50% 30%, #2a0a1a 0%, #150510 100%);"></div>
+            <div class="stream-title">Uglies</div>
+            <div class="stream-meta">Streaming June 19</div>
+          </div>
+          <div class="stream-card">
+            <div class="stream-poster" style="background: radial-gradient(ellipse at 40% 60%, #0a1a3a 0%, #050e20 100%);"></div>
+            <div class="stream-title">Hit Man (Recut)</div>
+            <div class="stream-meta">Streaming June 22</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRIME -->
+      <div class="platform-group">
+        <div class="platform-row-header">
+          <span class="platform-logo-pill plp-prime">Prime Video</span>
+          <span class="platform-row-count">2 new titles this week</span>
+          <a href="#" class="platform-row-link">View all →</a>
+        </div>
+        <div class="streaming-list">
+          <div class="stream-card">
+            <div class="stream-poster" style="background: radial-gradient(ellipse at 60% 20%, #1a3a1a 0%, #0a1e0a 100%);"></div>
+            <div class="stream-title">My Old Ass</div>
+            <div class="stream-meta">Streaming June 20</div>
+          </div>
+          <div class="stream-card">
+            <div class="stream-poster" style="background: radial-gradient(ellipse at 30% 50%, #3a2a0a 0%, #1e1505 100%);"></div>
+            <div class="stream-title">Speak No Evil</div>
+            <div class="stream-meta">Streaming June 21</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- A24 -->
+      <div class="platform-group">
+        <div class="platform-row-header">
+          <span class="platform-logo-pill plp-a24">A24</span>
+          <span class="platform-row-count">1 new title this week</span>
+          <a href="#" class="platform-row-link">View all →</a>
+        </div>
+        <div class="streaming-list">
+          <div class="stream-card">
+            <div class="stream-poster" style="background: radial-gradient(ellipse at 50% 40%, #2a1a0a 0%, #150d05 100%);"></div>
+            <div class="stream-title">The Substance</div>
+            <div class="stream-meta">Streaming June 18</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /panel-streaming -->
+
+  <!-- TAB: COMING SOON -->
+  <div id="panel-coming" class="tab-panel">
+    <div class="date-group">
+      <div class="date-heading">July 2025</div>
+      <div class="release-grid">
+
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 50% 30%, #0a2a4a 0%, #041525 50%, #020a14 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">July 4</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Furiosa: Extended Cut</div>
+            <div class="release-date">July 4, 2025</div>
+            <div class="release-overview">George Miller's Mad Max prequel returns with additional world-building sequences and an extended final act confrontation.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Watchlist</button>
+              <button class="btn-primary">Set Reminder</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 40% 60%, #2a1a3a 0%, #150a20 50%, #0a060f 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">July 11</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">Eddington</div>
+            <div class="release-date">July 11, 2025</div>
+            <div class="release-overview">Ari Aster's pandemic-era western stars Joaquin Phoenix as a small-town sheriff pushed to the brink of apocalyptic violence.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Watchlist</button>
+              <button class="btn-primary">Set Reminder</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="release-card">
+          <div class="release-poster" style="position:relative;">
+            <div class="release-poster-inner" style="background: radial-gradient(ellipse at 60% 30%, #1a3a2a 0%, #0a1e15 50%, #060f0a 100%);"></div>
+            <span class="platform-badge-abs pb-cinema">July 18</span>
+          </div>
+          <div class="release-body">
+            <div class="release-title">The Legend of Ochi</div>
+            <div class="release-date">July 18, 2025</div>
+            <div class="release-overview">A girl on a remote island forms a forbidden bond with a young creature her community has hunted for generations.</div>
+            <div class="release-actions">
+              <button class="btn-outline">+ Watchlist</button>
+              <button class="btn-primary">Set Reminder</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /panel-coming -->
+
+</main>
+
+<!-- MOBILE BOTTOM TABS -->
+<nav class="mobile-tabs">
+  <a class="mobile-tab" href="home.html">
+    <span class="mobile-tab-icon">🏠</span>Home
+  </a>
+  <a class="mobile-tab" href="discover.html">
+    <span class="mobile-tab-icon">🧭</span>Discover
+  </a>
+  <a class="mobile-tab" href="search.html">
+    <span class="mobile-tab-icon">🔍</span>Search
+  </a>
+  <a class="mobile-tab" href="activity.html">
+    <span class="mobile-tab-icon">❤️</span>Activity
+  </a>
+  <a class="mobile-tab" href="profile.html">
+    <span class="mobile-tab-icon">👤</span>Profile
+  </a>
+</nav>
+
+<script>
+function switchTab(id, btn) {
+  // panels
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  // tabs
+  document.querySelectorAll('.ul-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+
+</body>
+</html>

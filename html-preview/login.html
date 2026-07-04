@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in — SlateClub</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-screening: #0A0A0B;
+    --bg-card: #111114;
+    --bg-elevated: #1A1A1F;
+    --text-primary: #FAFAF7;
+    --text-muted: #9A9AA0;
+    --text-faint: #6A6A70;
+    --pill-mood: #E0A050;
+    --pill-genre: #5CA572;
+    --pill-language: #B8956A;
+    --pill-platform: #8B6FB5;
+    --pill-era: #6E5BA8;
+    --cta-primary: #FF7A00;
+    --nav-active: #C4716E;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-screening);
+    color: var(--text-primary);
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    width: 480px;
+    flex-shrink: 0;
+    background: #0D0D0D;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 48px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .logo {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .logo .accent { color: var(--cta-primary); }
+
+  .left-copy {}
+  .left-copy .headline {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  .left-copy .subtext {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .left-version {
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    flex: 1;
+    background: var(--bg-screening);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .mobile-logo {
+    display: none;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .form-container {
+    max-width: 380px;
+    width: 100%;
+  }
+
+  .form-heading {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .form-subtext {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .field input::placeholder { color: var(--text-faint); }
+  .field input:focus { border-color: var(--cta-primary); }
+
+  .field-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .forgot-link {
+    font-size: 12px;
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .forgot-link:hover { color: var(--text-muted); }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    background: var(--cta-primary);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s ease, transform 0.1s ease;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary:hover { background: #FF8C1A; }
+  .btn-primary:active { transform: scale(0.98); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .divider span {
+    font-size: 12px;
+    color: var(--text-faint);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-google:hover { background: #222228; border-color: rgba(255,255,255,0.18); }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .signup-note {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .signup-note a {
+    color: var(--cta-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .signup-note a:hover { text-decoration: underline; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .left-panel { display: none; }
+    .right-panel { align-items: flex-start; padding-top: 48px; }
+    .mobile-logo { display: block; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+    <div class="left-top">
+      <a href="index.html" class="logo">Slate<span class="accent">Club</span></a>
+    </div>
+    <div class="left-copy">
+      <p class="headline">Every frame, every feeling, every club.</p>
+      <p class="subtext">The cinema platform built around how movies make you feel.</p>
+    </div>
+    <div class="left-version">SlateClub · v0.3</div>
+  </aside>
+
+  <!-- RIGHT PANEL -->
+  <main class="right-panel">
+    <div class="form-container">
+
+      <!-- Mobile logo (hidden on desktop) -->
+      <div class="mobile-logo">
+        <a href="index.html" class="logo">Slate<span class="accent">Club</span></a>
+      </div>
+
+      <h1 class="form-heading">Sign in</h1>
+      <p class="form-subtext">Continue to SlateClub</p>
+
+      <form action="home.html" method="get">
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" value="akram@example.com" />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" value="password" />
+          <div class="field-footer">
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Sign in</button>
+
+      </form>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="btn-google">
+        <!-- Inline Google "G" SVG -->
+        <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <p class="signup-note">Don't have an account? <a href="signup.html">Sign up</a></p>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>
