@@ -1,6 +1,13 @@
+import asyncio
+
 import httpx
 
-from ..core.config import settings
+from app.core.config import settings
+
+# Transient transport failures worth retrying (flaky TLS/connection drops,
+# common on VPN/corporate networks). Distinct from HTTP 4xx/5xx, which we
+# surface immediately via raise_for_status().
+_TRANSIENT = (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectTimeout)
 
 _client: httpx.AsyncClient | None = None
 
@@ -12,12 +19,21 @@ def get_client() -> httpx.AsyncClient:
     return _client
 
 
-async def _fetch(path: str, params: dict | None = None) -> dict:
+async def _fetch(path: str, params: dict | None = None, *, retries: int = 3) -> dict:
     client = get_client()
     p = {"api_key": settings.TMDB_API_KEY, **(params or {})}
-    resp = await client.get(f"{settings.TMDB_BASE_URL}{path}", params=p)
-    resp.raise_for_status()
-    return resp.json()
+    url = f"{settings.TMDB_BASE_URL}{path}"
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            resp = await client.get(url, params=p)
+            resp.raise_for_status()
+            return resp.json()
+        except _TRANSIENT as exc:
+            last_exc = exc
+            if attempt < retries - 1:
+                await asyncio.sleep(0.25 * (attempt + 1))
+    raise last_exc  # type: ignore[misc]
 
 
 # ─── Movies ──────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 import AmbientGlow from "@/components/ui/AmbientGlow";
 import FilmGrain from "@/components/ui/FilmGrain";
 import { ShaderAnimation } from "@/components/ui/shader-animation";
@@ -33,10 +34,10 @@ export default function AuthLayout({
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-1 flex-col px-6 pb-10 pt-8 sm:px-8">
         <Link
           href="/login"
-          className="display text-lg font-semibold tracking-tight"
+          aria-label="SlateClub"
           style={{ color: "var(--text-primary)" }}
         >
-          Slate<span style={{ color: "var(--grad-amber, #FF9408)" }}>Club</span>
+          <Logo size={44} />
         </Link>
 
         <div className="flex flex-1 flex-col justify-end pb-2">{children}</div>

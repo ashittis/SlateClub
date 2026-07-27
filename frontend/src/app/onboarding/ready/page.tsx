@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { apiFetch, tmdbImage } from "@/lib/api";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import Logo from "@/components/brand/Logo";
 
 interface SamplePoster {
   tmdbId: number;
@@ -43,11 +44,10 @@ export default function ReadyPage() {
         initial={{ scale: 0.94, opacity: 0 }}
         animate={{ scale: [0.94, 1.04, 1], opacity: 1 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
-        className="display text-3xl font-bold mb-12"
+        className="mb-12"
         style={{ color: "var(--text-primary)" }}
       >
-        Slate
-        <span style={{ color: "var(--cta-primary)" }}>Club</span>
+        <Logo size={112} />
       </motion.div>
 
       {isLoading || !data ? (

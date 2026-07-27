@@ -16,6 +16,7 @@ interface ImportResp {
   message: string;
   counts: {
     ratings: ImportCounts;
+    diary: ImportCounts;
     watched: ImportCounts;
     watchlist: ImportCounts;
   };
@@ -23,16 +24,20 @@ interface ImportResp {
 
 export default function ImportPage() {
   const [ratings, setRatings] = useState<File | null>(null);
+  const [diary, setDiary] = useState<File | null>(null);
   const [watched, setWatched] = useState<File | null>(null);
   const [watchlist, setWatchlist] = useState<File | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
   const { } = useAuthStore();
 
   const upload = useMutation<ImportResp, Error, void>({
     mutationFn: async () => {
       const fd = new FormData();
       if (ratings) fd.append("ratings", ratings);
+      if (diary) fd.append("diary", diary);
       if (watched) fd.append("watched", watched);
       if (watchlist) fd.append("watchlist", watchlist);
+      fd.append("visibility", isPrivate ? "private" : "public");
       const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const res = await fetch(`${base}/api/import/letterboxd`, {
         method: "POST",
@@ -44,7 +49,7 @@ export default function ImportPage() {
     },
   });
 
-  const ready = ratings || watched || watchlist;
+  const ready = ratings || diary || watched || watchlist;
 
   return (
     <div className="mx-auto max-w-2xl px-4 lg:px-6 pt-6 pb-24">
@@ -67,23 +72,48 @@ export default function ImportPage() {
         }}
       >
         <FileRow
+          label="diary.csv"
+          file={diary}
+          onChange={setDiary}
+          hint="Your dated viewings & rewatches → fills your Diary and Wrapped for past years. The one that matters most."
+        />
+        <FileRow
           label="ratings.csv"
           file={ratings}
           onChange={setRatings}
-          hint="Star ratings → Slate Ratings."
+          hint="Star ratings → your ratings."
         />
         <FileRow
           label="watched.csv"
           file={watched}
           onChange={setWatched}
-          hint="Logged films → Slate Watch History."
+          hint="Logged films (undated) → used only for films not in your diary."
         />
         <FileRow
           label="watchlist.csv"
           file={watchlist}
           onChange={setWatchlist}
-          hint="Watchlist → Slate Shelf."
+          hint="Watchlist → your shelf."
         />
+
+        {/* Privacy — importing years of history is the moment this matters. */}
+        <label
+          className="flex items-center gap-3 rounded-xl p-3 cursor-pointer"
+          style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Import as private
+            <span className="ml-1" style={{ color: "var(--text-faint)" }}>
+              — only you see these viewings; they still count in your Wrapped.
+            </span>
+          </span>
+        </label>
 
         <button
           onClick={() => upload.mutate()}
@@ -113,7 +143,7 @@ export default function ImportPage() {
             }}
           >
             <p className="font-semibold">{upload.data.message}</p>
-            {(["ratings", "watched", "watchlist"] as const).map((k) => {
+            {(["diary", "ratings", "watched", "watchlist"] as const).map((k) => {
               const c = upload.data!.counts[k];
               return (
                 <p key={k} style={{ color: "var(--text-muted)" }}>

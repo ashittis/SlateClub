@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import Avatar from "@/components/ui/Avatar";
+import PostTypeBadge from "@/components/community/PostTypeBadge";
 import type { Post, PostReply } from "@/types/posts";
 
 export default function PostThreadPage() {
@@ -80,12 +82,7 @@ export default function PostThreadPage() {
       >
         <div className="flex items-center gap-2 mb-3">
           <Link href={`/profile/${p.user.username}`} className="flex items-center gap-2">
-            <span
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-            >
-              {p.user.name[0]?.toUpperCase()}
-            </span>
+            <Avatar name={p.user.name} avatarUrl={p.user.avatarUrl} size="md" />
             <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
               {p.user.name}
             </span>
@@ -93,14 +90,9 @@ export default function PostThreadPage() {
           <span className="text-xs" style={{ color: "var(--text-faint)" }}>
             · {timeAgo(p.createdAt)}
           </span>
-          {p.postType === "question" && (
-            <span
-              className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(255, 138, 0, 0.15)", color: "var(--cta-primary)" }}
-            >
-              Question
-            </span>
-          )}
+          <span className="ml-auto">
+            <PostTypeBadge type={p.postType} />
+          </span>
         </div>
 
         {p.title && (
@@ -204,12 +196,7 @@ function ReplyCard({ reply, postId }: { reply: PostReply; postId: string }) {
     >
       <div className="flex items-center gap-2 mb-1.5">
         <Link href={`/profile/${reply.user.username}`} className="flex items-center gap-2">
-          <span
-            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-          >
-            {reply.user.name[0]?.toUpperCase()}
-          </span>
+          <Avatar name={reply.user.name} avatarUrl={reply.user.avatarUrl} size="xs" />
           <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
             {reply.user.name}
           </span>

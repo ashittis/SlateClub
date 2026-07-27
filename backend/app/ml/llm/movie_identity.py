@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from . import openai_client as llm
+from app.ml.llm import openai_client as llm
 
 
 # 9 axes that separate films by *experience*, not topic. Each is float in
@@ -125,7 +125,7 @@ IDENTITY_SCHEMA: dict = {
 }
 
 
-def _build_prompt(movie: dict) -> str:
+def _build_prompt(movie: dict, external_text: str = "") -> str:
     title = movie.get("title") or "Unknown"
     overview = (movie.get("overview") or "").strip()
     release = (movie.get("release_date") or "")[:4]
@@ -162,6 +162,24 @@ def _build_prompt(movie: dict) -> str:
     ]
     movie_block = "\n".join(s for s in sections if s)
 
+    # External audience signal (Reddit) — included ONLY when present, so the
+    # prompt is byte-identical to before when running TMDB-only.
+    chatter = (external_text or "").strip()
+    chatter_block = (
+        "\n\n--- AUDIENCE CHATTER (unverified Reddit comments; may be wrong, "
+        "sarcastic, or about a different film with the same title) ---\n"
+        f"{chatter}\n"
+        "--- END AUDIENCE CHATTER ---\n"
+        "Use the chatter ONLY as evidence for how the film FEELS to real viewers "
+        "and for comparable_by_feel — it is the best available signal for tone, "
+        "divisiveness and pacing, which the plot summary omits. Never quote it; "
+        "never repeat a comparison you cannot independently stand behind; ignore "
+        "plot spoilers, hype, box-office and star-rating talk; if it contradicts "
+        "the metadata above, trust the metadata. If it is empty or off-topic, "
+        "ignore it entirely and proceed from the metadata alone."
+        if chatter else ""
+    )
+
     return (
         "You are a film phenomenologist. Describe the EXPERIENCE of watching "
         "this film, not its plot or pedigree. Two films can share zero "
@@ -180,7 +198,8 @@ def _build_prompt(movie: dict) -> str:
         "  - aftertaste: how the viewer feels ~30 min after the credits. Keep "
         "this TONE-TRUE: a defiant, cheer-out-loud triumph and a melancholic, "
         "tears-of-sorrow triumph share an arc but NOT an aftertaste — say so.\n\n"
-        f"Movie:\n{movie_block}\n\n"
+        f"Movie:\n{movie_block}\n"
+        f"{chatter_block}\n"
         "Return ONLY JSON matching the provided schema. No prose, no "
         "markdown fences."
     )
@@ -237,27 +256,35 @@ def _pack_affect_floats(affect_axes: dict) -> list[float]:
     return out
 
 
-async def extract_identity(movie: dict) -> dict | None:
-    """Extract MovieIdentity for one movie. Returns the dict or None if
-    OpenAI is unavailable or the call failed."""
+async def extract_identity(movie: dict, *, external_text: str = "") -> dict | None:
+    """Extract MovieIdentity for one movie. `external_text` (optional Reddit
+    chatter) enriches the prompt only. Returns the dict or None if OpenAI is
+    unavailable or the call failed."""
     if not llm.is_available():
         return None
-    prompt = _build_prompt(movie)
+    prompt = _build_prompt(movie, external_text)
     return await llm.generate_json(prompt, response_schema=IDENTITY_SCHEMA)
 
 
-async def extract_and_embed(movie: dict) -> tuple[dict | None, bytes | None]:
+async def extract_and_embed(
+    movie: dict, *, external_text: str = ""
+) -> tuple[dict | None, bytes | None]:
     """Run extraction + embedding for one movie.
 
     Returns (identity_json, embedding_bytes). Either may be None on failure;
     the caller should persist what it can. The returned identity dict
-    additionally contains "affect_vector": list[float] (9 floats).
+    additionally contains "affect_vector": list[float] (9 floats) and "_meta"
+    (source provenance). `external_text` is optional Reddit chatter.
     """
-    identity = await extract_identity(movie)
+    identity = await extract_identity(movie, external_text=external_text)
     if identity is None:
         return None, None
 
     identity["affect_vector"] = _pack_affect_floats(identity.get("affect_axes") or {})
+    identity["_meta"] = {
+        "sources": ["tmdb", "reddit"] if (external_text or "").strip() else ["tmdb"],
+        "prompt_version": 2,
+    }
 
     embed_text = _embedding_text(identity)
     if not embed_text.strip():

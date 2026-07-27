@@ -14,7 +14,7 @@ other projects without collisions or cross-project ``FLUSHDB``.
 
 import time
 
-from .config import settings
+from app.core.config import settings
 
 try:  # `redis` is optional — absence simply disables caching.
     from redis import asyncio as aioredis

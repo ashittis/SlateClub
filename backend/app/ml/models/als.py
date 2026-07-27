@@ -6,14 +6,20 @@ Uses scipy sparse matrices + manual ALS implementation since `implicit` library
 failed to build on this platform.
 """
 
+import os
+import pickle
+
 import numpy as np
 from scipy import sparse
+
+_ARTIFACT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+DEFAULT_ARTIFACT = os.path.join(_ARTIFACT_DIR, "als_model.pkl")
 
 
 class ALSModel:
     """Simple ALS for implicit feedback collaborative filtering."""
 
-    def __init__(self, factors: int = 64, regularization: float = 0.1, iterations: int = 15):
+    def __init__(self, factors: int = 64, regularization: float = 0.1, iterations: int = 15, *, auto_load: bool = True):
         self.factors = factors
         self.regularization = regularization
         self.iterations = iterations
@@ -23,6 +29,40 @@ class ALSModel:
         self.item_ids: list[str] = []
         self._user_index: dict[str, int] = {}
         self._item_index: dict[str, int] = {}
+        # Load a shipped artifact if present; else recommend() returns [] and CF
+        # reaches the feed only via the graph blend. Training writes the artifact
+        # only after the harness confirms it beats that fallback.
+        if auto_load and os.path.exists(DEFAULT_ARTIFACT):
+            try:
+                self.load(DEFAULT_ARTIFACT)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[als] artifact load failed, staying empty: {exc}")
+
+    def save(self, path: str = DEFAULT_ARTIFACT) -> None:
+        if self.user_factors is None or self.item_factors is None:
+            raise RuntimeError("nothing to save — model is not fit")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            pickle.dump({
+                "user_factors": self.user_factors,
+                "item_factors": self.item_factors,
+                "user_ids": self.user_ids,
+                "item_ids": self.item_ids,
+                "_user_index": self._user_index,
+                "_item_index": self._item_index,
+                "factors": self.factors,
+            }, f)
+
+    def load(self, path: str = DEFAULT_ARTIFACT) -> None:
+        with open(path, "rb") as f:
+            state = pickle.load(f)
+        self.user_factors = state["user_factors"]
+        self.item_factors = state["item_factors"]
+        self.user_ids = state["user_ids"]
+        self.item_ids = state["item_ids"]
+        self._user_index = state["_user_index"]
+        self._item_index = state["_item_index"]
+        self.factors = state.get("factors", self.factors)
 
     def fit(self, interactions: list[dict]):
         """

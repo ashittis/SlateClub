@@ -30,25 +30,19 @@ interface Props {
   value?: PickedFilm | null;
   /** Called when the user clears the picked film. */
   onClear?: () => void;
-  /** True once results exist for the current seed — flips the CTA to "Show more". */
-  hasResults?: boolean;
-  /** Called when "Show more" is pressed (generate/navigate the next page). */
-  onMore?: () => void;
 }
 
 /*
-  MoviesLikeBuilder — the "Show me movies like ___" companion to SentenceBuilder.
-  Type a film name, pick the exact title from a live autocomplete, then run it
-  through the recommendation engine's similarity tuning. Mirrors the
-  SentenceBuilder card shell and the MovieSearchBar input/dropdown pattern.
+  MoviesLikeBuilder — the "Show me something like ___" input. Type a film name,
+  pick the exact title from a live autocomplete, then run it through the essence
+  engine. The answer (and its "None of these fit" stepper) lives in SimilarAnswer;
+  this card is only ever the picker + a single "Show me →".
 */
 export default function MoviesLikeBuilder({
   onSubmit,
   pending,
   value,
   onClear,
-  hasResults,
-  onMore,
 }: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -102,9 +96,6 @@ export default function MoviesLikeBuilder({
   const isFetching = filmsQuery.isFetching || seriesQuery.isFetching;
   const showDropdown = open && !picked && debounced.length >= 2;
   const empty = showDropdown && !isFetching && hits.length === 0;
-  // The CTA becomes "Show more" only when results exist for the title currently
-  // picked (the active seed). Choosing a different title resets it to "Show me".
-  const isMore = !!hasResults && !!picked && picked.id === value?.id;
 
   function pick(m: Hit) {
     setPicked({
@@ -278,13 +269,7 @@ export default function MoviesLikeBuilder({
         </span>
         <button
           type="button"
-          onClick={() => {
-            if (!picked) return;
-            // "Show more" only applies to the film already searched; picking a
-            // different title reverts to a fresh "Show me" search.
-            if (isMore) onMore?.();
-            else onSubmit(picked);
-          }}
+          onClick={() => picked && onSubmit(picked)}
           disabled={!picked || pending}
           className="px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-40"
           style={{
@@ -297,13 +282,7 @@ export default function MoviesLikeBuilder({
                 : "none",
           }}
         >
-          {pending
-            ? isMore
-              ? "Finding more…"
-              : "Tuning…"
-            : isMore
-              ? "Show more"
-              : "Show me →"}
+          {pending ? "Tuning…" : "Show me →"}
         </button>
       </div>
     </div>

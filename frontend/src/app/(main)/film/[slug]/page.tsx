@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,12 +14,24 @@ import ShelfNoteSheet, {
   type ShelfNotePayload,
 } from "@/components/film/ShelfNoteSheet";
 import DNFSheet, { type DnfPayload } from "@/components/film/DNFSheet";
+import LogCompletionBurst from "@/components/film/LogCompletionBurst";
 import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
 import { addRecentlyViewed } from "@/lib/searchHistory";
 import FilmDiscussSection from "@/components/discourse/FilmDiscussSection";
 import ConnectorRail from "@/components/cultural/ConnectorRail";
 import CulturalContextCard from "@/components/cultural/CulturalContextCard";
 import NowShowingSection from "@/components/theatres/NowShowingSection";
+import ExpandableSynopsis from "@/components/film/ExpandableSynopsis";
+import MoreLikeThisRow from "@/components/film/MoreLikeThisRow";
+
+// TMDB two-letter language codes → display names for the meta line.
+const LANG_NAMES: Record<string, string> = {
+  en: "English", ta: "Tamil", hi: "Hindi", te: "Telugu", ml: "Malayalam",
+  kn: "Kannada", ko: "Korean", ja: "Japanese", fr: "French", es: "Spanish",
+  de: "German", it: "Italian", zh: "Chinese", pt: "Portuguese", ru: "Russian",
+};
+const langName = (code?: string | null) =>
+  code ? LANG_NAMES[code] ?? code.toUpperCase() : null;
 
 /* ---------- Film detail page ---------- */
 
@@ -30,6 +42,15 @@ interface UserMovieStatus {
   watched: boolean;
   dnf: { reason: string | null; stoppedAt: string | null; progressPct: number | null } | null;
   rating: number | null;
+  logCount: number;
+  atTheatre: boolean;
+  lastLoggedVisibility: "public" | "private";
+}
+
+interface WatchedPayload {
+  atTheatre: boolean;
+  isRewatch: boolean;
+  visibility: "public" | "private";
 }
 
 export default function FilmDetailPage() {
@@ -39,6 +60,11 @@ export default function FilmDetailPage() {
   const [slateOpen, setSlateOpen] = useState(false);
   const [shelfOpen, setShelfOpen] = useState(false);
   const [dnfOpen, setDnfOpen] = useState(false);
+  // Log-this-viewing controls (apply to the next Mark-Watched / rewatch log).
+  const [atTheatre, setAtTheatre] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
+  // Completion celebration ("you did it" moment on rate / log).
+  const [celebrate, setCelebrate] = useState<{ label: string } | null>(null);
 
   // Fetch movie details
   const {
@@ -76,6 +102,7 @@ export default function FilmDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["movieStatus", slug] });
     queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
     queryClient.invalidateQueries({ queryKey: ["profile", "watched"] });
+    queryClient.invalidateQueries({ queryKey: ["profile", "diary"] });
     queryClient.invalidateQueries({ queryKey: ["profile", "watchlist"] });
     queryClient.invalidateQueries({ queryKey: ["profile", "dnf"] });
   };
@@ -100,13 +127,34 @@ export default function FilmDetailPage() {
     onSuccess: refreshProfileTabs,
   });
 
-  const watchedMutation = useMutation({
-    mutationFn: () =>
+  // Log a viewing (first watch or a rewatch) with the current theatre/privacy
+  // toggles. A separate un-watch path removes all viewings.
+  const logWatchMutation = useMutation({
+    mutationFn: (payload: WatchedPayload) =>
       apiFetch(`/api/movies/${slug}/watched`, {
-        method: status?.watched ? "DELETE" : "POST",
+        method: "POST",
+        body: JSON.stringify(payload),
       }),
+    onSuccess: (_data, payload) => {
+      setCelebrate({ label: payload.isRewatch ? "Rewatched" : "Logged" });
+      setAtTheatre(false);
+      setIsPrivate(false);
+      refreshProfileTabs();
+    },
+  });
+
+  const unwatchMutation = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/movies/${slug}/watched`, { method: "DELETE" }),
     onSuccess: refreshProfileTabs,
   });
+
+  const logViewing = (isRewatch: boolean) =>
+    logWatchMutation.mutate({
+      atTheatre,
+      isRewatch,
+      visibility: isPrivate ? "private" : "public",
+    });
 
   const dnfMutation = useMutation({
     mutationFn: (payload: DnfPayload) =>
@@ -126,7 +174,10 @@ export default function FilmDetailPage() {
         method: "POST",
         body: JSON.stringify({ rating }),
       }),
-    onSuccess: refreshProfileTabs,
+    onSuccess: (_data, rating) => {
+      if (rating > 0) setCelebrate({ label: "Rated" });
+      refreshProfileTabs();
+    },
   });
 
   if (isLoading) {
@@ -205,6 +256,12 @@ export default function FilmDetailPage() {
                   <span>{runtimeDisplay}</span>
                 </>
               )}
+              {langName(movie.originalLanguage) && (
+                <>
+                  <span aria-hidden="true">&middot;</span>
+                  <span>{langName(movie.originalLanguage)}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -265,25 +322,74 @@ export default function FilmDetailPage() {
               {status?.inWatchlist ? "✓ Shelved" : "Shelf"}
             </Button>
 
-            <Button
-              variant={status?.watched ? "primary" : "secondary"}
-              onClick={() => watchedMutation.mutate()}
-              disabled={watchedMutation.isPending}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-4 w-4"
+            <div className="flex items-center gap-2">
+              {status?.watched ? (
+                <Button
+                  variant="primary"
+                  onClick={() => logViewing(true)}
+                  disabled={logWatchMutation.isPending}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                  </svg>
+                  Log rewatch{status.logCount > 1 ? ` · ${status.logCount}×` : ""}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => logViewing(false)}
+                  disabled={logWatchMutation.isPending}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                  </svg>
+                  Mark Watched
+                </Button>
+              )}
+
+              {/* Theatre-visit toggle — applies to the next log. */}
+              <LogToggle
+                active={atTheatre}
+                onClick={() => setAtTheatre((v) => !v)}
+                label={atTheatre ? "Logged as a theatre visit" : "Watched in a theatre?"}
               >
-                <path
-                  fillRule="evenodd"
-                  d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {status?.watched ? "Watched" : "Mark Watched"}
-            </Button>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                  <path d="M4 6h16a1 1 0 011 1v3a2 2 0 000 4v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a2 2 0 000-4V7a1 1 0 011-1z" strokeLinejoin="round" />
+                  <path d="M13 6v12" strokeDasharray="1.5 2.5" strokeLinecap="round" />
+                </svg>
+              </LogToggle>
+
+              {/* Public/private toggle — applies to the next log. */}
+              <LogToggle
+                active={isPrivate}
+                onClick={() => setIsPrivate((v) => !v)}
+                label={isPrivate ? "Private — only you" : "Public"}
+              >
+                {isPrivate ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                    <rect x="5" y="11" width="14" height="9" rx="2" />
+                    <path d="M8 11V8a4 4 0 018 0v3" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" />
+                  </svg>
+                )}
+              </LogToggle>
+
+              {status?.watched && (
+                <button
+                  type="button"
+                  onClick={() => unwatchMutation.mutate()}
+                  disabled={unwatchMutation.isPending}
+                  className="text-xs transition-opacity hover:opacity-80"
+                  style={{ color: "var(--text-faint)" }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
 
             <Button variant="secondary" onClick={() => setSlateOpen(true)}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
@@ -342,13 +448,19 @@ export default function FilmDetailPage() {
             </>
           )}
 
+          {celebrate && (
+            <LogCompletionBurst
+              posterPath={movie.posterPath}
+              label={celebrate.label}
+              onDone={() => setCelebrate(null)}
+            />
+          )}
+
           {/* Overview */}
           {movie.overview && (
             <div className="space-y-2">
               <h2 className="text-lg font-semibold text-text-primary">Overview</h2>
-              <p className="text-sm leading-relaxed text-glass-40">
-                {movie.overview}
-              </p>
+              <ExpandableSynopsis text={movie.overview} />
             </div>
           )}
 
@@ -427,6 +539,11 @@ export default function FilmDetailPage() {
           {/* Connector — threads via shared crew */}
           {movie.tmdbId && <ConnectorRail tmdbId={movie.tmdbId} />}
 
+          {/* More like this — taste-engine similarity rail */}
+          {movie.tmdbId && (
+            <MoreLikeThisRow tmdbId={movie.tmdbId} mediaType={movie.mediaType} />
+          )}
+
           {/* Now showing — theatre listings (renders only when data exists) */}
           {movie.tmdbId && <NowShowingSection tmdbId={movie.tmdbId} />}
 
@@ -441,17 +558,52 @@ export default function FilmDetailPage() {
   );
 }
 
+/* ---------- Log toggle (theatre / privacy) ---------- */
+
+function LogToggle({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={label}
+      aria-label={label}
+      className="flex h-11 w-11 items-center justify-center rounded-full border transition-colors"
+      style={{
+        borderColor: active ? "var(--cta-primary, #FF9408)" : "rgba(255,255,255,0.08)",
+        color: active ? "var(--cta-primary, #FF9408)" : "var(--text-faint)",
+        background: active ? "rgba(255,148,8,0.12)" : "transparent",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 /* ---------- Reviews Section (inline) ---------- */
+
+type ReviewSort = "helpful" | "recent";
 
 function ReviewsSection({ movieId }: { movieId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [spoiler, setSpoiler] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [sort, setSort] = useState<ReviewSort>("helpful");
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
-    queryKey: ["reviews", movieId],
+    queryKey: ["reviews", movieId, sort],
     queryFn: () =>
       apiFetch<{
         reviews: {
@@ -463,7 +615,7 @@ function ReviewsSection({ movieId }: { movieId: string }) {
           user: { id: string; name: string; username: string };
           _count: { comments: number };
         }[];
-      }>(`/api/reviews/movie/${movieId}?sort=helpful`),
+      }>(`/api/reviews/movie/${movieId}?sort=${sort}`),
   });
 
   const handleSubmit = async () => {
@@ -486,7 +638,24 @@ function ReviewsSection({ movieId }: { movieId: string }) {
   return (
     <div className="space-y-3 border-t border-glass-6 pt-4 pb-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-text-primary">Reviews</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-text-primary">Reviews</h2>
+          <div className="flex gap-1">
+            {(["helpful", "recent"] as ReviewSort[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSort(s)}
+                className="rounded-full px-2.5 py-0.5 text-xs font-medium capitalize transition-colors"
+                style={{
+                  background: sort === s ? "var(--bg-elevated)" : "transparent",
+                  color: sort === s ? "var(--text-primary)" : "var(--text-faint)",
+                }}
+              >
+                {s === "helpful" ? "Top" : "Recent"}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="text-sm text-accent-green hover:text-accent-green/80"

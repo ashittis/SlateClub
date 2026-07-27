@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { useAuthStore } from "@/stores/authStore";
+import BlendInvite from "@/components/match-cut/BlendInvite";
+import type { UserLite } from "@/components/match-cut/FriendMultiPicker";
 import type { MatchCutSummary } from "@/types/user";
 
 export default function MatchCutPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { user: me } = useAuthStore();
   const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("");
 
   const cuts = useQuery<{ items: MatchCutSummary[] }>({
     queryKey: ["my-cuts"],
@@ -19,10 +22,10 @@ export default function MatchCutPage() {
   });
 
   const create = useMutation({
-    mutationFn: (t: string) =>
+    mutationFn: (friend: UserLite) =>
       apiFetch<{ id: string }>("/api/match-cut/cuts", {
         method: "POST",
-        body: JSON.stringify({ title: t }),
+        body: JSON.stringify({ friendId: friend.id }),
       }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["my-cuts"] });
@@ -40,7 +43,7 @@ export default function MatchCutPage() {
             Match Cut
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-            Blend your taste with friends — saved, shareable cuts.
+            Blend your taste with a friend — see how your film taste lines up.
           </p>
         </div>
         <button
@@ -53,33 +56,13 @@ export default function MatchCutPage() {
       </div>
 
       {creating && (
-        <div className="mb-6 rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <input
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Name your cut (e.g. Friday Night)"
-            className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-            style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-primary)" }}
-            onKeyDown={(e) => e.key === "Enter" && create.mutate(title.trim() || "Untitled Cut")}
+        <div className="mb-6">
+          <BlendInvite
+            me={me ? { id: me.id, name: me.name, avatarUrl: me.avatar_url } : null}
+            pending={create.isPending}
+            onInvite={(friend) => create.mutate(friend)}
+            onCancel={() => setCreating(false)}
           />
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => create.mutate(title.trim() || "Untitled Cut")}
-              disabled={create.isPending}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: "var(--cta-gradient)" }}
-            >
-              {create.isPending ? "Creating…" : "Create cut"}
-            </button>
-            <button
-              onClick={() => setCreating(false)}
-              className="rounded-full px-4 py-2 text-sm font-medium"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       )}
 

@@ -11,7 +11,7 @@ Architecture:
 
 import numpy as np
 
-from ..embeddings.taste_vector import VECTOR_DIM
+from app.ml.embeddings.taste_vector import VECTOR_DIM
 
 
 class TwoTowerModel:

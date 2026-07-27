@@ -91,22 +91,29 @@ PENDING / NOT YET DONE
   □ ALS training            need sufficient interaction volume (~50 users × 10 films)
   □ movie_identity bulk run scripts/extract_movie_identities.py on full catalog
   □ user_taste_state writer periodic job to (re-)compute taste_embedding per user
-  □ Reddit / Letterboxd     _external_sources_for() stub in movie_identity.py
-  □ Graph hydration         upsert_movie_node / set_user_* called on every
-                             rating/review/watch event (hook into routes)
+  □ Reddit enrichment       NOT a stub — there is no _external_sources_for() hook
+                             anywhere. From-scratch: integrations/reddit.py (httpx,
+                             NOT praw — praw is sync) + reddit_cache table + a prompt
+                             section threaded in as a parameter. See Task 10 of
+                             /RECS_TRAINING_PLAN.md.
+  □ Letterboxd              CSV import ALREADY EXISTS (routes/imports.py). No API,
+                             no OAuth — none. Open work is writing DiaryEntry rows
+                             from diary.csv's Watched Date. See Task 9.
+  ✓ Graph hydration         DONE — services/watch_signals.py fires upsert_movie_node
+                             / set_user_* on every rating + watch event.
 """
 
-from .pipeline.recommendation_pipeline import RecommendationPipeline
-from .llm.taste_identity import compute_taste_identity
-from .llm.drift_detector import compute_drift_score, get_drift_adaptations
-from .llm.contextual_bandit import bandit
-from .llm.movie_identity import extract_and_embed
-from .graph.taste_graph import (
+from app.ml.pipeline.recommendation_pipeline import RecommendationPipeline
+from app.ml.llm.taste_identity import compute_taste_identity
+from app.ml.llm.drift_detector import compute_drift_score, get_drift_adaptations
+from app.ml.llm.contextual_bandit import bandit
+from app.ml.llm.movie_identity import extract_and_embed
+from app.ml.graph.taste_graph import (
     get_user_clusters,
     get_friend_boost_movies,
     get_director_affinity_movies,
 )
-from .embeddings.taste_vector import (
+from app.ml.embeddings.taste_vector import (
     compute_user_taste_vector,
     seed_prior_vector,
     cosine_similarity,

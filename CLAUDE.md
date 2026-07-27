@@ -26,8 +26,9 @@ For the recommendation engine, taste graph, system design, and data flow, read [
 
 ## Project roots
 
-- [backend/](backend/) — FastAPI app. Routes in `app/routes/` (~177 endpoints), models in `app/models/` (~30 SQLAlchemy tables), business logic in `app/services/`, ML in `app/ml/`, TMDB/LLM clients in `app/integrations/`. Migrations in `alembic/versions/`.
-- [frontend/](frontend/) — Next.js App Router. Route groups: `(auth)`, `(main)` (home, discover, film/[slug], slates, circles, tribe, artists, festivals, releases, parties, profile, settings, community, activity), and an 8-step `onboarding/` flow. Components in `src/components/`, hooks in `src/lib/`.
+- [backend/](backend/) — FastAPI app, organised as **vertical feature slices** (see [app/README.md](backend/app/README.md)). Each feature lives in `app/features/<slice>/` with its own routes + owned models/services (discovery, recommendation, match_cut, community, onboarding, movies, ratings, users, …). Heavily-shared tables/logic live in `app/shared/{models,services}/`; infra in `app/core/`; the recommendation engine in `app/ml/`; external API clients in `app/integrations/`. `app/routes/__init__.py` is just the router registry; `app/models_registry.py` imports every model for `Base.metadata`. Migrations in `alembic/versions/`. **Every folder has a `README.md`** explaining its job in plain terms.
+- [frontend/](frontend/) — Next.js App Router (see [src/README.md](frontend/src/README.md)). `app/` folders map to URLs so they can't be feature-reorganised; the feature grouping lives in `src/components/<feature>/` (each with a `README.md`). Route groups: `(auth)`, `(main)`, and an 8-step `onboarding/` flow. Shared client helpers in `src/lib/`.
+- [files/](files/) — reference docs, planning notes, and assets that used to clutter the repo root (see [files/README.md](files/README.md)). Canonical docs `vision.md` and `ARCHITECTURE.md` stay at the root.
 - [figma-screens/](figma-screens/) — PNG design references (home, taste-engine, discovery). No code.
 
 ## Run commands
@@ -71,8 +72,11 @@ For ongoing dev: write new migrations as normal (`alembic revision -m "..."` the
 
 ## Conventions
 
-- **Routes:** add to `backend/app/routes/`, register in `app/routes/__init__.py`'s `all_routers` list.
-- **Models:** add to `backend/app/models/`, import in `app/main.py` and `alembic/env.py` so Base.metadata picks it up.
+- **Imports:** use absolute `app.*` imports (e.g. `from app.shared.models.movie import Movie`), never relative.
+- **Routes:** add to the owning `backend/app/features/<slice>/` (a `routes.py`, or a named route file for multi-route slices), then register its router in `app/routes/__init__.py`'s `all_routers` list.
+- **Models:** put a feature-only table in its slice (`app/features/<slice>/models.py` or `.../models/`); put a broadly-shared table in `app/shared/models/`. Either way, add its module to `app/models_registry.py` so `Base.metadata` (and Alembic) picks it up.
+- **Services:** cross-cutting logic goes in `app/shared/services/`; feature-only logic stays in the slice. Keep route files thin.
+- **Docs:** when you add or meaningfully change a folder, update its `README.md`.
 - **Frontend pages:** add under `frontend/src/app/(main)/<slug>/page.tsx`. Use route groups, not directories, for shared layouts.
 - **Animations:** Framer Motion for component enter/exit, gesture, layout. GSAP for choreography that spans multiple elements or needs a timeline (taste-engine constellation, hero card fan, onboarding reveals).
 - **Colours:** stick to the existing palette tokens. New accents only with reason — coral = action, green = positive/CTA, amber = mood, purple = platform, violet = era, tan = language.

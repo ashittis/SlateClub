@@ -1,25 +1,7 @@
 import asyncio
 
 from app.core.database import engine, Base
-from app.models import (  # noqa: F401
-    user,
-    movie,
-    actions,
-    social,
-    onboarding,
-    taste_engine,
-    slates,
-    discourse,
-    notifications,
-    artists,
-    releases,
-    cultural,
-    festivals,
-    theatres,
-    watch_parties,
-    circles,
-    chapters,
-)
+from app import models_registry  # noqa: F401
 
 
 async def main():

@@ -15,6 +15,12 @@ import ActivityFeed from "@/components/social/ActivityFeed";
 import MovieSearchBar from "@/components/feed/MovieSearchBar";
 import BrowseGrid from "@/components/feed/BrowseGrid";
 import ForYouGrid from "@/components/feed/ForYouGrid";
+import MoviesLikeSection from "@/components/discover/MoviesLikeSection";
+import DiscoverRows from "@/components/discover/DiscoverRows";
+import JumpBackInRow from "@/components/feed/rows/JumpBackInRow";
+import ContinueSlatesRow from "@/components/feed/rows/ContinueSlatesRow";
+import TrendingNearYouRow from "@/components/feed/rows/TrendingNearYouRow";
+import NewUserPrompt from "@/components/feed/NewUserPrompt";
 import type { ActivityEvent } from "@/types/social";
 
 interface TwinNowItem {
@@ -33,6 +39,9 @@ export default function HomePage() {
     queryKey: ["hero-feed"],
     queryFn: () => apiFetch("/api/feed/hero"),
     enabled: !!user,
+    // Advancing the hero is an explicit invalidate; don't reshuffle the pick
+    // just because the tab regained focus.
+    refetchOnWindowFocus: false,
   });
 
   const activityQuery = useQuery<{ events: ActivityEvent[] }>({
@@ -50,6 +59,17 @@ export default function HomePage() {
     staleTime: 0,
     refetchInterval: 60_000,
   });
+
+  // Cold-start gate: below this many ratings the taste engine can't
+  // personalise, so we surface the "rate a few films" prompt.
+  const ratingsQuery = useQuery<unknown[]>({
+    queryKey: ["me-ratings-count"],
+    queryFn: () => apiFetch("/api/users/me/ratings"),
+    enabled: !!user,
+    staleTime: 5 * 60_000,
+  });
+  const isColdStart =
+    ratingsQuery.isSuccess && (ratingsQuery.data?.length ?? 0) < 5;
 
   const heroPosterSrc = heroQuery.data?.hero?.posterPath
     ? tmdbImage(heroQuery.data.hero.posterPath, "w500")
@@ -70,6 +90,25 @@ export default function HomePage() {
           <MovieSearchBar />
         </div>
 
+        {/* Jump back in — in-progress titles lead for returning users
+            (self-hides when nothing is in progress). */}
+        <div className="mb-8 space-y-8">
+          <JumpBackInRow />
+          <ContinueSlatesRow />
+        </div>
+
+        {/* Cold-start prompt — shown until the user has rated enough films. */}
+        {isColdStart && (
+          <div className="mb-8">
+            <NewUserPrompt />
+          </div>
+        )}
+
+        {/* Show me something like ___ — the essence engine, the reason to browse. */}
+        <div className="mb-8">
+          <MoviesLikeSection />
+        </div>
+
         {user && <TasteDriftBanner />}
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
@@ -80,7 +119,12 @@ export default function HomePage() {
                 style={{ background: "var(--bg-card)" }}
               />
             ) : heroQuery.data && heroQuery.data.hero ? (
-              <HeroFan data={heroQuery.data} />
+              // Remount on each refetch so the card always mounts fresh — it
+              // can never wedge on a leftover exit transform if the pick
+              // repeats.
+              <HeroFan key={heroQuery.dataUpdatedAt} data={heroQuery.data} />
+            ) : heroQuery.data ? (
+              <HeroEmpty />
             ) : null}
 
             {/* From your orbit — what people you follow are rating and
@@ -89,11 +133,11 @@ export default function HomePage() {
             <div className="mt-8 flex items-center justify-between">
               <FeedScopeTabs value={scope} onChange={setScope} />
               <Link
-                href="/discover"
+                href="/for-you"
                 className="text-xs font-medium hover:opacity-80"
                 style={{ color: "var(--cta-primary)" }}
               >
-                Open Taste Engine →
+                Open For You →
               </Link>
             </div>
 
@@ -130,6 +174,14 @@ export default function HomePage() {
                 where ratings, reviews, slates, and discussion live. */}
             <div className="mt-2">
               <BrowseGrid />
+            </div>
+
+            {/* Browse rows absorbed from Discover — theatres/OTT + hidden gems. */}
+            <DiscoverRows />
+
+            {/* Trending near you — full ranked row (promoted from sidebar). */}
+            <div className="mt-8">
+              <TrendingNearYouRow />
             </div>
           </div>
 
@@ -175,17 +227,40 @@ export default function HomePage() {
                 </Link>
               ))}
             </SidebarModule>
-
-            <SidebarModule title="Trending in your city" empty="Coming soon.">
-              <p className="text-xs px-3" style={{ color: "var(--text-faint)" }}>
-                We&apos;ll surface what your city&apos;s watching once geo
-                signals are wired up.
-              </p>
-            </SidebarModule>
           </aside>
         </div>
       </div>
     </>
+  );
+}
+
+function HeroEmpty() {
+  return (
+    <div
+      className="flex flex-col items-center justify-center text-center rounded-2xl px-6 py-16"
+      style={{
+        background: "var(--bg-card)",
+        border: "1px solid rgba(255,255,255,0.05)",
+      }}
+    >
+      <p
+        className="display text-xl font-semibold"
+        style={{ color: "var(--text-primary)" }}
+      >
+        You&apos;re all caught up
+      </p>
+      <p className="mt-2 text-sm max-w-xs" style={{ color: "var(--text-muted)" }}>
+        No fresh picks right now. Rate a few more films to keep the taste engine
+        learning.
+      </p>
+      <Link
+        href="/search"
+        className="mt-5 text-sm font-medium hover:opacity-80"
+        style={{ color: "var(--cta-primary)" }}
+      >
+        Explore the catalog →
+      </Link>
+    </div>
   );
 }
 

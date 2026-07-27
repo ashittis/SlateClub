@@ -5,7 +5,7 @@ Manages the Neo4j knowledge graph connecting users, films, directors, themes, an
 Edge weights derived from real behavioral signals.
 """
 
-from ...core.neo4j_client import run_query, run_write
+from app.core.neo4j_client import run_query, run_write
 
 
 # ─── Graph Schema Setup ─────────────────────────────────────

@@ -55,19 +55,28 @@ export default function PostComposer() {
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {/* type toggle */}
-      <div className="flex gap-2">
-        {(["text", "question"] as PostType[]).map((t) => (
+      {/* type toggle — body-based kinds (poll/meme builders are a follow-up) */}
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["text", "Post"],
+            ["question", "Question"],
+            ["discussion", "Discussion"],
+            ["review", "Review"],
+            ["fan_theory", "Fan Theory"],
+            ["news", "News"],
+          ] as [PostType, string][]
+        ).map(([t, label]) => (
           <button
             key={t}
             onClick={() => setPostType(t)}
-            className="px-3 py-1 rounded-full text-xs font-semibold capitalize"
+            className="px-3 py-1 rounded-full text-xs font-semibold"
             style={{
               background: postType === t ? "var(--text-primary)" : "var(--bg-elevated)",
               color: postType === t ? "var(--bg-screening)" : "var(--text-muted)",
             }}
           >
-            {t === "question" ? "Ask a question" : "Post"}
+            {label}
           </button>
         ))}
       </div>

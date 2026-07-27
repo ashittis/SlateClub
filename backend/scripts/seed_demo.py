@@ -27,12 +27,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import settings
 
 # Import every model module so SQLAlchemy resolves string-named relationships.
-from app.models import (  # noqa: F401
-    user, movie, actions, social, onboarding, taste_engine, slates,
-    discourse, notifications, artists, releases, cultural, festivals,
-    theatres, watch_parties, circles, chapters,
-)
-from app.models.movie import Movie
+from app import models_registry  # noqa: F401
+from app.shared.models.movie import Movie
 
 
 # tmdb_id chosen to be the real TMDB IDs so future TMDB syncs idempotently

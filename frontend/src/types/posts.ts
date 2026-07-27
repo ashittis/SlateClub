@@ -5,7 +5,15 @@ export interface PostUser {
   avatarUrl: string | null;
 }
 
-export type PostType = "text" | "question";
+export type PostType =
+  | "text"
+  | "question"
+  | "discussion"
+  | "review"
+  | "news"
+  | "fan_theory"
+  | "meme"
+  | "poll";
 
 export interface Post {
   id: string;

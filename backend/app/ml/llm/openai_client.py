@@ -30,7 +30,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.config import settings
+from app.core.config import settings
 
 try:
     from openai import AsyncOpenAI

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import OnboardingProgress from "../../components/onboarding/OnboardingProgress";
 import AmbientGlow from "../../components/ui/AmbientGlow";
+import Logo from "../../components/brand/Logo";
 
 const STEP_MAP: Record<string, number> = {
   "/onboarding/welcome": 1,
@@ -53,12 +54,8 @@ export default function OnboardingLayout({
         <header className="shrink-0 px-5 pt-5 pb-3 lg:px-10 lg:pt-8">
           <div className="mx-auto w-full max-w-3xl">
             <div className="flex items-center justify-between mb-4">
-              <span
-                className="display text-lg font-bold tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Slate
-                <span style={{ color: "var(--cta-primary)" }}>Club</span>
+              <span style={{ color: "var(--text-primary)" }} aria-label="SlateClub">
+                <Logo size={36} />
               </span>
               <span
                 className="text-xs font-medium uppercase tracking-wider"

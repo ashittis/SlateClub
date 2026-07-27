@@ -197,7 +197,8 @@ export default function UserProfilePage() {
       <div className="mb-6 grid grid-cols-3 sm:grid-cols-5 gap-3">
         <Stat label="Ratings" value={profile.ratings_count} />
         <Stat label="Watched" value={profile.watched_count} />
-        <Stat label="Shelf" value={profile.watchlist_count} />
+        {/* Shelf is private — only its owner sees the count. */}
+        {isOwnProfile && <Stat label="Shelf" value={profile.watchlist_count} />}
         <Stat label="Followers" value={profile.followers_count} />
         <Stat label="Following" value={profile.following_count} />
       </div>
@@ -318,7 +319,8 @@ export default function UserProfilePage() {
       >
         {([
           { key: "ratings", label: "Ratings" },
-          { key: "watchlist", label: "Shelf" },
+          // Shelf is private — only surface the tab on your own profile.
+          ...(isOwnProfile ? [{ key: "watchlist" as Tab, label: "Shelf" }] : []),
           ...((watching.data?.length ?? 0) > 0
             ? [{ key: "watching" as Tab, label: "Watching" }]
             : []),

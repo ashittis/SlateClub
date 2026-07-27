@@ -9,7 +9,7 @@ Computes a user-facing taste fingerprint with:
 - Tribe memberships
 """
 
-from .taste_describer import generate_taste_description
+from app.ml.llm.taste_describer import generate_taste_description
 
 
 async def compute_taste_identity(

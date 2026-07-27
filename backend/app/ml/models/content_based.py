@@ -6,7 +6,7 @@ score(user, movie) = cosine_similarity(user_taste_vector, movie_embedding)
 
 import numpy as np
 
-from ..embeddings.taste_vector import movie_to_embedding, cosine_similarity
+from app.ml.embeddings.taste_vector import movie_to_embedding, cosine_similarity
 
 
 class ContentBasedModel:

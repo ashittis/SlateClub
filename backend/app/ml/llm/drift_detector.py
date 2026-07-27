@@ -11,7 +11,7 @@ if drift_score < 0.15 for 90 days → "stable taste"
 
 from datetime import datetime, timedelta, timezone
 
-from ..embeddings.taste_vector import compute_user_taste_vector, cosine_similarity
+from app.ml.embeddings.taste_vector import compute_user_taste_vector, cosine_similarity
 
 DRIFT_THRESHOLD = 0.35
 STABLE_THRESHOLD = 0.15

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import Avatar from "@/components/ui/Avatar";
+import PostTypeBadge from "@/components/community/PostTypeBadge";
 import type { Post } from "@/types/posts";
 
 interface Props {
@@ -29,29 +31,16 @@ export default function PostCard({ post }: Props) {
     >
       {/* header */}
       <div className="flex items-center gap-2 mb-2">
-        <span
-          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-          style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-        >
-          {post.user.name[0]?.toUpperCase()}
-        </span>
+        <Avatar name={post.user.name} avatarUrl={post.user.avatarUrl} size="sm" />
         <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
           {post.user.name}
         </span>
         <span className="text-xs" style={{ color: "var(--text-faint)" }}>
           · {timeAgo(post.createdAt)}
         </span>
-        {post.postType === "question" && (
-          <span
-            className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: "rgba(255, 138, 0, 0.15)",
-              color: "var(--cta-primary)",
-            }}
-          >
-            Q
-          </span>
-        )}
+        <span className="ml-auto">
+          <PostTypeBadge type={post.postType} />
+        </span>
       </div>
 
       {/* title */}
@@ -88,8 +77,17 @@ export default function PostCard({ post }: Props) {
           ↩ {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
         </span>
         {post.tmdbId && (
-          <span className="ml-auto" style={{ color: "var(--pill-language)" }}>
-            Film attached
+          <span
+            className="ml-auto flex items-center gap-1 rounded-full px-2 py-0.5"
+            style={{
+              background: "rgba(184,149,106,0.14)",
+              color: "var(--pill-language)",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+              <path d="M4 4h16v16H4zM4 8h16M8 4v4m8-4v4M8 16v4m8-4v4" stroke="currentColor" strokeWidth="1" fill="none" />
+            </svg>
+            Linked film
           </span>
         )}
       </div>

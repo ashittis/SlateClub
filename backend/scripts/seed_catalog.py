@@ -23,12 +23,8 @@ from app.core.config import settings
 from app.integrations import tmdb
 
 # Import every model module so SQLAlchemy resolves string-named relationships.
-from app.models import (  # noqa: F401
-    user, movie, actions, social, onboarding, taste_engine, slates,
-    discourse, notifications, artists, releases, cultural, festivals,
-    theatres, watch_parties, circles, chapters,
-)
-from app.models.movie import Movie
+from app import models_registry  # noqa: F401
+from app.shared.models.movie import Movie
 
 
 async def _upsert(db: AsyncSession, data: dict) -> bool:

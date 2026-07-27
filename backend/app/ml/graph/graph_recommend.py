@@ -8,7 +8,7 @@ Produces candidates from:
 - Director affinity (new films by directors you love)
 """
 
-from . import taste_graph
+from app.ml.graph import taste_graph
 
 
 async def get_graph_candidates(user_id: str, limit: int = 100) -> list[dict]:

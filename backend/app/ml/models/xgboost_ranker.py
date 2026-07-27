@@ -6,6 +6,8 @@ Features: [user_taste_sim, cf_score, content_score, two_tower_score,
            trending_score, popularity, recency, genre_overlap_count]
 """
 
+import os
+
 import numpy as np
 
 try:
@@ -14,11 +16,17 @@ try:
 except ImportError:
     HAS_XGBOOST = False
 
+# Trained model artifact — gitignored, loaded on init only if it exists (so a
+# harness-gated training run can drop it in and the pipeline picks it up, and
+# nothing ships until the harness says it beats the fallback).
+_ARTIFACT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+DEFAULT_ARTIFACT = os.path.join(_ARTIFACT_DIR, "xgboost_ranker.json")
+
 
 class XGBoostRanker:
     """XGBoost-based ranking model for Stage 3 of the pipeline."""
 
-    def __init__(self):
+    def __init__(self, *, auto_load: bool = True):
         self.model = None
         self.trained = False
         self.feature_names = [
@@ -35,15 +43,24 @@ class XGBoostRanker:
             "semantic_similarity",
             "completion_pct_avg",
         ]
+        # Pick up a shipped artifact if one exists; otherwise stay on the
+        # fallback weighted sum. Training writes the artifact ONLY after the
+        # eval harness confirms it beats the fallback.
+        if auto_load and HAS_XGBOOST and os.path.exists(DEFAULT_ARTIFACT):
+            try:
+                self.load(DEFAULT_ARTIFACT)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[xgboost] artifact load failed, using fallback: {exc}")
 
-    def train(self, features: np.ndarray, labels: np.ndarray):
-        """Train ranking model on historical interaction outcomes.
+    def train(self, features: np.ndarray, labels: np.ndarray) -> bool:
+        """Train the ranker on historical outcomes. Returns True if a model was
+        fit (≥50 rows and xgboost present), False if it declined (caller keeps
+        the fallback). Does NOT persist — the caller saves only if the harness
+        proves the model beats the fallback.
 
-        features: (N, 8) array of feature vectors
-        labels: (N,) binary — 1 if user engaged (watched + rated ≥ 4), 0 otherwise
-        """
+        features: (N, 12) array; labels: (N,) binary engagement."""
         if not HAS_XGBOOST or len(features) < 50:
-            return
+            return False
 
         dtrain = xgb.DMatrix(features, label=labels, feature_names=self.feature_names)
         params = {
@@ -54,6 +71,19 @@ class XGBoostRanker:
             "nthread": 2,
         }
         self.model = xgb.train(params, dtrain, num_boost_round=100)
+        self.trained = True
+        return True
+
+    def save(self, path: str = DEFAULT_ARTIFACT) -> None:
+        if self.model is None:
+            raise RuntimeError("nothing to save — model is not trained")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self.model.save_model(path)
+
+    def load(self, path: str = DEFAULT_ARTIFACT) -> None:
+        booster = xgb.Booster()
+        booster.load_model(path)
+        self.model = booster
         self.trained = True
 
     def rank(self, features: np.ndarray) -> np.ndarray:

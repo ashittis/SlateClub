@@ -9,25 +9,7 @@ from app.core.database import Base
 from app.core.config import settings
 
 # Import all models
-from app.models import (  # noqa: F401
-    user,
-    movie,
-    actions,
-    social,
-    onboarding,
-    taste_engine,
-    slates,
-    discourse,
-    notifications,
-    artists,
-    releases,
-    cultural,
-    festivals,
-    theatres,
-    watch_parties,
-    circles,
-    chapters,
-)
+from app import models_registry  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

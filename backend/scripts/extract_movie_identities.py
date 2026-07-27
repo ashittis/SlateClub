@@ -26,34 +26,17 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
 from app.ml.llm import openai_client as llm
 from app.ml.llm.movie_identity import extract_and_embed, now_utc
+from app.shared.services.reddit_enrich import get_or_fetch_discussion
 
 # Import every model module so SQLAlchemy can resolve string-named
 # relationships (e.g. Movie -> Rating) when it compiles the first query.
-from app.models import (  # noqa: F401
-    user,
-    movie,
-    actions,
-    social,
-    onboarding,
-    taste_engine,
-    slates,
-    discourse,
-    notifications,
-    artists,
-    releases,
-    cultural,
-    festivals,
-    theatres,
-    watch_parties,
-    circles,
-    chapters,
-)
-from app.models.movie import Movie
+from app import models_registry  # noqa: F401
+from app.shared.models.movie import Movie
 
 
 def _movie_to_input(m: Movie) -> dict:
@@ -69,20 +52,25 @@ def _movie_to_input(m: Movie) -> dict:
     }
 
 
-async def _process_one(session: AsyncSession, movie: Movie) -> bool:
-    """Run extraction for one movie and persist. Returns True on success."""
-    identity, embedding_bytes = await extract_and_embed(_movie_to_input(movie))
-    if identity is None:
-        return False
-
-    movie.identity_json = identity
-    movie.identity_embedding = embedding_bytes
-    movie.identity_updated_at = now_utc()
-    await session.flush()
-    return True
+async def _safe_extract(movie_input: dict, external_text: str):
+    """extract_and_embed but never raises — one failure returns (None, None)
+    instead of cancelling the whole gather()."""
+    try:
+        return await extract_and_embed(movie_input, external_text=external_text)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[extract] {movie_input.get('title')!r}: {exc}")
+        return None, None
 
 
-async def run(*, limit: int | None, refresh_older_than: int | None) -> None:
+def _chunks(seq: list, n: int):
+    for i in range(0, len(seq), n):
+        yield seq[i : i + n]
+
+
+async def run(
+    *, limit: int | None, refresh_older_than: int | None,
+    with_reddit: bool, concurrency: int,
+) -> None:
     if not llm.is_available():
         print("[extract] OPENAI_API_KEY is not set — aborting.")
         return
@@ -103,30 +91,46 @@ async def run(*, limit: int | None, refresh_older_than: int | None) -> None:
         if limit:
             stmt = stmt.limit(limit)
 
-        movies = (await session.execute(stmt)).scalars().all()
+        movies = list((await session.execute(stmt)).scalars().all())
         total = len(movies)
-        print(f"[extract] {total} movies to process")
+        print(f"[extract] {total} movies to process  (reddit={'on' if with_reddit else 'off'}, concurrency={concurrency})")
 
-        ok = fail = 0
-        for i, m in enumerate(movies, start=1):
-            try:
-                success = await _process_one(session, m)
-            except Exception as exc:
-                print(f"[extract] {m.title!r}: unexpected error: {exc}")
-                success = False
-            if success:
+        ok = fail = done = 0
+        # Process in chunks: resolve Reddit text sequentially (cache-fast), then
+        # fan OUT the OpenAI extraction (network, no session), then fan IN the DB
+        # writes sequentially — AsyncSession is not concurrency-safe.
+        for chunk in _chunks(movies, max(1, concurrency)):
+            texts: dict[str, str] = {}
+            if with_reddit:
+                for m in chunk:
+                    year = (m.release_date or "")[:4] or None
+                    texts[m.id] = await get_or_fetch_discussion(
+                        session, m.tmdb_id, m.title or "", year, m.original_language
+                    )
+
+            results = await asyncio.gather(
+                *(_safe_extract(_movie_to_input(m), texts.get(m.id, "")) for m in chunk)
+            )
+
+            for m, (identity, embedding_bytes) in zip(chunk, results):
+                if identity is None:
+                    fail += 1
+                    continue
+                m.identity_json = identity
+                m.identity_embedding = embedding_bytes
+                m.identity_updated_at = now_utc()
                 ok += 1
-            else:
-                fail += 1
+            await session.flush()
 
-            if i % 10 == 0:
-                await session.commit()
-                print(f"[extract] {i}/{total}  ok={ok} fail={fail}")
+            done += len(chunk)
+            await session.commit()
+            print(f"[extract] {done}/{total}  ok={ok} fail={fail}")
 
-        await session.commit()
         print(f"[extract] done. ok={ok} fail={fail}")
 
     await engine.dispose()
+    from app.integrations import reddit as _reddit
+    await _reddit.aclose()
 
 
 def main() -> None:
@@ -140,9 +144,25 @@ def main() -> None:
         help="Re-extract identities older than N days (default: only "
              "extract movies with no identity yet).",
     )
+    parser.add_argument(
+        "--with-reddit", action="store_true",
+        help="Enrich each film's prompt with cached Reddit discussion "
+             "(fetches live on a cache miss). Off by default — identical to "
+             "the previous TMDB-only behaviour.",
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Concurrent OpenAI extractions per chunk (default 1). DB writes "
+             "stay sequential; Reddit stays globally rate-limited.",
+    )
     args = parser.parse_args()
     asyncio.run(
-        run(limit=args.limit, refresh_older_than=args.refresh_older_than)
+        run(
+            limit=args.limit,
+            refresh_older_than=args.refresh_older_than,
+            with_reddit=args.with_reddit,
+            concurrency=args.concurrency,
+        )
     )
 
 

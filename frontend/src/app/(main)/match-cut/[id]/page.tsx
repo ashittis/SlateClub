@@ -5,8 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import MatchCutGrid from "@/components/match-cut/MatchCutGrid";
-import FriendMultiPicker, { type UserLite } from "@/components/match-cut/FriendMultiPicker";
-import { useAuthStore } from "@/stores/authStore";
 import type { MatchCutDetail } from "@/types/user";
 
 export default function CutDetailPage() {
@@ -22,8 +20,6 @@ function Inner() {
   const joinToken = useSearchParams().get("join");
   const router = useRouter();
   const qc = useQueryClient();
-  const { user: me } = useAuthStore();
-  const [invitees, setInvitees] = useState<UserLite[]>([]);
   const [copied, setCopied] = useState(false);
 
   const cut = useQuery<MatchCutDetail>({
@@ -49,14 +45,6 @@ function Inner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joinToken, cut.data?.isMember]);
 
-  const invite = useMutation({
-    mutationFn: (userId: string) =>
-      apiFetch(`/api/match-cut/cuts/${id}/invite`, {
-        method: "POST",
-        body: JSON.stringify({ userId }),
-      }),
-  });
-
   const del = useMutation({
     mutationFn: () => apiFetch(`/api/match-cut/cuts/${id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -64,11 +52,6 @@ function Inner() {
       router.push("/match-cut");
     },
   });
-
-  const sendInvites = async () => {
-    await Promise.all(invitees.map((u) => invite.mutateAsync(u.id)));
-    setInvitees([]);
-  };
 
   const inviteLink =
     typeof window !== "undefined" && cut.data
@@ -153,26 +136,6 @@ function Inner() {
           </button>
         </div>
       </div>
-
-      {/* Invite orbits directly */}
-      {d.isMember && (
-        <div className="mb-8 rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <p className="mb-3 text-xs uppercase tracking-wider" style={{ color: "var(--text-faint)" }}>
-            Invite from your orbit
-          </p>
-          <FriendMultiPicker meId={me?.id ?? null} value={invitees} onChange={setInvitees} />
-          {invitees.length > 0 && (
-            <button
-              onClick={sendInvites}
-              disabled={invite.isPending}
-              className="mt-3 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: "var(--cta-gradient)" }}
-            >
-              Send {invitees.length} invite{invitees.length > 1 ? "s" : ""}
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Consensus */}
       <h2 className="display mb-3 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>

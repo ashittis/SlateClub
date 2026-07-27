@@ -17,13 +17,17 @@ interface ActiveFestival {
 }
 
 type Feed = "world" | "network";
+type Sort = "new" | "hot" | "top";
+
+const SORTS: Sort[] = ["hot", "new", "top"];
 
 export default function CommunityPage() {
   const [feed, setFeed] = useState<Feed>("world");
+  const [sort, setSort] = useState<Sort>("hot");
 
   const posts = useQuery<{ items: Post[] }>({
-    queryKey: ["posts", feed],
-    queryFn: () => apiFetch(`/api/posts?feed=${feed}`),
+    queryKey: ["posts", feed, sort],
+    queryFn: () => apiFetch(`/api/posts?feed=${feed}&sort=${sort}`),
     refetchInterval: 30_000,
   });
 
@@ -76,30 +80,48 @@ export default function CommunityPage() {
         <PostComposer />
       </div>
 
-      {/* feed toggle */}
-      <div
-        className="inline-flex rounded-full p-1 gap-1 mb-5"
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        {(["world", "network"] as Feed[]).map((f) => {
-          const active = feed === f;
-          return (
-            <button
-              key={f}
-              onClick={() => setFeed(f)}
-              className="px-4 py-1.5 text-xs font-semibold rounded-full capitalize"
-              style={{
-                background: active ? "var(--text-primary)" : "transparent",
-                color: active ? "var(--bg-screening)" : "var(--text-muted)",
-              }}
+      {/* feed + sort toggles */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div
+          className="inline-flex rounded-full p-1 gap-1"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {(["world", "network"] as Feed[]).map((f) => {
+            const active = feed === f;
+            return (
+              <button
+                key={f}
+                onClick={() => setFeed(f)}
+                className="px-4 py-1.5 text-xs font-semibold rounded-full capitalize"
+                style={{
+                  background: active ? "var(--text-primary)" : "transparent",
+                  color: active ? "var(--bg-screening)" : "var(--text-muted)",
+                }}
+              >
+                {f}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Reddit-style sort */}
+        <div className="inline-flex gap-1">
+          {SORTS.map((s) => (
+            <Pill
+              key={s}
+              kind="neutral"
+              size="sm"
+              active={sort === s}
+              onClick={() => setSort(s)}
+              className="capitalize"
             >
-              {f}
-            </button>
-          );
-        })}
+              {s}
+            </Pill>
+          ))}
+        </div>
       </div>
 
       {/* posts feed */}

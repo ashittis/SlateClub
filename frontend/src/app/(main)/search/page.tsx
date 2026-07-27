@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, tmdbImage } from "@/lib/api";
 import { titleHref } from "@/lib/titleHref";
 import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
+import MoviesLikeSection from "@/components/discover/MoviesLikeSection";
+import GenreMoodTileGrid from "@/components/discover/GenreMoodTileGrid";
+import PeopleResults from "@/components/discover/PeopleResults";
+import Pill from "@/components/ui/Pill";
+import SearchFilterBar, {
+  applyFilters,
+  DEFAULT_FILTERS,
+  type SearchFilters,
+} from "@/components/discover/SearchFilterBar";
 import {
   addRecentSearch,
   getRecentSearches,
@@ -14,6 +23,8 @@ import {
   removeRecentlyViewed,
   type TitleHit,
 } from "@/lib/searchHistory";
+
+type SearchTab = "all" | "films" | "people";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [v, setV] = useState(value);
@@ -33,13 +44,18 @@ function metaLine(t: TitleHit): string {
   return t.year ? `Film • ${t.year}` : "Film";
 }
 
-export default function SearchPage() {
+function SearchPageInner() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [query, setQuery] = useState("");
+  // Seed from ?q= so "See all results for '…'" from the top-nav dropdown lands
+  // here pre-filled.
+  const initialQuery = useSearchParams().get("q") ?? "";
+  const [query, setQuery] = useState(initialQuery);
   const debounced = useDebounce(query.trim(), 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const [slateTarget, setSlateTarget] = useState<TitleHit | null>(null);
+  const [tab, setTab] = useState<SearchTab>("all");
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
 
   const [recentSearches, setRecentSearches] = useState<TitleHit[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<TitleHit[]>([]);
@@ -66,11 +82,17 @@ export default function SearchPage() {
     enabled: !debounced,
   });
 
-  const results = titles.data?.results ?? [];
+  const results = applyFilters(titles.data?.results ?? [], filters);
 
   const open = (t: TitleHit) => {
     addRecentSearch(t);
     router.push(titleHref(t.tmdbId, t.mediaType));
+  };
+
+  const runQuery = (q: string) => {
+    setQuery(q);
+    setTab("all");
+    inputRef.current?.focus();
   };
 
   return (
@@ -97,9 +119,15 @@ export default function SearchPage() {
         />
       </div>
 
-      {/* Empty state */}
+      {/* Default state — anchor engine, browse tiles, then recents */}
       {!debounced && (
         <div className="space-y-8">
+          {/* "Show me something like ___" — the anchor engine with per-result
+              "why this matches" + a Save-as-Slate bridge. */}
+          <MoviesLikeSection enableSaveAsSlate />
+
+          <GenreMoodTileGrid onPick={runQuery} />
+
           {recentSearches.length > 0 && (
             <Section title="Recent searches">
               {recentSearches.map((t) => (
@@ -152,27 +180,61 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Results — single mixed feed */}
+      {/* Results — tabbed by entity */}
       {debounced && (
         <div>
-          {titles.isLoading ? (
-            <RowSkeletons />
-          ) : results.length === 0 ? (
-            <p className="py-6 text-center text-sm" style={{ color: "var(--text-faint)" }}>
-              No results for “{debounced}”.
-            </p>
-          ) : (
-            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-              {results.map((t) => (
-                <TitleRow
-                  key={`${t.mediaType}-${t.tmdbId}`}
-                  t={t}
-                  onOpen={() => open(t)}
-                  onSlate={() => setSlateTarget(t)}
-                />
-              ))}
+          {/* Tabs */}
+          <div className="mb-4 flex gap-2">
+            {(["all", "films", "people"] as SearchTab[]).map((tb) => (
+              <Pill
+                key={tb}
+                kind="neutral"
+                size="sm"
+                active={tab === tb}
+                onClick={() => setTab(tb)}
+                className="capitalize"
+              >
+                {tb}
+              </Pill>
+            ))}
+          </div>
+
+          {/* Films + All share the film filter bar */}
+          {(tab === "all" || tab === "films") && (
+            <SearchFilterBar value={filters} onChange={setFilters} />
+          )}
+
+          {/* Films list (All + Films tabs) */}
+          {(tab === "all" || tab === "films") &&
+            (titles.isLoading ? (
+              <RowSkeletons />
+            ) : results.length === 0 ? (
+              <p className="py-6 text-center text-sm" style={{ color: "var(--text-faint)" }}>
+                No films for “{debounced}”.
+              </p>
+            ) : (
+              <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                {results.map((t) => (
+                  <TitleRow
+                    key={`${t.mediaType}-${t.tmdbId}`}
+                    t={t}
+                    onOpen={() => open(t)}
+                    onSlate={() => setSlateTarget(t)}
+                  />
+                ))}
+              </div>
+            ))}
+
+          {/* People (All shows a capped preview; People tab shows all) */}
+          {tab === "all" && (
+            <div className="mt-8">
+              <h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
+                People
+              </h2>
+              <PeopleResults query={debounced} limit={3} />
             </div>
           )}
+          {tab === "people" && <PeopleResults query={debounced} />}
         </div>
       )}
 
@@ -280,5 +342,14 @@ function RowSkeletons() {
         </div>
       ))}
     </div>
+  );
+}
+
+// useSearchParams() needs a Suspense boundary during prerender.
+export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchPageInner />
+    </Suspense>
   );
 }

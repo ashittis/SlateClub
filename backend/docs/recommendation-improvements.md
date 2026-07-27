@@ -1,5 +1,28 @@
 # Recommendation Engine — Improvement Roadmap
 
+> # ⚠️ STALE — DO NOT ACT ON THIS DOCUMENT
+>
+> Superseded by **`/RECS_TRAINING_PLAN.md`** (repo root), which is verified against source.
+> Kept only for the reasoning in Q1/Q2. **Every factual claim below is a generation behind:**
+>
+> 1. **The LLM is OpenAI, not Gemini.** `app/ml/llm/openai_client.py`, `gpt-5.5`,
+>    `text-embedding-3-large`, `OPENAI_API_KEY`. No `gemini_client.py` exists. Costs below are wrong.
+> 2. **`_external_sources_for()` DOES NOT EXIST.** The claim below that "the hook is already called
+>    and its output appended to the extraction prompt — only the implementation is missing" is
+>    **false**. There is no hook, no call site, no external-text parameter. Reddit is from-scratch
+>    infrastructure (client + OAuth + rate limiter + cache table + migration + prompt section +
+>    config + scripts). The "~5h / Med" estimate is off by an order of magnitude.
+> 3. **The identity field names below are wrong.** The real schema (`movie_identity.py:46-125`) is
+>    `experiential_paragraph, vibe, affect_axes (9 axes), themes, comparable_by_feel, emotional_arc,
+>    narrative_dna, aftertaste`. **`tone_axes`, `audience`, and `comparable_films` do not exist** —
+>    which also invalidates item #10 ("expand to 35 dims using `MovieIdentity.tone_axes`").
+> 4. **Do not add `praw`.** It is synchronous and would block the event loop inside the async
+>    extractor. `httpx` is already a dependency and is the only HTTP library present.
+> 5. **Two of the "three pure code gaps" are already fixed.** `bandit.record_reward()` and the graph
+>    hydration hooks are both wired via `services/watch_signals.py`; `completion_pct` is now the 12th
+>    ranker feature (`completion_pct_avg`) with `watched_partial`/`abandoned` in `SIGNAL_WEIGHTS`.
+>    The third gap is the fictional one in (2). **The remaining live gap is bandit *consumption*.**
+
 ## TL;DR
 
 The engine is well-architected but has three pure code gaps where already-captured data is silently discarded. Fix those first — they require no new infrastructure and deliver immediate quality gains. Then layer in Reddit, LLM-generated labels, and the graph/semantic paths that are built but dormant.
@@ -80,7 +103,11 @@ This makes MovieIdentity semantically richer — especially for non-English and 
 
 ### Implementation: Fill `_external_sources_for()` in `movie_identity.py`
 
-The hook is already called and its output appended to the extraction prompt. Only the implementation is missing.
+> **FALSE — see the banner at the top of this file.** `_external_sources_for()` does not exist;
+> there is no hook and no call site. The PRAW sample below is also wrong (praw is synchronous).
+> The real, source-verified design is Task 10 of `/RECS_TRAINING_PLAN.md`.
+
+~~The hook is already called and its output appended to the extraction prompt. Only the implementation is missing.~~
 
 ```python
 # backend/app/ml/llm/movie_identity.py

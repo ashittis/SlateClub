@@ -3,34 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.config import settings
-from .core.database import engine, Base
+from app.core.config import settings
+from app.core.database import engine, Base
 
 # Import all models so they register with Base.metadata
-from .models import (  # noqa: F401
-    user,
-    movie,
-    actions,
-    social,
-    onboarding,
-    taste_engine,
-    slates,
-    discourse,
-    notifications,
-    artists,
-    releases,
-    cultural,
-    festivals,
-    theatres,
-    watch_parties,
-    circles,
-    chapters,
-    posts,
-    match_cut,
-    dms,
-    chat,
-    similar_cache,
-)
+from app import models_registry  # noqa: F401
 
 
 @asynccontextmanager
@@ -40,7 +17,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
-    from .core.redis_client import close_redis
+    from app.core.redis_client import close_redis
     await close_redis()
 
 
@@ -58,7 +35,7 @@ app.add_middleware(
 
 # ─── Register routers ───────────────────────────────────────
 
-from .routes import all_routers
+from app.routes import all_routers
 
 for router in all_routers:
     app.include_router(router)
@@ -66,4 +43,15 @@ for router in all_routers:
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "phase": 2, "stack": "python-fastapi"}
+    from app.core.neo4j_client import neo4j_available
+
+    neo4j_up = await neo4j_available()
+    return {
+        "status": "ok",
+        "phase": 2,
+        "stack": "python-fastapi",
+        "services": {
+            # Neo4j is optional — taste-graph features degrade gracefully when down.
+            "neo4j": "up" if neo4j_up else "down",
+        },
+    }

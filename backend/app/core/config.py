@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_LLM_MODEL: str = "gpt-5.5"
     OPENAI_EMBED_MODEL: str = "text-embedding-3-large"
+    # Reddit (offline movie-identity enrichment only — never the request path).
+    # Empty by default; integrations.reddit.is_available() gates on these, so the
+    # extractor degrades to TMDB-only when they're unset. Create a "script" app
+    # at reddit.com/prefs/apps to obtain the id + secret.
+    REDDIT_CLIENT_ID: str = ""
+    REDDIT_CLIENT_SECRET: str = ""
+    REDDIT_USER_AGENT: str = "slateclub/1.0 (offline identity enrichment)"
 
     class Config:
         env_file = ".env"

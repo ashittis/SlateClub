@@ -104,3 +104,14 @@ h1, h2, h3, .display {
   mix-blend-mode: overlay;
   z-index: 60;
 }
+
+/* Continue Watching bar clearance — reserve bottom space only while the
+   bar is shown, so page content never hides behind it. */
+body[data-cw-active="true"] main {
+  padding-bottom: 8.5rem;
+}
+@media (min-width: 1024px) {
+  body[data-cw-active="true"] main {
+    padding-bottom: 5rem;
+  }
+}

@@ -2,23 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import MovieSearchBar from "@/components/feed/MovieSearchBar";
-import { NAV_ITEMS } from "@/lib/nav";
+import Avatar from "@/components/ui/Avatar";
 
 /*
-  TopNav — desktop horizontal nav (Letterboxd / Apple style).
-  Hidden below lg; on mobile the existing bottom tab bar takes over.
-
-  Layout:
-    Logo · NAV_ITEMS · Search input · Bell (with unread badge) · Avatar dropdown
+  TopNav — desktop top bar. Primary nav + logo now live in the LeftRail;
+  this bar keeps the persistent search input and the right cluster
+  (Messages · Notifications · Avatar dropdown). Offset from the left by the
+  rail width. Hidden below lg; on mobile the bottom tab bar takes over.
 */
 export default function TopNav() {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,46 +58,15 @@ export default function TopNav() {
 
   return (
     <header
-      className="hidden lg:flex fixed top-0 inset-x-0 h-14 z-40 items-center px-6 gap-6 backdrop-blur-md"
+      className="hidden lg:flex fixed top-0 inset-x-0 lg:left-60 h-14 z-30 items-center px-6 gap-6 backdrop-blur-md"
       style={{
         background: "rgba(10,10,11,0.78)",
         borderBottom: "1px solid rgba(255,255,255,0.05)",
       }}
     >
-      {/* Logo */}
-      <Link
-        href="/home"
-        className="display text-lg font-bold tracking-tight shrink-0"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Slate
-        <span style={{ color: "var(--cta-primary)" }}>Club</span>
-      </Link>
-
-      {/* Nav items */}
-      <nav className="flex items-center gap-1">
-        {NAV_ITEMS.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
-              style={{
-                color: active ? "var(--cta-primary)" : "var(--text-muted)",
-                background: active ? "rgba(255,138,0,0.12)" : "transparent",
-              }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Search — flex-1 so it grows to fill */}
-      <div className="flex-1 max-w-md ml-auto">
-        <MovieSearchBar compact placeholder="Films, people…" />
+      {/* Search — grows to fill; primary nav lives in the LeftRail now. */}
+      <div className="flex-1 max-w-xl">
+        <MovieSearchBar compact placeholder="Films, people, slates…" />
       </div>
 
       {/* Messages (DMs) */}
@@ -151,24 +118,12 @@ export default function TopNav() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{
-              background: "var(--cta-primary)",
-              color: "var(--bg-screening)",
-            }}
+            className="flex rounded-full"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
+            aria-label="Account menu"
           >
-            {user.avatar_url ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={user.avatar_url}
-                alt={user.name}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              user.name[0]?.toUpperCase()
-            )}
+            <Avatar name={user.name} avatarUrl={user.avatar_url} size="md" />
           </button>
           <AnimatePresence>
             {menuOpen && (

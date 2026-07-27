@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="SlateClub">
+  <style>
+    .ring { fill: #57564b; }
+    @media (prefers-color-scheme: dark) { .ring { fill: #e8e6df; } }
+  </style>
+  <defs>
+    <path id="ic-ringTop" d="M 120 206 A 86 86 0 0 1 120 34 A 86 86 0 0 1 120 206" fill="none"/>
+    <path id="ic-ringBot" d="M 120 34 A 86 86 0 0 1 120 206 A 86 86 0 0 1 120 34" fill="none"/>
+  </defs>
+  <g class="ring" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="27" letter-spacing="9">
+    <text text-anchor="middle"><textPath href="#ic-ringTop" startOffset="50%">SLATECLUB</textPath></text>
+    <text text-anchor="middle"><textPath href="#ic-ringBot" startOffset="50%">SLATECLUB</textPath></text>
+  </g>
+  <g fill="#F26B4E" font-family="Arial, sans-serif" font-weight="700" font-size="19" text-anchor="middle">
+    <text x="202" y="94">✳</text>
+    <text x="38" y="152">✳</text>
+  </g>
+</svg>

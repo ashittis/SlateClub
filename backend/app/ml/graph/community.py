@@ -8,8 +8,8 @@ Each cluster becomes a "Cinematic Tribe" with a generated name.
 import community as community_louvain  # python-louvain
 import networkx as nx
 
-from ...core.neo4j_client import run_query, run_write
-from . import taste_graph
+from app.core.neo4j_client import run_query, run_write
+from app.ml.graph import taste_graph
 
 
 # Tribe name templates based on dominant genres in the cluster

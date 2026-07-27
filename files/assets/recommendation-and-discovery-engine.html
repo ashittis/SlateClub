@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlateClub — Recommendation &amp; Discovery Engine</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  img, svg { max-width: 100%; }
+
+  :root {
+    --ground: #0C0A0B;
+    --surface: #141011;
+    --raised: #1C1618;
+    --line: rgba(255, 233, 228, 0.10);
+    --line-strong: rgba(255, 233, 228, 0.18);
+    --text: #F3EEEC;
+    --text-2: #A79D9A;
+    --text-3: #6F6462;
+    --amber: #FF9408;
+    --amber-dim: rgba(255, 148, 8, 0.14);
+    --maroon: #95122C;
+    --live: #56B877;
+    --inert: #C4716E;
+    --absent: #6F6462;
+
+    --step--1: clamp(0.72rem, 0.7rem + 0.1vw, 0.78rem);
+    --step-0: clamp(0.9rem, 0.87rem + 0.14vw, 0.97rem);
+    --step-1: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+    --step-2: clamp(1.3rem, 1.2rem + 0.5vw, 1.6rem);
+    --step-3: clamp(1.9rem, 1.5rem + 1.8vw, 3.1rem);
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #FBF9F8; --surface: #FFFFFF; --raised: #F4F0EF;
+      --line: rgba(28,14,17,0.11); --line-strong: rgba(28,14,17,0.2);
+      --text: #171112; --text-2: #5C5250; --text-3: #8A7F7C;
+      --amber: #A85800; --amber-dim: rgba(168,88,0,0.1); --maroon: #95122C;
+      --live: #2E7D4F; --inert: #A63F3B; --absent: #8A7F7C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0C0A0B; --surface: #141011; --raised: #1C1618;
+    --line: rgba(255,233,228,0.10); --line-strong: rgba(255,233,228,0.18);
+    --text: #F3EEEC; --text-2: #A79D9A; --text-3: #6F6462;
+    --amber: #FF9408; --amber-dim: rgba(255,148,8,0.14); --maroon: #95122C;
+    --live: #56B877; --inert: #C4716E; --absent: #6F6462;
+  }
+  :root[data-theme="light"] {
+    --ground: #FBF9F8; --surface: #FFFFFF; --raised: #F4F0EF;
+    --line: rgba(28,14,17,0.11); --line-strong: rgba(28,14,17,0.2);
+    --text: #171112; --text-2: #5C5250; --text-3: #8A7F7C;
+    --amber: #A85800; --amber-dim: rgba(168,88,0,0.1); --maroon: #95122C;
+    --live: #2E7D4F; --inert: #A63F3B; --absent: #8A7F7C;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1rem, 3vw, 2rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  h1 {
+    font-size: var(--step-3);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    text-wrap: balance;
+    margin: 0.5rem 0 0;
+  }
+  h1 .sub { color: var(--text-3); }
+  .lede {
+    max-width: 62ch; color: var(--text-2); font-size: var(--step-1);
+    text-wrap: pretty; margin: 1rem 0 0;
+  }
+  h2 { font-size: var(--step-2); font-weight: 750; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+  .sec-note { color: var(--text-2); max-width: 68ch; margin: 0.4rem 0 0; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+    padding: 0.9rem 1.1rem; margin-top: 1.75rem;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--surface);
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: var(--step--1); color: var(--text-2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.live { background: var(--live); }
+  .dot.inert { background: var(--inert); }
+  .dot.absent { background: var(--absent); }
+
+  .tracks { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+  @media (min-width: 900px) { .tracks { grid-template-columns: 1fr 1fr; gap: 2.5rem; } }
+  .track { display: flex; flex-direction: column; gap: 0; }
+  .track-head { border-top: 2px solid var(--amber); padding-top: 0.9rem; margin-bottom: 1.1rem; }
+  .track-head h3 { font-size: var(--step-1); font-weight: 750; letter-spacing: -0.015em; margin: 0.2rem 0 0.25rem; }
+  .track-head .route { font-family: var(--mono); font-size: var(--step--1); color: var(--amber); }
+  .track-head p { margin: 0; color: var(--text-2); font-size: var(--step--1); }
+
+  .stage {
+    border: 1px solid var(--line); border-radius: 4px; background: var(--surface);
+    padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .stage-top { display: flex; align-items: baseline; gap: 0.6rem; }
+  .stage-n {
+    font-family: var(--mono); font-size: var(--step--1); color: var(--amber);
+    background: var(--amber-dim); border-radius: 3px; padding: 0.05rem 0.4rem; flex: none;
+  }
+  .stage-title { font-weight: 650; letter-spacing: -0.01em; }
+  .stage p { margin: 0; color: var(--text-2); font-size: var(--step--1); }
+  .arrow { height: 22px; display: flex; align-items: center; justify-content: center; color: var(--line-strong); flex: none; }
+  .arrow svg { display: block; }
+
+  .chips { display: flex; flex-direction: column; gap: 0.3rem; }
+  .chip {
+    display: flex; align-items: center; gap: 0.55rem;
+    border: 1px solid var(--line); border-radius: 3px; background: var(--raised);
+    padding: 0.35rem 0.55rem; font-size: var(--step--1);
+  }
+  .chip.is-inert, .chip.is-absent { border-style: dashed; background: transparent; }
+  .chip.is-absent { opacity: 0.65; }
+  .chip-name { font-weight: 600; }
+  .chip-meta {
+    margin-left: auto; font-family: var(--mono); font-size: 0.68rem;
+    color: var(--text-3); text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .chip.is-inert .chip-meta { color: var(--inert); }
+
+  code, .path { font-family: var(--mono); font-size: 0.78em; color: var(--text-2); }
+  .path { color: var(--text-3); }
+  b, strong { color: var(--text); font-weight: 650; }
+
+  .weights {
+    display: flex; flex-direction: column; gap: 0.4rem;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--surface); padding: 1.1rem;
+  }
+  .w-row { display: grid; grid-template-columns: minmax(9rem, 12rem) 1fr 3rem; align-items: center; gap: 0.75rem; font-size: var(--step--1); }
+  .w-name { font-family: var(--mono); color: var(--text-2); }
+  .w-bar { height: 8px; background: var(--raised); border-radius: 2px; overflow: hidden; }
+  .w-fill { height: 100%; background: var(--amber); border-radius: 2px; }
+  .w-fill.zero { background: repeating-linear-gradient(90deg, var(--line-strong) 0 3px, transparent 3px 6px); }
+  .w-row.is-dead .w-name, .w-row.is-dead .w-val { color: var(--inert); }
+  .w-val { font-family: var(--mono); text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .grid3 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  @media (min-width: 700px) { .grid3 { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .grid3 { grid-template-columns: repeat(3, 1fr); } }
+  .card {
+    border: 1px solid var(--line); border-radius: 4px; background: var(--surface);
+    padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.6rem;
+  }
+  .card.is-hollow { border-style: dashed; background: transparent; }
+  .card-top { display: flex; align-items: center; gap: 0.5rem; }
+  .card h4 { margin: 0; font-size: var(--step-0); font-weight: 700; letter-spacing: -0.01em; }
+  .card .route { font-family: var(--mono); font-size: 0.68rem; color: var(--amber); }
+  .card p { margin: 0; color: var(--text-2); font-size: var(--step--1); }
+  .card ul { margin: 0; padding-left: 1rem; color: var(--text-2); font-size: var(--step--1); }
+  .card li { margin-bottom: 0.25rem; }
+  .card li::marker { color: var(--text-3); }
+
+  .ledger-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: var(--step--1); }
+  th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-3); font-weight: 500; border-bottom-color: var(--line-strong);
+  }
+  td:first-child { font-weight: 650; white-space: nowrap; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--mono);
+    font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  }
+  .tag.live { color: var(--live); }
+  .tag.inert { color: var(--inert); }
+  .tag.absent { color: var(--absent); }
+
+  .footnote { color: var(--text-3); font-size: var(--step--1); border-top: 1px solid var(--line); padding-top: 1.25rem; max-width: 70ch; }
+  .hairline { border: 0; border-top: 1px solid var(--line); margin: 0; }
+  a { color: var(--amber); }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">SlateClub · verified against source · 2026-07-16</div>
+    <h1>Recommendation &amp; Discovery,<br><span class="sub">as they actually run.</span></h1>
+    <p class="lede">
+      SlateClub surfaces films three different ways: a personalised feed, an essence-matched
+      “films like this”, and an editorial browse page. Only the first two are intelligent — and
+      neither uses a trained model. Nothing anywhere uses Reddit.
+    </p>
+
+    <div class="legend">
+      <span class="legend-item"><span class="dot live"></span> Live — real data, runs on request</span>
+      <span class="legend-item"><span class="dot inert"></span> Inert — built, never trained or wired</span>
+      <span class="legend-item"><span class="dot absent"></span> Absent — placeholder or no code</span>
+    </div>
+  </header>
+
+  <!-- ══════════ THE TWO ENGINES ══════════ -->
+  <section>
+    <h2>The two engines</h2>
+    <p class="sec-note">
+      Left is personalised and runs the four-stage pipeline. Right is seed-based, skips the
+      pipeline entirely, and asks the LLM to reason about feel. They share almost nothing but the
+      OpenAI layer.
+    </p>
+
+    <div class="tracks" style="margin-top:1.5rem">
+
+      <!-- Track A -->
+      <div class="track">
+        <div class="track-head">
+          <div class="route">GET /api/recommendations/for-you</div>
+          <h3>Personalised feed</h3>
+          <p>Who you are → what you’ll like. <span class="path">ml/pipeline/recommendation_pipeline.py</span></p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">PRE</span><span class="stage-title">Build your priors</span></div>
+          <div class="chips">
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Taste vector</span><span class="chip-meta">25-dim · Redis 15m</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Taste embedding</span><span class="chip-meta">OpenAI · after 5★</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Seed prior ramp</span><span class="chip-meta">0.85 → 0.30</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Catalog hydration</span><span class="chip-meta">TMDB · 1h cache</span></div>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">1</span><span class="stage-title">Candidate generation</span></div>
+          <div class="chips">
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Semantic</span><span class="chip-meta">300 · OpenAI cosine</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Content</span><span class="chip-meta">200 · vector cosine</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Graph</span><span class="chip-meta">≤100 · Neo4j</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Trending</span><span class="chip-meta">50 · popularity</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Per-language</span><span class="chip-meta">50 / lang</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Director affinity</span><span class="chip-meta">onboarding</span></div>
+            <div class="chip is-inert"><span class="dot inert"></span><span class="chip-name">ALS / collab.</span><span class="chip-meta">returns ∅ — untrained</span></div>
+            <div class="chip is-absent"><span class="dot absent"></span><span class="chip-name">Two-tower</span><span class="chip-meta">not wired</span></div>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">2</span><span class="stage-title">Pre-filter</span></div>
+          <p>Drops <b>watched</b> (from <code>WatchHistory</code>) and <b>dismissed</b>
+          (<code>not_for_me</code>). Language is deliberately <b>soft</b> — a scoring nudge, never a veto.</p>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">3</span><span class="stage-title">Score &amp; rank</span></div>
+          <p>12 features → ranker. <b>XGBoost is untrained</b>, so this is a fixed weighted sum
+          (below). Then a director boost and a diversity penalty — 3rd+ film by one director ×0.5.</p>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">4</span><span class="stage-title">Contextualise → 30</span></div>
+          <p>Time-of-day boost, session mood ×1.3, <b>21 exploit + 9 explore</b>, language
+          round-robin, surface tag, and the “92% match” string. Impressions logged; served 10/page.</p>
+        </div>
+      </div>
+
+      <!-- Track B -->
+      <div class="track">
+        <div class="track-head">
+          <div class="route">POST /api/taste-engine/similar</div>
+          <h3>Essence match — “films like Uncut Gems”</h3>
+          <p>One seed film → the same felt journey. <span class="path">services/similar_films.py</span></p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">1</span><span class="stage-title">Cache check</span></div>
+          <p>In-memory, then the persisted <code>SimilarCache</code> table (versioned, keyed by
+          tmdb_id). A hit skips the LLM entirely — most requests never reach step 2.</p>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">2</span><span class="stage-title">Build the essence prompt</span></div>
+          <p style="margin-bottom:0.15rem">The seed’s <b>emotional fingerprint</b>, which the prompt
+          says to weigh “far more than the plot”:</p>
+          <div class="chips">
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Emotional arc</span><span class="chip-meta">start → … → ending</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Aftertaste</span><span class="chip-meta">how it leaves you</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Narrative DNA</span><span class="chip-meta">identity_json</span></div>
+            <div class="chip"><span class="dot live"></span><span class="chip-name">Affect axes</span><span class="chip-meta">top 3 of 9</span></div>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">3</span><span class="stage-title">One OpenAI call</span></div>
+          <p>Returns a one-sentence essence plus ~30 films picked <b>purely by feel</b>, each with a
+          ≤6-word reason, spread across world industries. <em>Uncut Gems is literally the prompt’s
+          own teaching example</em> — paired with <em>The Social Network</em> to show that zero genre
+          overlap can still share an essence.</p>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage">
+          <div class="stage-top"><span class="stage-n">4</span><span class="stage-title">Ground &amp; enrich</span></div>
+          <p>Every named title is resolved through <b>TMDB search</b> to a real film with a poster —
+          the LLM names, TMDB grounds. A director/cast row is appended, and the payload is persisted
+          so the next person asking skips the LLM.</p>
+        </div>
+
+        <div class="arrow" aria-hidden="true"><svg width="10" height="22" viewBox="0 0 10 22"><path d="M5 0v18M1 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+
+        <div class="stage" style="border-style:dashed">
+          <div class="stage-top"><span class="stage-n">ALT</span><span class="stage-title">Fallback, no API key</span></div>
+          <p>Cosine over <code>identity_embedding</code> + <code>affect_vector</code> across the local
+          catalog, after pulling TMDB’s own similar/recommended lists.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════ RANKER WEIGHTS ══════════ -->
+  <section>
+    <h2>What the ranker actually weighs</h2>
+    <p class="sec-note">
+      The 12-feature fallback sum standing in for the untrained XGBoost model. The LLM’s semantic
+      read of your taste outweighs every metadata signal — genre overlap counts for a twentieth.
+    </p>
+    <div class="weights" style="margin-top:1.5rem">
+      <div class="w-row"><span class="w-name">semantic_similarity</span><span class="w-bar"><span class="w-fill" style="width:100%"></span></span><span class="w-val">0.20</span></div>
+      <div class="w-row"><span class="w-name">taste_similarity</span><span class="w-bar"><span class="w-fill" style="width:85%"></span></span><span class="w-val">0.17</span></div>
+      <div class="w-row"><span class="w-name">content_score</span><span class="w-bar"><span class="w-fill" style="width:75%"></span></span><span class="w-val">0.15</span></div>
+      <div class="w-row is-dead"><span class="w-name">cf_score</span><span class="w-bar"><span class="w-fill" style="width:50%;background:var(--inert)"></span></span><span class="w-val">0.10</span></div>
+      <div class="w-row"><span class="w-name">language_match</span><span class="w-bar"><span class="w-fill" style="width:50%"></span></span><span class="w-val">0.10</span></div>
+      <div class="w-row"><span class="w-name">trending_score</span><span class="w-bar"><span class="w-fill" style="width:25%"></span></span><span class="w-val">0.05</span></div>
+      <div class="w-row"><span class="w-name">popularity</span><span class="w-bar"><span class="w-fill" style="width:25%"></span></span><span class="w-val">0.05</span></div>
+      <div class="w-row"><span class="w-name">recency</span><span class="w-bar"><span class="w-fill" style="width:25%"></span></span><span class="w-val">0.05</span></div>
+      <div class="w-row"><span class="w-name">genre_overlap</span><span class="w-bar"><span class="w-fill" style="width:25%"></span></span><span class="w-val">0.05</span></div>
+      <div class="w-row"><span class="w-name">mood_alignment</span><span class="w-bar"><span class="w-fill" style="width:25%"></span></span><span class="w-val">0.05</span></div>
+      <div class="w-row"><span class="w-name">completion_pct_avg</span><span class="w-bar"><span class="w-fill" style="width:15%"></span></span><span class="w-val">0.03</span></div>
+      <div class="w-row is-dead"><span class="w-name">two_tower_score</span><span class="w-bar"><span class="w-fill zero" style="width:100%"></span></span><span class="w-val">0.00</span></div>
+    </div>
+    <p class="footnote" style="border:0;padding-top:0.75rem">
+      <span class="tag inert"><span class="dot inert"></span>cf_score</span> only ever carries the graph blend
+      (<code>max(als, graph×0.8)</code>) because ALS never trains — so collaborative filtering reaches you
+      through your tribe, not through matrix factorisation.
+    </p>
+  </section>
+
+  <!-- ══════════ DISCOVERY ══════════ -->
+  <section>
+    <h2>Discovery — the browse surface</h2>
+    <p class="sec-note">
+      A different class of thing entirely: <span class="path">routes/discover.py</span> is four thin
+      aggregators, not an engine. Its own header calls it “Phase 1.5”. Two endpoints return real
+      data; two are placeholders wearing a personalised costume.
+    </p>
+
+    <div class="grid3" style="margin-top:1.5rem">
+
+      <div class="card">
+        <div class="card-top"><span class="dot live"></span><h4>Trending</h4></div>
+        <div class="route">GET /api/discover/trending</div>
+        <p>Genuinely real. Two editorial lists of recent releases across the five industries
+        (Hollywood / Bollywood / Kollywood / Tollywood / Mollywood), sourced from TMDB via
+        <code>services/trending.py</code>: <b>recently in theatres</b> and <b>newly on OTT</b>, with
+        OTT films excluded from the theatrical list so each film shows its current state.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><span class="dot live"></span><h4>Artists radar</h4></div>
+        <div class="route">GET /api/discover/artists-radar</div>
+        <p>Circular artist tiles built from the <b>favourite people you picked in onboarding</b>
+        (<code>FavoritePerson</code>, capped at 8). Real, though its docstring promises
+        “plus a few high-popularity directors as filler” that the code never actually adds.</p>
+      </div>
+
+      <div class="card is-hollow">
+        <div class="card-top"><span class="dot absent"></span><h4>By platform</h4></div>
+        <div class="route">GET /api/discover/by-platform</div>
+        <p><b>Placeholder.</b> Shows a per-platform “for you” count that is not personalised at all —
+        it’s <code>max(20, popular_count // (i + 3))</code>, the same arithmetic for every user.
+        Platforms are a hardcoded list of six. The docstring is candid: real counts wait on
+        <code>streaming_providers</code> landing on <code>Movie</code>.</p>
+      </div>
+
+      <div class="card is-hollow">
+        <div class="card-top"><span class="dot absent"></span><h4>Awards</h4></div>
+        <div class="route">GET /api/discover/awards</div>
+        <p><b>Static.</b> Returns six hardcoded labels — Oscars 2025, National Film Awards, Cannes,
+        Venice, Berlinale, Sundance. No films, no lookup, no database. A constant in the file.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><span class="dot live"></span><h4>Where the intelligence lives</h4></div>
+        <p>Discovery’s own docstring says the “heavy lifting lives in the recommendation pipeline /
+        taste graph and is reused here” — but in practice these four endpoints reuse none of it.
+        The personalised surfaces are <code>/for-you</code> and <code>/taste-engine/similar</code>.</p>
+      </div>
+
+      <div class="card is-hollow">
+        <div class="card-top"><span class="dot absent"></span><h4>Reddit / Letterboxd</h4></div>
+        <p>Not implemented anywhere — no <code>praw</code>, no credentials, no hook. Proposed in
+        <code>backend/docs/recommendation-improvements.md</code> to enrich movie identities with real
+        audience reaction. The “existing stub” those docs cite isn’t in the code.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════ SUBSTRATE ══════════ -->
+  <section>
+    <h2>The shared substrate</h2>
+    <div class="grid3" style="margin-top:1.5rem">
+
+      <div class="card">
+        <h4>OpenAI layer</h4>
+        <ul>
+          <li><b>gpt-5.5</b> — essence reasoning, taste statements, identity extraction</li>
+          <li><b>text-embedding-3-large</b> — 3072-dim, packed to bytes</li>
+          <li>Offline job writes <code>identity_json</code> + <code>identity_embedding</code> — <b>never on the request path</b></li>
+          <li>No key → semantic paths degrade to cosine</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h4>Taste graph — Neo4j</h4>
+        <ul>
+          <li>WATCHED 0.6 · RATED rating/5 · REVIEWED 1+sentiment</li>
+          <li>TASTE_SIMILAR written only at ≥0.7 cosine</li>
+          <li>Louvain → <b>Cinematic Tribes</b> (resolution 1.0, min 2)</li>
+          <li>Feeds cluster consensus + friend boost</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h4>Services</h4>
+        <ul>
+          <li><code>taste_cache</code> — Redis, 15-min TTL</li>
+          <li><code>taste_embedding</code> — builds UserTasteState</li>
+          <li><code>watch_signals</code> — graph + bandit + similarity hub</li>
+          <li><code>diary_service</code> — keeps <code>watch_log</code> ↔ <code>WatchHistory</code> in sync</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h4>What recs read</h4>
+        <ul>
+          <li><code>WatchHistory</code> — the watched set <span class="tag live">used</span></li>
+          <li><code>MicroFeedback</code> — dismissals <span class="tag live">used</span></li>
+          <li><code>watch_log</code> (per-viewing diary) — <b>not read directly</b>; reaches recs only via the summary upsert</li>
+        </ul>
+      </div>
+
+      <div class="card is-hollow">
+        <h4>Contextual bandit</h4>
+        <ul>
+          <li>5 arms; rewards persist to <code>bandit_state.json</code></li>
+          <li><b>Weights never reach the pipeline</b> — exposed only at <code>/api/taste/bandit/weights</code></li>
+          <li><code>discovery_seeker</code> segment is unreachable</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h4>Training data, uncollected</h4>
+        <ul>
+          <li><code>Impression</code> logs every card shown — surface, position, rank_score, source</li>
+          <li>Purpose-built as XGBoost negatives</li>
+          <li><b>Nothing consumes it yet.</b> The highest-leverage unlock available</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════ LEDGER ══════════ -->
+  <section>
+    <h2>Honest status ledger</h2>
+    <div class="ledger-scroll" style="margin-top:1.5rem">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Status</th><th>Reality</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Semantic + content</td><td><span class="tag live"><span class="dot live"></span>Live</span></td><td>The workhorses. Carry the personalised feed today.</td></tr>
+          <tr><td>Essence “films like X”</td><td><span class="tag live"><span class="dot live"></span>Live</span></td><td>GPT reasoning over the affect fingerprint, grounded by TMDB, cached per seed.</td></tr>
+          <tr><td>Graph + tribes</td><td><span class="tag live"><span class="dot live"></span>Live</span></td><td>Active when Neo4j is populated; also the only route CF influence takes.</td></tr>
+          <tr><td>Discover · trending</td><td><span class="tag live"><span class="dot live"></span>Live</span></td><td>Real TMDB theatrical/OTT lists across five industries.</td></tr>
+          <tr><td>Discover · artists radar</td><td><span class="tag live"><span class="dot live"></span>Live</span></td><td>Real — your onboarding favourites, max 8. No filler despite the docstring.</td></tr>
+          <tr><td>XGBoost ranker</td><td><span class="tag inert"><span class="dot inert"></span>Inert</span></td><td><code>.train()</code> exists but is never called — always the fixed weighted sum.</td></tr>
+          <tr><td>ALS collaborative</td><td><span class="tag inert"><span class="dot inert"></span>Inert</span></td><td><code>.fit()</code> never called → <code>recommend()</code> returns empty on every request.</td></tr>
+          <tr><td>Contextual bandit</td><td><span class="tag inert"><span class="dot inert"></span>Inert</span></td><td>Records and persists rewards; its blend weights are not consumed by the feed.</td></tr>
+          <tr><td>Drift detector</td><td><span class="tag inert"><span class="dot inert"></span>Inert</span></td><td>Fully implemented; no caller in the feed path.</td></tr>
+          <tr><td>Discover · by platform</td><td><span class="tag absent"><span class="dot absent"></span>Absent</span></td><td>Fake counts — identical arithmetic for every user. Waits on <code>streaming_providers</code>.</td></tr>
+          <tr><td>Discover · awards</td><td><span class="tag absent"><span class="dot absent"></span>Absent</span></td><td>Six hardcoded labels. No films behind them.</td></tr>
+          <tr><td>Two-tower</td><td><span class="tag absent"><span class="dot absent"></span>Absent</span></td><td>Random-projection stub, weight 0.00, excluded from candidate generation.</td></tr>
+          <tr><td>Reddit / Letterboxd</td><td><span class="tag absent"><span class="dot absent"></span>Absent</span></td><td>No <code>praw</code>, no credentials, no hook. Proposed in docs only.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="hairline">
+
+  <p class="footnote">
+    Drawn from a read of the live source, not the prior documentation — which still described the
+    LLM layer as Gemini, the ranker as 11 features, and the taste blend as a fixed 0.7 / 0.3 split.
+    All three were wrong. The recommendation engine is a well-architected hybrid currently running
+    entirely on hand-tuned heuristics; the learned layer is scaffolding waiting on the impressions
+    it is already collecting. Discovery is, for now, mostly a façade over TMDB.
+    Companion to <code>Recommendation.md</code>.
+  </p>
+
+</div>
+</body>
+</html>

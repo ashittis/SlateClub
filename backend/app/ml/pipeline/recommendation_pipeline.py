@@ -12,17 +12,14 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from ..embeddings.taste_vector import (
-    compute_user_taste_vector,
-    cosine_similarity,
-    movie_to_embedding,
-)
+from app.ml.embeddings.taste_vector import compute_user_taste_vector
+from app.ml.eval.feature_reconstruction import build_feature_row, user_genre_set
 from typing import Any
-from ..llm.openai_client import deserialize_embedding
-from ..models.als import ALSModel
-from ..models.content_based import ContentBasedModel
-from ..models.two_tower import TwoTowerModel
-from ..models.xgboost_ranker import XGBoostRanker
+from app.ml.llm.openai_client import deserialize_embedding
+from app.ml.models.als import ALSModel
+from app.ml.models.content_based import ContentBasedModel
+from app.ml.models.two_tower import TwoTowerModel
+from app.ml.models.xgboost_ranker import XGBoostRanker
 
 # Mood → genre bias mapping for session mood
 MOOD_GENRE_MAP = {
@@ -34,6 +31,27 @@ MOOD_GENRE_MAP = {
 }
 
 EXPLORE_RATIO = 0.3  # 30% explore, 70% exploit
+
+# Candidate `_source` → contextual-bandit arm. content/semantic/per_lang/director
+# all count as "content"; serendipity is the Stage-4 explore pool, not a source.
+_SOURCE_TO_ARM = {
+    "content": "content", "semantic": "content",
+    "per_lang": "content", "director": "content",
+    "als": "cf", "graph": "graph", "trending": "trending",
+}
+
+
+def _apply_source_weights(candidates: list[dict], source_weights: dict | None) -> None:
+    """Multiply each candidate's rank score by its source's learned bandit weight,
+    normalised by the segment mean so the overall score scale is preserved
+    (a source at the mean → ×1.0, above → boost, below → damp)."""
+    if not source_weights:
+        return
+    mean = sum(source_weights.values()) / len(source_weights) or 1.0
+    for c in candidates:
+        arm = _SOURCE_TO_ARM.get(c.get("_source", "content"), "content")
+        mult = source_weights.get(arm, mean) / mean
+        c["_rank_score"] = c.get("_rank_score", 0.0) * mult
 
 
 def _language_interleave(
@@ -98,6 +116,9 @@ class RecommendationPipeline:
         session_mood: str | None = None,
         n_results: int = 30,
         user_priors: dict[str, Any] | None = None,
+        source_weights: dict[str, float] | None = None,
+        explore_ratio_override: float | None = None,
+        accelerated_decay: bool = False,
     ) -> list[dict]:
         """
         Run the full pipeline and return ranked recommendations.
@@ -118,6 +139,9 @@ class RecommendationPipeline:
                   when session_mood is None
         """
         priors = user_priors or {}
+        # Drift adaptation flows to both taste-vector builds via priors (avoids
+        # threading a flag through every stage signature). No-op when False.
+        priors["accelerated_decay"] = accelerated_decay
 
         # ─── Stage 1: Candidate Generation ───────────────────
         candidates = self._stage1_candidate_gen(
@@ -131,7 +155,7 @@ class RecommendationPipeline:
 
         # ─── Stage 3: Scoring & Ranking ──────────────────────
         scored = self._stage3_rank(
-            user_id, user_interactions, candidates, priors
+            user_id, user_interactions, candidates, priors, source_weights
         )
 
         # ─── Stage 4: Contextualization ──────────────────────
@@ -139,7 +163,7 @@ class RecommendationPipeline:
         # pick a session mood for this visit.
         effective_mood = session_mood or priors.get("persistent_mood")
         final = self._stage4_contextualize(
-            scored, effective_mood, n_results, priors
+            scored, effective_mood, n_results, priors, explore_ratio_override
         )
 
         return final
@@ -154,7 +178,10 @@ class RecommendationPipeline:
         """Generate ~500 candidates from multiple sources."""
         # Compute user taste vector — blend onboarding prior when sparse.
         seed = priors.get("seed_prior") if priors else None
-        taste_vec = compute_user_taste_vector(user_interactions, seed_prior=seed)
+        taste_vec = compute_user_taste_vector(
+            user_interactions, seed_prior=seed,
+            accelerated_decay=bool((priors or {}).get("accelerated_decay")),
+        )
 
         # Index all movies for content-based
         self.content.index_movies(all_movies)
@@ -351,86 +378,40 @@ class RecommendationPipeline:
         user_interactions: list[dict],
         candidates: list[dict],
         priors: dict[str, Any] | None = None,
+        source_weights: dict[str, float] | None = None,
     ) -> list[dict]:
         """Score and rank candidates using XGBoost ranker."""
         if not candidates:
             return []
 
         seed = (priors or {}).get("seed_prior")
-        taste_vec = compute_user_taste_vector(user_interactions, seed_prior=seed)
+        taste_vec = compute_user_taste_vector(
+            user_interactions, seed_prior=seed,
+            accelerated_decay=bool((priors or {}).get("accelerated_decay")),
+        )
 
         languages = set((priors or {}).get("languages") or [])
         mood_pacing = (priors or {}).get("mood_pacing") or 0.0
         genre_completion_map: dict[int, float] = (priors or {}).get("genre_completion_map") or {}
 
         # Pre-compute user genre set once (used for overlap feature)
-        user_genres: set = set()
-        for inter in user_interactions:
-            for g in (inter.get("movie_data", {}).get("genres") or []):
-                user_genres.add(g.get("id") if isinstance(g, dict) else g)
+        user_genres = user_genre_set(user_interactions)
 
-        # Build feature matrix for ranker
+        # Build feature matrix for ranker. The per-candidate row is built by the
+        # shared builder (ml/eval/feature_reconstruction) so the offline harness
+        # scores identically; stash it on the candidate for impression logging.
         features = []
         for c in candidates:
-            movie_emb = movie_to_embedding(c)
-            taste_sim = cosine_similarity(taste_vec, movie_emb)
-
-            # Genre overlap count
-            movie_genres: set = set()
-            for g in (c.get("genres") or []):
-                movie_genres.add(g.get("id") if isinstance(g, dict) else g)
-            genre_overlap = len(user_genres & movie_genres)
-
-            # Recency (days since release)
-            release = c.get("release_date") or ""
-            recency = 0.5
-            if release and len(release) >= 4:
-                try:
-                    year = int(release[:4])
-                    recency = min(max((year - 2000) / 25.0, 0), 1.0)
-                except ValueError:
-                    pass
-
-            # Language match with onboarding prefs.
-            lang = c.get("original_language") or "en"
-            language_match = 1.0 if lang in languages else 0.3
-
-            # Mood alignment — pacing slider matched against runtime.
-            # Negative pacing prefers long films; positive prefers short.
-            runtime = c.get("runtime") or 110
-            target_runtime = 130 - 30 * mood_pacing  # -1 -> 160m, +1 -> 100m
-            mood_alignment = 1.0 - min(
-                abs(runtime - target_runtime) / 90.0, 1.0
+            row = build_feature_row(
+                c,
+                taste_vec=taste_vec,
+                user_genres=user_genres,
+                languages=languages,
+                mood_pacing=mood_pacing,
+                genre_completion_map=genre_completion_map,
             )
-
-            # completion_pct_avg: avg completion % (0–1) across watched films
-            # in any genre this candidate shares. 0.5 when no watch data.
-            genre_comps = [
-                genre_completion_map[gid]
-                for gid in movie_genres
-                if gid in genre_completion_map
-            ]
-            completion_pct_avg = (
-                sum(genre_comps) / len(genre_comps) / 100.0 if genre_comps else 0.5
-            )
-
-            features.append([
-                taste_sim,
-                c.get("_als_score", 0),
-                c.get("_content_score", 0),
-                c.get("_tt_score", 0),
-                1.0 if c.get("_is_trending") else 0.0,
-                min((c.get("popularity") or 0) / 500.0, 1.0),
-                recency,
-                min(genre_overlap / 5.0, 1.0),
-                language_match,
-                mood_alignment,
-                # Semantic similarity (OpenAI-embedded taste statement
-                # vs movie identity embedding). 0 when the user or the
-                # movie hasn't been processed yet.
-                max(0.0, float(c.get("_semantic_score", 0))),
-                completion_pct_avg,
-            ])
+            c["_features"] = row
+            features.append(row)
 
         feature_matrix = np.array(features, dtype=np.float32)
         scores = self.ranker.rank(feature_matrix)
@@ -438,6 +419,11 @@ class RecommendationPipeline:
         # Attach scores to candidates
         for i, c in enumerate(candidates):
             c["_rank_score"] = float(scores[i])
+
+        # Contextual-bandit source blending: scale each score by its source's
+        # learned weight for this user's segment (consumption only — the reward
+        # loop lives in services/watch_signals). No-op when weights are absent.
+        _apply_source_weights(candidates, source_weights)
 
         # Sort by rank score descending
         candidates.sort(key=lambda c: -c["_rank_score"])
@@ -482,6 +468,7 @@ class RecommendationPipeline:
         session_mood: str | None,
         n_results: int,
         priors: dict[str, Any] | None = None,
+        explore_ratio_override: float | None = None,
     ) -> list[dict]:
         """Apply session mood, explore/exploit split, and explanations."""
         if not candidates:
@@ -516,8 +503,10 @@ class RecommendationPipeline:
         # Re-sort
         candidates.sort(key=lambda c: -c.get("_rank_score", 0))
 
-        # Explore/exploit split
-        n_exploit = int(n_results * (1 - EXPLORE_RATIO))
+        # Explore/exploit split. A drift phase-transition raises the explore
+        # ratio (via explore_ratio_override) so the feed adapts faster.
+        explore_ratio = explore_ratio_override if explore_ratio_override is not None else EXPLORE_RATIO
+        n_exploit = int(n_results * (1 - explore_ratio))
         n_explore = n_results - n_exploit
 
         exploit_pool = candidates[:n_exploit]

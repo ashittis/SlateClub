@@ -111,6 +111,7 @@ def compute_user_taste_vector(
     interactions: list[dict],
     *,
     seed_prior: np.ndarray | None = None,
+    accelerated_decay: bool = False,
 ) -> np.ndarray:
     """
     Compute a user's taste vector from their interactions.
@@ -152,6 +153,10 @@ def compute_user_taste_vector(
             days_ago = 0
 
         recency = math.exp(-DECAY_LAMBDA * days_ago)
+        # Drift adaptation: halve the pull of interactions older than 60 days so
+        # a shifting taste re-centres faster on recent signal. Off by default.
+        if accelerated_decay and days_ago > 60:
+            recency *= 0.5
         w = signal_weight * recency
         weighted_sum += w * movie_emb
         # Magnitude-based normalization so negative weights subtract

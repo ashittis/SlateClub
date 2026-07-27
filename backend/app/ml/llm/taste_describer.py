@@ -6,7 +6,7 @@ extract cinematic tone tags.
 
 from __future__ import annotations
 
-from . import openai_client as llm
+from app.ml.llm import openai_client as llm
 
 
 _TONE_AXES_SCHEMA: dict = {
