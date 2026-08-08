@@ -9,6 +9,11 @@ filter modal. Cards are the primary unit, posters treated as album art.
 - **`RankedRow.tsx`** — a single ranked row of film cards with its reason label.
 - **`MoviesLikeSection.tsx`** — the "movies like ___" section that seeds a similarity query.
 - **`SimilarAnswer.tsx`** — renders the result of a "something like X" query (the similar-films answer).
+- **`CommunityConsensus.tsx`** — the Community Intelligence panel on the film detail page.
+  Web-sourced "what the film community recommends after this", with a % grounded in real
+  mention frequency + provenance ("Mentioned across Reddit + 2 film blogs"), plus a
+  For-you / Community toggle and the "most people say X, but for you Y" callout. Backed by
+  `POST /api/discovery/consensus`; self-contained, tmdbId-gated, null-when-empty.
 - **`MovieFilterModal.tsx`** — the filter sheet (mood/genre/language/platform/era chips).
 - **`GenreMoodTileGrid.tsx`** — Search default-state colored browse tiles (pill-taxonomy colours).
 - **`SearchFilterBar.tsx`** — Type/Year filter chips + `applyFilters()` helper for film results.

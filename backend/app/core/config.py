@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     REDDIT_CLIENT_ID: str = ""
     REDDIT_CLIENT_SECRET: str = ""
     REDDIT_USER_AGENT: str = "slateclub/1.0 (offline identity enrichment)"
+    # Brave Search API — the web-search source for the Community Intelligence
+    # Engine (film blogs, listicles, YouTube titles, site:reddit.com threads).
+    # Empty by default; integrations.websearch.is_available() gates on it, so the
+    # discovery engine degrades to Reddit-only when unset. Free key (1 req/s) at
+    # api.search.brave.com. Never the request path — warmer/off-response only.
+    BRAVE_SEARCH_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

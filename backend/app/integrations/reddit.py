@@ -219,6 +219,67 @@ def _extract_sentences(texts: list[str]) -> list[str]:
     return out
 
 
+async def recommendation_corpus(
+    title: str,
+    year: str | None,
+    language: str | None,
+    *,
+    threads: int = 6,
+    comments_per: int = 30,
+) -> list[str]:
+    """Raw text from Reddit "movies like X" discussions — submission bodies +
+    top comments — for the discovery engine's LLM title-extraction pass.
+
+    Unlike discussion_text() (which regex-filters down to comparison *sentences*
+    for the identity extractor), this returns the *fuller* text because the
+    downstream LLM needs whole comments to read WHICH films get recommended and
+    WHY. Returns [] when Reddit is unconfigured or off-topic.
+
+    Offline only — never call from the request path (Reddit's rate gate is
+    process-global and this issues several requests per seed)."""
+    if not is_available() or not title:
+        return []
+    subs = _subs_for(language)
+    year_q = f" {year}" if year else ""
+    queries = [
+        f'movies like "{title}"{year_q}',
+        f'if you liked "{title}"',
+        f'"{title}" recommendations',
+    ]
+
+    submissions: list[dict] = []
+    seen_ids: set[str] = set()
+    for q in queries:
+        data = await _fetch(
+            f"/r/{subs}/search",
+            {"q": q, "restrict_sr": 1, "sort": "relevance", "type": "link",
+             "limit": max(2, threads // len(queries) + 1), "t": "all"},
+        )
+        if not isinstance(data, dict):
+            continue
+        for child in data.get("data", {}).get("children", []):
+            sub = child.get("data", {})
+            sid = sub.get("id")
+            if sid and sid not in seen_ids:
+                seen_ids.add(sid)
+                submissions.append(sub)
+        if len(submissions) >= threads:
+            break
+
+    texts: list[str] = []
+    for sub in submissions[:threads]:
+        title_txt = sub.get("title") or ""
+        selftext = sub.get("selftext") or ""
+        header = f"THREAD: {title_txt}\n{selftext}".strip()
+        if header:
+            texts.append(header[:_MAX_CHARS])
+        art_id = sub.get("id")
+        if art_id:
+            bodies = await _comments(art_id, limit=comments_per)
+            texts.extend(b for b in bodies if b and len(b) >= 20)
+    return texts
+
+
 async def discussion_text(title: str, year: str | None, language: str | None) -> str:
     """Comparison-rich Reddit sentences about a film, ≤~800 tokens. Empty string
     when unavailable, off-topic, or Reddit is not configured — every caller

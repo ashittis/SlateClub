@@ -19,6 +19,7 @@ from app.features.recommendation.taste import router as taste_router
 from app.features.recommendation.taste_engine import router as taste_engine_router
 from app.features.discovery.feed import router as feed_router
 from app.features.discovery.discover import router as discover_router
+from app.features.discovery.consensus import router as consensus_router
 from app.features.slates.routes import router as slates_router
 from app.features.community.discourse import router as discourse_router
 from app.features.notifications.routes import router as notifications_router
@@ -62,6 +63,7 @@ all_routers = [
     taste_engine_router,
     feed_router,
     discover_router,
+    consensus_router,
     slates_router,
     discourse_router,
     notifications_router,

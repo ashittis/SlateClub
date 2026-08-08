@@ -9,6 +9,7 @@ from app.shared.models import (  # noqa: F401
     onboarding,
     similar_cache,
     reddit_cache,
+    discovery_cache,
 )
 from app.features.community.models import (  # noqa: F401
     chapters,

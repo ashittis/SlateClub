@@ -41,7 +41,7 @@ _W_AFFECT = 0.30
 # whenever the prompt/scoring/`why` contract changes so stale payloads are ignored.
 _POOL_SIZE = 30
 _ANSWER_SIZE = 5
-_ESSENCE_VERSION = 3
+_ESSENCE_VERSION = 4
 _ESSENCE_CACHE: dict[tuple, dict] = {}
 _ESSENCE_TTL_SECONDS = 24 * 60 * 60
 _ESSENCE_CACHE_MAX = 256
@@ -153,7 +153,7 @@ def _seed_identity_block(seed: Movie) -> str:
     return "\n".join(parts)
 
 
-def _essence_prompt(seed: Movie) -> str:
+def _essence_prompt(seed: Movie, community_text: str = "") -> str:
     year = (seed.release_date or "")[:4]
     genres = ", ".join(_genre_names(seed))
     blurb, _ = _seed_people(seed)
@@ -173,6 +173,19 @@ def _essence_prompt(seed: Movie) -> str:
         if identity_block else ""
     )
 
+    # Optional grounding from the Community Intelligence Engine: real recommendation
+    # talk about this film gathered from Reddit/blogs. Evidence only — never quote
+    # it, use it to notice which films the community keeps pairing with the seed and
+    # WHY it feels similar; ignore hype/spoilers; trust the metadata above on conflict.
+    community_section = (
+        "\n\n--- COMMUNITY CHATTER (unverified; may be sarcastic or off-topic) ---\n"
+        f"{community_text.strip()}\n"
+        "Use this only as evidence for how the film FEELS and which films share that "
+        "feeling; never quote it; ignore spoilers and hype; if it conflicts with the "
+        "facts above, trust the facts."
+        if community_text.strip() else ""
+    )
+
     return (
         "You recommend films by ESSENCE and EMOTIONAL JOURNEY — not genre, "
         "profession, or nationality. What matters most is how the film makes the "
@@ -182,7 +195,7 @@ def _essence_prompt(seed: Movie) -> str:
         "Two films with zero genre or country overlap can share an essence "
         "(Parasite and The Menu; The Social Network and Uncut Gems).\n\n"
         "Given this seed film:\n"
-        f"{facts}{identity_section}\n\n"
+        f"{facts}{identity_section}{community_section}\n\n"
         f"First, in one sentence, name the seed's essence — the shared emotional "
         f"experience. Then list ~{_POOL_SIZE} real, well-known films that deliver "
         "that SAME emotional journey and aftertaste, chosen PURELY by feel, "
@@ -223,7 +236,7 @@ async def _resolve_title(title: str, year: int | None) -> dict | None:
 
 
 async def _essence_films(
-    db: AsyncSession, seed: Movie, limit: int
+    db: AsyncSession, seed: Movie, limit: int, community_text: str = ""
 ) -> tuple[list[dict], str | None] | None:
     """LLM names a broad, language-diverse set of essence-similar films, ranked
     closest-feel first; we resolve them via TMDB and tag each with its original
@@ -233,7 +246,7 @@ async def _essence_films(
         return None
 
     data = await llm.generate_json(
-        _essence_prompt(seed), response_schema=_ESSENCE_SCHEMA
+        _essence_prompt(seed, community_text), response_schema=_ESSENCE_SCHEMA
     )
     films = (data or {}).get("films") or []
     if not films:
@@ -357,6 +370,7 @@ async def find_similar_films(
     db: AsyncSession,
     seed_tmdb_id: int,
     media_type: str = "movie",
+    community_text: str = "",
 ) -> dict:
     """Build (or read from cache) the full essence pool for a seed film.
 
@@ -375,15 +389,20 @@ async def find_similar_films(
     seed = await _get_or_fetch_movie(seed_tmdb_id, db, media_type)
     use_db_cache = media_type == "movie"
 
+    # When the Community Intelligence Engine passes grounding text, force a fresh
+    # grounded rebuild (and overwrite the cache) rather than returning a stale
+    # essence-only pool.
+    grounded = bool(community_text.strip())
+
     cache_key = (seed_tmdb_id, media_type, _ESSENCE_VERSION)
     cached = _ESSENCE_CACHE.get(cache_key)
-    if cached and (time.time() - cached["_ts"]) < _ESSENCE_TTL_SECONDS:
+    if not grounded and cached and (time.time() - cached["_ts"]) < _ESSENCE_TTL_SECONDS:
         return {k: v for k, v in cached.items() if not k.startswith("_")}
 
     # L2: persisted cache — survives restarts and skips the LLM entirely.
     from app.shared.models.similar_cache import SimilarCache
 
-    if use_db_cache:
+    if not grounded and use_db_cache:
         row = await db.get(SimilarCache, seed_tmdb_id)
         if row is not None and row.version == _ESSENCE_VERSION and isinstance(row.payload, dict):
             _ESSENCE_CACHE[cache_key] = {**row.payload, "_ts": time.time()}
@@ -392,7 +411,7 @@ async def find_similar_films(
     essence_summary: str | None = None
     results: list[dict] | None = None
 
-    essence = await _essence_films(db, seed, _POOL_SIZE)
+    essence = await _essence_films(db, seed, _POOL_SIZE, community_text)
     if essence is not None:
         results, essence_summary = essence
 

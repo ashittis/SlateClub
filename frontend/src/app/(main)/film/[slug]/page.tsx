@@ -23,6 +23,7 @@ import CulturalContextCard from "@/components/cultural/CulturalContextCard";
 import NowShowingSection from "@/components/theatres/NowShowingSection";
 import ExpandableSynopsis from "@/components/film/ExpandableSynopsis";
 import MoreLikeThisRow from "@/components/film/MoreLikeThisRow";
+import CommunityConsensus from "@/components/discover/CommunityConsensus";
 
 // TMDB two-letter language codes → display names for the meta line.
 const LANG_NAMES: Record<string, string> = {
@@ -532,6 +533,9 @@ export default function FilmDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Community consensus — web-sourced "what to watch next", personalized */}
+          {movie.tmdbId && <CommunityConsensus tmdbId={movie.tmdbId} />}
 
           {/* Cultural context (optional pre-watch card) */}
           {movie.tmdbId && <CulturalContextCard tmdbId={movie.tmdbId} />}
