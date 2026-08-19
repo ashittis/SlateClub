@@ -1,54 +1,52 @@
 "use client";
 
-import { motion } from "framer-motion";
-import type { ReactNode } from "react";
-
-interface NextButtonProps {
-  enabled: boolean;
-  loading?: boolean;
-  onClick: () => void;
-  children?: ReactNode;
-}
-
+/**
+ * The step's primary action, plus an optional Skip.
+ *
+ * Skip is a real, visible control — not a small grey link. Only the first step
+ * is required, and hiding that fact would make onboarding feel longer than it is.
+ */
 export default function NextButton({
-  enabled,
-  loading,
   onClick,
-  children = "Next",
-}: NextButtonProps) {
-  const disabled = !enabled || loading;
+  onSkip,
+  disabled = false,
+  pending = false,
+  label = "Continue",
+  skipLabel = "Skip",
+}: {
+  onClick: () => void;
+  onSkip?: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+  label?: string;
+  skipLabel?: string;
+}) {
   return (
-    <motion.button
-      onClick={onClick}
-      disabled={disabled}
-      whileHover={!disabled ? { scale: 1.02 } : undefined}
-      whileTap={!disabled ? { scale: 0.98 } : undefined}
-      className="w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200"
-      style={{
-        background: !disabled ? "var(--cta-gradient)" : "var(--bg-elevated)",
-        color: !disabled ? "var(--bg-screening)" : "var(--text-faint)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        boxShadow: !disabled
-          ? "0 12px 28px -10px rgba(255, 138, 0, 0.45)"
-          : "none",
-      }}
-    >
-      {loading ? (
-        <span className="inline-flex items-center gap-2 justify-center">
-          <motion.span
-            className="inline-block w-4 h-4 border-2 rounded-full"
-            style={{
-              borderColor: "var(--bg-screening)",
-              borderTopColor: "transparent",
-            }}
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
-          />
-          Saving…
-        </span>
-      ) : (
-        children
+    <div className="flex items-center gap-3">
+      {onSkip && (
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={pending}
+          className="min-h-[48px] border px-4 text-sm font-medium"
+          style={{ borderColor: "var(--edge)", color: "var(--xerox)" }}
+        >
+          {skipLabel}
+        </button>
       )}
-    </motion.button>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled || pending}
+        className="min-h-[48px] flex-1 border px-4 text-sm font-semibold transition-opacity disabled:opacity-40"
+        style={{
+          borderColor: "var(--blood)",
+          background: "var(--blood)",
+          color: "var(--chalk)",
+        }}
+      >
+        {pending ? "Saving…" : label}
+      </button>
+    </div>
   );
 }

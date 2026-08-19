@@ -1,23 +1,32 @@
-# film components — the film card and its action sheets
+# film — the film page's parts
 
-The film card plus the bottom-sheets for logging, recommending, and DNF-ing a film. This is
-where a user acts on a specific movie.
+The film page is Kaset's central content object, and its primary action is
+**Log this film**. Components here support that; they never duplicate it.
 
-## Components
-- **`FilmCard.tsx`** — the poster-first film card (the app's core unit).
-- **`ToneChips.tsx`** — the mood/tone pill chips shown on a film (amber mood, green genre, …).
-- **`LogCompletionBurst.tsx`** — the celebratory burst animation when you mark a film watched.
-- **`DNFSheet.tsx`** — "did not finish" sheet: capture why you bailed.
-- **`RecommendSheet.tsx`** — share/recommend a film to a friend.
-- **`ShelfNoteSheet.tsx`** — add a private note when shelving a film.
+- **`ViewingHistory.tsx`** — your own logged viewings, newest first, as a real
+  table. This is where rewatch becomes *visible* rather than merely stored:
 
-- **`ProgressPosterCard.tsx`** — poster with a "% watched" overlay (Home "Jump back in").
-- **`MixCollageCard.tsx`** — 2×2 poster-collage "Mix" card with a label (Home "Made for you").
-- **`SplitPosterCard.tsx`** — two diagonal half-posters for Match Cut cards.
-- **`ExpandableSynopsis.tsx`** — clamp + "Read more" for long overviews (Film Detail).
-- **`MoreLikeThisRow.tsx`** — Film Detail similarity rail fed by `/api/taste-engine/similar`.
+      2026   ★★★★★ ♥   rewatch
+                       #imax
+      2024   ★★★★★     theatre
 
-## Notes
-- Sheets slide up from the bottom (mobile-first, ≥44px targets), animated with Framer Motion.
-- `LogCompletionBurst` is a one-shot particle/scale animation on completion.
-- Calls ratings/watch-history/dms endpoints depending on the sheet.
+  It reads `/api/films/{id}/viewings` — note the field names are `watchedOn` and
+  `watchType`, not `watchedAt`/`atTheatre`. An earlier `Viewing` interface
+  declared the latter pair, which the endpoint has never sent; because the type
+  was asserted rather than validated it typechecked cleanly and only blew up at
+  render. Keep `lib/api/films.ts` honest against the route.
+
+- **`CommunityReviews.tsx`** — what other people wrote. Each review shows the
+  author's rating beside it: a review reads very differently next to the score
+  it came with, and separating them is how a three-star review gets mistaken
+  for a pan. Spoilers hide behind a click, because a warning you've already read
+  isn't a warning.
+- **`ShareFilmSheet.tsx`** — send a film to someone. Goes into the normal
+  conversation model, so they can reply.
+- **`FilmCard.tsx`**, **`ExpandableSynopsis.tsx`** — shared display pieces.
+
+Logging itself lives in `components/log/`, because it's owned by the diary. It
+now renders **inline on this page**, taking the primary button's slot rather
+than opening a sheet over it — so the two are mutually exclusive and the page
+keeps exactly one `--tape`-filled control. The page's "Your rating" row hides
+while the panel is open; see `components/log/README.md` for why.

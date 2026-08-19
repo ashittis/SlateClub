@@ -9,7 +9,7 @@ The export ZIP's most useful files:
   - watchlist.csv (Date, Name, Year, Letterboxd URI)
 
 `diary.csv` is the real per-viewing file: each row becomes a dated `DiaryEntry`
-(watch_log) using its **Watched Date** — which retroactively fills the Diary tab
+(diary_entries) using its **Watched Date** — which retroactively fills the Diary tab
 and Wrapped for past years. `watched.csv` is a degraded fallback (one row/film,
 no rewatches) used only for films absent from the diary. `ratings.csv` sets the
 canonical rating; `watchlist.csv` the shelf.
@@ -34,7 +34,7 @@ from app.integrations import tmdb
 from app.shared.models.actions import DiaryEntry, Rating, WatchlistItem
 from app.shared.models.movie import Movie
 from app.shared.models.user import User
-from app.shared.services.diary_service import summary_had_row, upsert_watch_summary
+from app.shared.services import diary_service
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
@@ -199,15 +199,15 @@ async def _import_viewings(
         movie = movie_of[movie_id]
         # Snapshot BEFORE writing — a pre-existing summary means any imported
         # viewing is a rewatch.
-        had_summary = await summary_had_row(db, user.id, movie.id)
+        had_summary = await diary_service.has_seen(db, user.id, movie.id)
         existing = (
             await db.execute(
-                select(DiaryEntry.watched_at).where(
+                select(DiaryEntry.watched_on).where(
                     DiaryEntry.user_id == user.id, DiaryEntry.movie_id == movie.id
                 )
             )
         ).scalars().all()
-        existing_dates = {d.date() for d in existing if d}
+        existing_dates = {d for d in existing if d}
 
         # Order by watched date ascending; undated rows sort last.
         dated = [(_parse_date_or_none(r.get(date_col) or ""), r) for r in film_rows]
@@ -228,18 +228,18 @@ async def _import_viewings(
             is_rewatch = explicit_rewatch or had_summary or wrote_one
             rating_val = _snap_rating(row.get("Rating") or "")
 
-            db.add(
-                DiaryEntry(
-                    user_id=user.id,
-                    movie_id=movie.id,
-                    watched_at=watched_at,
-                    rating=rating_val,
-                    is_rewatch=is_rewatch,
-                    at_theatre=False,
-                    visibility=visibility,
-                )
+            # Letterboxd exports carry no venue, so imported viewings are
+            # "other" rather than a guessed streaming/theatre value.
+            await diary_service.log_viewing(
+                db,
+                user_id=user.id,
+                movie_id=movie.id,
+                watched_on=dkey,
+                rating=rating_val,
+                is_rewatch=is_rewatch,
+                watch_type="other",
+                visibility=visibility,
             )
-            await upsert_watch_summary(db, user.id, movie.id, watched_at)
             if rating_val is not None:
                 # ratings.csv is processed first and owns the canonical rating;
                 # only fill gaps from the diary so we never clobber it.

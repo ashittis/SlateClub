@@ -7,7 +7,7 @@ performance layer, never a hard dependency. If the `redis` package is missing,
 the server is unreachable, or a live client drops, we degrade gracefully and
 retry the connection at most every 30s.
 
-Keys are namespaced with ``slateclub:`` and the connection targets a dedicated
+Keys are namespaced with ``kaset:`` and the connection targets a dedicated
 logical DB (see ``REDIS_URL``, default DB 1) so this server can be shared with
 other projects without collisions or cross-project ``FLUSHDB``.
 """
@@ -21,7 +21,7 @@ try:  # `redis` is optional — absence simply disables caching.
 except ImportError:  # pragma: no cover
     aioredis = None
 
-KEY_PREFIX = "slateclub:"
+KEY_PREFIX = "kaset:"
 _CHECK_INTERVAL = 30.0  # seconds between reconnect attempts after a failure
 
 _client = None
@@ -30,7 +30,7 @@ _last_check = 0.0
 
 
 def _k(name: str) -> str:
-    """Namespace a key under the SlateClub prefix."""
+    """Namespace a key under the Kaset prefix."""
     return f"{KEY_PREFIX}{name}"
 
 

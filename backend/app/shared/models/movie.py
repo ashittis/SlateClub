@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -9,15 +9,17 @@ from app.core.database import Base
 
 
 class Movie(Base):
-    """A title — film or TV series. `media_type` discriminates the two; TMDB
-    movie and TV ids share an integer space, so uniqueness is composite."""
+    """A film — the central content object in Kaset.
+
+    Rows are created lazily: the first time anyone searches, opens or logs a
+    TMDB title, `shared/services/films` upserts it here. Kaset never
+    pre-imports a catalog.
+    """
 
     __tablename__ = "movies"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tmdb_id: Mapped[int] = mapped_column("tmdbId", Integer, index=True)
-    media_type: Mapped[str] = mapped_column("mediaType", String, default="movie", index=True)
-    number_of_seasons: Mapped[int | None] = mapped_column("numberOfSeasons", Integer, nullable=True)
     title: Mapped[str] = mapped_column(String)
     overview: Mapped[str | None] = mapped_column(Text, nullable=True)
     poster_path: Mapped[str | None] = mapped_column("posterPath", String, nullable=True)
@@ -30,17 +32,6 @@ class Movie(Base):
     original_language: Mapped[str | None] = mapped_column("originalLanguage", String, nullable=True)
     genres: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     credits: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # OpenAI-extracted MovieIdentity (vibe, themes, experiential_paragraph,
-    # affect_axes, affect_vector, comparable_by_feel). See app/ml/llm/movie_identity.py.
-    identity_json: Mapped[dict | None] = mapped_column("identityJson", JSON, nullable=True)
-    # Float32 embedding of the identity summary, packed via numpy.tobytes().
-    # NULL until the extraction job has run for this movie.
-    identity_embedding: Mapped[bytes | None] = mapped_column(
-        "identityEmbedding", LargeBinary, nullable=True
-    )
-    identity_updated_at: Mapped[datetime | None] = mapped_column(
-        "identityUpdatedAt", DateTime(timezone=True), nullable=True
-    )
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt",
@@ -54,4 +45,4 @@ class Movie(Base):
     watch_history = relationship("WatchHistory", back_populates="movie", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
 
-    __table_args__ = (UniqueConstraint("tmdbId", "mediaType"),)
+    __table_args__ = (UniqueConstraint("tmdbId"),)

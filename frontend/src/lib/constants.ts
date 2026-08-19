@@ -1,4 +1,4 @@
-export const APP_NAME = "SlateClub";
+export const APP_NAME = "Kaset";
 export const APP_TAGLINE = "Spotify × Letterboxd for movies";
 
 export const GENRE_MAP: Record<number, string> = {

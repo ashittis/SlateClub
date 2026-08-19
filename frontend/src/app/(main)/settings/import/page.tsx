@@ -55,11 +55,11 @@ export default function ImportPage() {
     <div className="mx-auto max-w-2xl px-4 lg:px-6 pt-6 pb-24">
       <h1
         className="display text-2xl lg:text-3xl font-bold tracking-tight mb-1"
-        style={{ color: "var(--text-primary)" }}
+        style={{ color: "var(--chalk)" }}
       >
         Import from Letterboxd
       </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm mb-6" style={{ color: "var(--xerox)" }}>
         Export your data from Letterboxd → Settings → Import & Export, then
         upload the CSVs here. Each row resolves via TMDB and seeds your taste.
       </p>
@@ -67,8 +67,8 @@ export default function ImportPage() {
       <div
         className="rounded-2xl p-5 space-y-4"
         style={{
-          background: "var(--bg-card)",
-          border: "1px solid rgba(255,255,255,0.05)",
+          background: "var(--soot)",
+          border: "1px solid var(--edge)",
         }}
       >
         <FileRow
@@ -99,7 +99,7 @@ export default function ImportPage() {
         {/* Privacy — importing years of history is the moment this matters. */}
         <label
           className="flex items-center gap-3 rounded-xl p-3 cursor-pointer"
-          style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.06)" }}
+          style={{ background: "var(--soot)", border: "1px solid var(--edge)" }}
         >
           <input
             type="checkbox"
@@ -107,9 +107,9 @@ export default function ImportPage() {
             onChange={(e) => setIsPrivate(e.target.checked)}
             className="h-4 w-4"
           />
-          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+          <span className="text-sm" style={{ color: "var(--chalk)" }}>
             Import as private
-            <span className="ml-1" style={{ color: "var(--text-faint)" }}>
+            <span className="ml-1" style={{ color: "var(--faint)" }}>
               — only you see these viewings; they still count in your Wrapped.
             </span>
           </span>
@@ -120,8 +120,8 @@ export default function ImportPage() {
           disabled={!ready || upload.isPending}
           className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
           style={{
-            background: "var(--cta-gradient)",
-            color: "var(--bg-screening)",
+            background: "var(--blood)",
+            color: "var(--void)",
           }}
         >
           {upload.isPending ? "Importing… (may take a moment)" : "Import"}
@@ -139,14 +139,14 @@ export default function ImportPage() {
             style={{
               background: "rgba(255, 138, 0, 0.10)",
               border: "1px solid rgba(255, 138, 0, 0.35)",
-              color: "var(--text-primary)",
+              color: "var(--chalk)",
             }}
           >
             <p className="font-semibold">{upload.data.message}</p>
             {(["diary", "ratings", "watched", "watchlist"] as const).map((k) => {
               const c = upload.data!.counts[k];
               return (
-                <p key={k} style={{ color: "var(--text-muted)" }}>
+                <p key={k} style={{ color: "var(--xerox)" }}>
                   {k}: {c.imported} imported · {c.skipped} skipped ·{" "}
                   {c.unresolved} unresolved
                 </p>
@@ -175,11 +175,11 @@ function FileRow({
       <label className="block">
         <p
           className="display text-sm font-semibold"
-          style={{ color: "var(--text-primary)" }}
+          style={{ color: "var(--chalk)" }}
         >
           {label}
         </p>
-        <p className="text-xs mb-2" style={{ color: "var(--text-faint)" }}>
+        <p className="text-xs mb-2" style={{ color: "var(--faint)" }}>
           {hint}
         </p>
         <input
@@ -187,13 +187,13 @@ function FileRow({
           accept=".csv,text/csv"
           onChange={(e) => onChange(e.target.files?.[0] ?? null)}
           className="block text-xs"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--xerox)" }}
         />
       </label>
       {file && (
         <p
           className="text-xs mt-1"
-          style={{ color: "var(--cta-primary)" }}
+          style={{ color: "var(--blood-ink)" }}
         >
           ✓ {file.name}
         </p>

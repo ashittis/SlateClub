@@ -70,7 +70,7 @@ export default function Modal({ isOpen, onClose, children, title }: ModalProps) 
             className="relative z-10 w-full max-w-lg rounded-xl border border-glass-6 bg-glass-6 shadow-2xl"
           >
             {title && (
-              <div className="flex items-center justify-between border-b border-glass-6 px-6 py-4">
+              <div className="flex items-center justify-between border-b-2 border-glass-6 px-6 py-4">
                 <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
                 <button
                   onClick={onClose}

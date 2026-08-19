@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import ColorChipLegend from "@/components/ui/ColorChipLegend";
 
 interface Preferences {
   notifOptOut: string[];
@@ -17,7 +16,7 @@ const NOTIF_KINDS: Array<{ key: string; label: string }> = [
   { key: "follow", label: "Follows" },
   { key: "review_helpful", label: "Review marked helpful" },
   { key: "slate_save", label: "Someone saved your slate" },
-  { key: "slate_message", label: "Slate Room messages" },
+  
   { key: "twin_activity", label: "Twin activity" },
   { key: "release", label: "Releases on your shelf" },
   { key: "artist", label: "Artists you follow post" },
@@ -50,29 +49,29 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl px-4 lg:px-6 pt-6 pb-24">
       <h1
         className="display text-2xl lg:text-3xl font-bold tracking-tight mb-6"
-        style={{ color: "var(--text-primary)" }}
+        style={{ color: "var(--chalk)" }}
       >
         Settings
       </h1>
 
       <Section title="Account">
         <Row label="Name">
-          <span style={{ color: "var(--text-primary)" }}>{user?.name}</span>
+          <span style={{ color: "var(--chalk)" }}>{user?.name}</span>
         </Row>
         <Row label="Username">
-          <span style={{ color: "var(--text-primary)" }}>@{user?.username}</span>
+          <span style={{ color: "var(--chalk)" }}>@{user?.username}</span>
         </Row>
         <Row label="Email">
-          <span style={{ color: "var(--text-muted)" }}>{user?.email}</span>
+          <span style={{ color: "var(--xerox)" }}>{user?.email}</span>
         </Row>
         <Row label="Sign out">
           <button
             onClick={() => logout()}
             className="px-3 py-1.5 rounded-md text-xs"
             style={{
-              background: "var(--bg-elevated)",
-              color: "var(--text-primary)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "var(--soot)",
+              color: "var(--chalk)",
+              border: "1px solid var(--edge)",
             }}
           >
             Sign out
@@ -82,24 +81,24 @@ export default function SettingsPage() {
 
       <Section title="Taste profile">
         <Link
-          href="/onboarding/welcome"
+          href="/onboarding/languages"
           className="text-sm font-medium"
-          style={{ color: "var(--cta-primary)" }}
+          style={{ color: "var(--blood-ink)" }}
         >
           Re-run onboarding →
         </Link>
-        <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+        <p className="text-xs mt-1" style={{ color: "var(--faint)" }}>
           Walk through the 8 steps again to refresh your taste signals.
         </p>
         <div className="mt-4">
           <Link
             href="/settings/import"
             className="text-sm font-medium"
-            style={{ color: "var(--cta-primary)" }}
+            style={{ color: "var(--blood-ink)" }}
           >
             Import from Letterboxd →
           </Link>
-          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+          <p className="text-xs mt-1" style={{ color: "var(--faint)" }}>
             Bulk-seed ratings, watch history, and shelf from a CSV export.
           </p>
         </div>
@@ -107,7 +106,7 @@ export default function SettingsPage() {
 
       <Section title="Notifications">
         {prefs.isLoading || !prefs.data ? (
-          <p className="text-sm" style={{ color: "var(--text-faint)" }}>
+          <p className="text-sm" style={{ color: "var(--faint)" }}>
             Loading…
           </p>
         ) : (
@@ -145,9 +144,9 @@ export default function SettingsPage() {
                 }
                 className="rounded-md px-3 py-1.5 text-sm focus:outline-none"
                 style={{
-                  background: "var(--bg-elevated)",
-                  color: "var(--text-primary)",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "var(--soot)",
+                  color: "var(--chalk)",
+                  border: "1px solid var(--edge)",
                 }}
               >
                 <option value="public">Public</option>
@@ -166,23 +165,16 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Appearance">
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--xerox)" }}>
           Dark only — this app is built for cinema, not spreadsheets.
         </p>
         <div className="mt-3">
-          <p
-            className="text-xs uppercase tracking-wider mb-2"
-            style={{ color: "var(--text-faint)" }}
-          >
-            Pill colour grammar
-          </p>
-          <ColorChipLegend />
         </div>
       </Section>
 
       <Section title="About">
-        <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-          SlateClub · Find your next film. Find your people.
+        <p className="text-xs" style={{ color: "var(--faint)" }}>
+          Kaset · Log the films you watch.
         </p>
       </Section>
     </div>
@@ -200,13 +192,13 @@ function Section({
     <section
       className="rounded-2xl p-5 mb-4"
       style={{
-        background: "var(--bg-card)",
-        border: "1px solid rgba(255,255,255,0.05)",
+        background: "var(--soot)",
+        border: "1px solid var(--edge)",
       }}
     >
       <h2
         className="display text-sm font-semibold uppercase tracking-wider mb-3"
-        style={{ color: "var(--text-faint)" }}
+        style={{ color: "var(--faint)" }}
       >
         {title}
       </h2>
@@ -224,10 +216,10 @@ function Row({
 }) {
   return (
     <div
-      className="flex items-center justify-between py-2 border-b last:border-b-0"
-      style={{ borderColor: "rgba(255,255,255,0.04)" }}
+      className="flex items-center justify-between py-2 border-b-2 last:border-b-0"
+      style={{ borderColor: "var(--edge)" }}
     >
-      <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+      <span className="text-sm" style={{ color: "var(--xerox)" }}>
         {label}
       </span>
       <div className="text-sm">{children}</div>
@@ -248,15 +240,15 @@ function Toggle({
 }) {
   return (
     <div
-      className="flex items-center justify-between py-2 border-b last:border-b-0"
-      style={{ borderColor: "rgba(255,255,255,0.04)" }}
+      className="flex items-center justify-between py-2 border-b-2 last:border-b-0"
+      style={{ borderColor: "var(--edge)" }}
     >
       <div>
-        <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+        <p className="text-sm" style={{ color: "var(--chalk)" }}>
           {label}
         </p>
         {hint && (
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--faint)" }}>
             {hint}
           </p>
         )}
@@ -265,7 +257,7 @@ function Toggle({
         onClick={() => onChange(!on)}
         className="relative w-10 h-6 rounded-full transition-colors"
         style={{
-          background: on ? "var(--cta-primary)" : "var(--bg-elevated)",
+          background: on ? "var(--blood)" : "var(--soot)",
         }}
         aria-pressed={on}
       >
@@ -273,7 +265,7 @@ function Toggle({
           className="absolute top-0.5 w-5 h-5 rounded-full transition-all"
           style={{
             left: on ? "calc(100% - 22px)" : "2px",
-            background: "var(--text-primary)",
+            background: "var(--chalk)",
           }}
         />
       </button>

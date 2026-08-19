@@ -1,45 +1,35 @@
 /*
-  TS mirror of the CSS tokens in globals.css.
-  Use these when colours need to live in JS/SVG/canvas
-  (e.g. ambient backdrop interpolation, force-graph stroke).
-  Do NOT inline these elsewhere — read from here so the
-  palette has one source of truth.
+  TS mirror of the CSS tokens in app/globals.css.
+
+  Use these only when a colour has to live in JS/SVG/canvas. In markup, prefer
+  the CSS variables or the Tailwind classes the `@theme inline` block generates.
+  Keep this in step with globals.css — it is the same palette, twice.
 */
 export const tokens = {
-  surface: {
-    screening: "#0A0A0B",
-    card: "#111114",
-    elevated: "#1A1A1F",
+  canvas: {
+    void: "#14121A",
+    soot: "#2A2733",
+    bleach: "#EDE7DB",
   },
-  text: {
-    primary: "#FAFAF7",
-    muted: "#9A9AA0",
-    faint: "#6A6A70",
+  ink: {
+    chalk: "#F5F2EC",
+    xerox: "#A9A3B4",
+    faint: "#8D8799",
   },
-  pill: {
-    mood: "#E0A050",
-    genre: "#5CA572",
-    language: "#B8956A",
-    platform: "#8B6FB5",
-    era: "#6E5BA8",
-    neutral: "#3A3A42",
+  accent: {
+    blood: "#C41230",
+    bloodHot: "#D41634",
+    bloodInk: "#FF6B7D",
+    acid: "#C8FF2E",
+    cobalt: "#5C78FF",
+    magenta: "#FF3D8B",
   },
-  cta: {
-    primary: "#FF7A00",
-    primaryHover: "#FF9800",
+  edge: {
+    base: "#575167",
+    hot: "#F5F2EC",
   },
-  // Warm brand gradient (orange → red → coal). For JS/SVG/canvas use.
-  gradient: {
-    amber: "#FF9408",
-    rust: "#CA3F16",
-    crimson: "#95122C",
-    coal: "#100C08",
-  },
-  nav: {
-    active: "#C4716E",
+  signal: {
+    error: "#FF6B7D",
+    ok: "#C8FF2E",
   },
 } as const;
-
-export type PillKind = keyof typeof tokens.pill;
-
-export const pillColor = (kind: PillKind) => tokens.pill[kind];

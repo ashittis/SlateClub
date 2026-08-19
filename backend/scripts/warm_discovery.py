@@ -1,104 +1,94 @@
-"""Offline warmer for the Community Intelligence Engine.
+"""Warm the discovery pool for films.
 
-Builds + caches the web-sourced community consensus pool for seed films, so the
-request path (POST /api/discovery/consensus) only ever reads a warm cache. You
-pay the Reddit/web-search + LLM wall-clock ONCE per seed per month here.
+The expensive half of discovery — Reddit, Brave, and two LLM passes — happens
+here, offline. The request path only ranks what this leaves behind, so a page
+never waits on a rate-limited source and never fails because a key is missing
+(KASET.md §9).
 
-Run from backend/:
+    python -m scripts.warm_discovery --limit 20
+    python -m scripts.warm_discovery --tmdb 157336 496243
+    python -m scripts.warm_discovery --refresh --limit 5
 
-    python -m scripts.warm_discovery --limit 20          # 20 most popular local films
-    python -m scripts.warm_discovery --tmdb 335984 27205 # specific seeds
-    python -m scripts.warm_discovery --refresh --limit 5 # rebuild even if cached
-
-Idempotent: skips seeds already cached for the current month unless --refresh.
-Gracefully no-ops the sources that aren't configured (Reddit / Brave); if neither
-is available it still runs but produces empty pools (nothing is cached).
-
-Cost note: ~4 web searches + several Reddit calls + 2–4 LLM calls per seed.
+Safe to re-run: each pass replaces that seed's evidence.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.core.database import async_session
-from app.features.discovery.community_engine import (
-    _COMMUNITY_VERSION,
-    _current_month,
-    build_and_cache,
-)
-from app.integrations import reddit, websearch
-from app.ml.llm import openai_client as llm
-
-# Import every model so SQLAlchemy resolves string-named relationships.
+# Import side-effects only: SQLAlchemy needs every model registered before any
+# mapper resolves, and this script touches Movie, which relates to Rating et al.
 from app import models_registry  # noqa: F401
-from app.shared.models.discovery_cache import DiscoveryCache
+from app.core.database import async_session
+from app.features.discovery import pipeline
+from app.shared.models.discovery_evidence import DiscoveryEvidence
 from app.shared.models.movie import Movie
-from app.features.movies.movies import _get_or_fetch_movie
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("warm_discovery")
 
 
-async def _already_warm(session, tmdb_id: int) -> bool:
-    row = await session.get(DiscoveryCache, (tmdb_id, _current_month()))
-    return row is not None and row.version == _COMMUNITY_VERSION
+async def _seeds(session, limit: int, tmdb_ids: list[int] | None, refresh: bool) -> list[Movie]:
+    if tmdb_ids:
+        return (
+            await session.execute(select(Movie).where(Movie.tmdb_id.in_(tmdb_ids)))
+        ).scalars().all()
+
+    stmt = select(Movie).order_by(Movie.popularity.desc().nullslast()).limit(limit)
+    if not refresh:
+        # Skip films already warmed, so a repeated run makes progress instead of
+        # redoing the same head of the list.
+        warmed = select(DiscoveryEvidence.seed_tmdb_id).distinct()
+        stmt = (
+            select(Movie)
+            .where(Movie.tmdb_id.not_in(warmed))
+            .order_by(Movie.popularity.desc().nullslast())
+            .limit(limit)
+        )
+    return (await session.execute(stmt)).scalars().all()
 
 
-async def _seed_ids(session, *, explicit: list[int] | None, limit: int | None) -> list[int]:
-    if explicit:
-        return explicit
-    stmt = select(Movie.tmdb_id).where(Movie.media_type == "movie").order_by(
-        Movie.popularity.desc().nullslast()
-    )
-    if limit:
-        stmt = stmt.limit(limit)
-    return [r[0] for r in (await session.execute(stmt)).all()]
-
-
-async def run(*, explicit: list[int] | None, limit: int | None, refresh: bool) -> None:
-    if not llm.is_available():
-        print("[warm] OPENAI_API_KEY not set — extraction/reasoning will no-op. Aborting.")
-        return
-    if not reddit.is_available() and not websearch.is_available():
-        print("[warm] neither Reddit nor Brave configured — nothing to gather. Aborting.")
-        return
+async def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--limit", type=int, default=10, help="how many films to warm")
+    ap.add_argument("--tmdb", type=int, nargs="*", help="specific TMDB ids")
+    ap.add_argument("--refresh", action="store_true", help="re-warm already-warmed films")
+    args = ap.parse_args()
 
     async with async_session() as session:
-        ids = await _seed_ids(session, explicit=explicit, limit=limit)
-        print(f"[warm] {len(ids)} seed(s) to consider")
+        films = await _seeds(session, args.limit, args.tmdb, args.refresh)
+        if not films:
+            logger.info("Nothing to warm. Seed the catalog first, or pass --refresh.")
+            return
 
-        built = skipped = empty = 0
-        for tmdb_id in ids:
-            if not refresh and await _already_warm(session, tmdb_id):
-                skipped += 1
-                continue
+        logger.info("Warming %d film(s)", len(films))
+        for film in films:
+            seed = {
+                "tmdbId": film.tmdb_id,
+                "title": film.title,
+                "year": (film.release_date or "")[:4] or None,
+                "genres": [g.get("name") for g in (film.genres or []) if g.get("name")],
+                "original_language": film.original_language,
+            }
             try:
-                seed = await _get_or_fetch_movie(tmdb_id, session, "movie")
-                payload = await build_and_cache(session, seed)
+                pool = await pipeline.build_pool(session, seed)
                 await session.commit()
-            except Exception as exc:  # noqa: BLE001
+                logger.info("  %-40s → %d candidates", film.title[:40], len(pool))
+            except Exception as exc:  # noqa: BLE001 - one bad seed must not stop the run
                 await session.rollback()
-                print(f"[warm] {tmdb_id}: FAILED — {exc}")
-                continue
-            n = len(payload.get("candidates") or [])
-            if n:
-                built += 1
-                print(f"[warm] {tmdb_id} {seed.title!r}: {n} candidates cached")
-            else:
-                empty += 1
-                print(f"[warm] {tmdb_id} {seed.title!r}: no community signal (not cached)")
-        print(f"[warm] done — built={built} skipped={skipped} empty={empty}")
+                logger.warning("  %-40s → failed: %s", film.title[:40], exc)
 
-
-def main() -> None:
-    ap = argparse.ArgumentParser(description="Warm the Community Intelligence Engine cache.")
-    ap.add_argument("--tmdb", type=int, nargs="*", help="specific TMDB seed ids")
-    ap.add_argument("--limit", type=int, default=None, help="cap on popular-film seeds")
-    ap.add_argument("--refresh", action="store_true", help="rebuild even if cached this month")
-    args = ap.parse_args()
-    asyncio.run(run(explicit=args.tmdb or None, limit=args.limit, refresh=args.refresh))
+        total = (
+            await session.execute(
+                select(func.count(func.distinct(DiscoveryEvidence.seed_tmdb_id)))
+            )
+        ).scalar_one()
+        logger.info("Done. %d film(s) now have a warm pool.", total)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

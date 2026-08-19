@@ -1,355 +1,275 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, tmdbImage } from "@/lib/api";
-import { titleHref } from "@/lib/titleHref";
-import AddToSlateSheet from "@/components/slates/AddToSlateSheet";
-import MoviesLikeSection from "@/components/discover/MoviesLikeSection";
-import GenreMoodTileGrid from "@/components/discover/GenreMoodTileGrid";
-import PeopleResults from "@/components/discover/PeopleResults";
-import Pill from "@/components/ui/Pill";
-import SearchFilterBar, {
-  applyFilters,
-  DEFAULT_FILTERS,
-  type SearchFilters,
-} from "@/components/discover/SearchFilterBar";
-import {
-  addRecentSearch,
-  getRecentSearches,
-  getRecentlyViewed,
-  removeRecentSearch,
-  removeRecentlyViewed,
-  type TitleHit,
-} from "@/lib/searchHistory";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { tmdbImage } from "@/lib/api/client";
+import { searchApi, searchKeys } from "@/lib/api/search";
+import { filmHref, filmKeys, filmsApi } from "@/lib/api/films";
+import { addRecentSearch, getRecentSearches, clearRecentSearches } from "@/lib/searchHistory";
+import FilmCard, { type FilmCardFilm } from "@/components/film/FilmCard";
+import { useQuickActions } from "@/components/film/useQuickActions";
 
-type SearchTab = "all" | "films" | "people";
+/**
+ * Search — a primary destination and the door into discovery (KASET.md §8).
+ *
+ * Empty state is not empty: recent searches, what the people you follow have
+ * been watching, and what's trending. There is no separate Discover
+ * destination, so this page has to earn that absence.
+ *
+ * The evidence-backed discovery modules arrive in Phase 8; the shelves here are
+ * the honest version of what we can serve today.
+ */
+export default function SearchPage() {
+  const { open: openQuickActions, sheet: quickActionsSheet } = useQuickActions();
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [tab, setTab] = useState<"films" | "people">("films");
+  const [recents, setRecents] = useState<string[]>([]);
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [v, setV] = useState(value);
+  useEffect(() => setRecents(getRecentSearches()), []);
+
   useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
+    const t = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
-}
+  }, [q]);
 
-function metaLine(t: TitleHit): string {
-  if (t.mediaType === "tv") {
-    if (t.numberOfSeasons)
-      return `Series • ${t.numberOfSeasons} Season${t.numberOfSeasons > 1 ? "s" : ""}`;
-    return t.year ? `Series • ${t.year}` : "Series";
-  }
-  return t.year ? `Film • ${t.year}` : "Film";
-}
+  const active = debounced.length > 0;
 
-function SearchPageInner() {
-  const router = useRouter();
-  const qc = useQueryClient();
-  // Seed from ?q= so "See all results for '…'" from the top-nav dropdown lands
-  // here pre-filled.
-  const initialQuery = useSearchParams().get("q") ?? "";
-  const [query, setQuery] = useState(initialQuery);
-  const debounced = useDebounce(query.trim(), 300);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [slateTarget, setSlateTarget] = useState<TitleHit | null>(null);
-  const [tab, setTab] = useState<SearchTab>("all");
-  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
-
-  const [recentSearches, setRecentSearches] = useState<TitleHit[]>([]);
-  const [recentlyViewed, setRecentlyViewed] = useState<TitleHit[]>([]);
-  useEffect(() => {
-    if (!debounced) {
-      setRecentSearches(getRecentSearches());
-      setRecentlyViewed(getRecentlyViewed());
-    }
-  }, [debounced]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const titles = useQuery<{ results: TitleHit[] }>({
-    queryKey: ["search-titles", debounced],
-    queryFn: () => apiFetch(`/api/search/titles?q=${encodeURIComponent(debounced)}`),
-    enabled: debounced.length >= 2,
+  const { data: films, isFetching: filmsLoading } = useQuery({
+    queryKey: searchKeys.films(debounced),
+    queryFn: () => searchApi.films(debounced),
+    enabled: active && tab === "films",
   });
 
-  const orbit = useQuery<{ results: TitleHit[] }>({
-    queryKey: ["search-popular-orbit"],
-    queryFn: () => apiFetch("/api/search/popular-in-orbit"),
-    enabled: !debounced,
+  const { data: people, isFetching: peopleLoading } = useQuery({
+    queryKey: searchKeys.people(debounced),
+    queryFn: () => searchApi.people(debounced),
+    enabled: active && tab === "people",
   });
 
-  const results = applyFilters(titles.data?.results ?? [], filters);
+  const { data: following } = useQuery({
+    queryKey: searchKeys.popularAmongFollowing(),
+    queryFn: () => searchApi.popularAmongFollowing(),
+    enabled: !active,
+  });
 
-  const open = (t: TitleHit) => {
+  const { data: trending } = useQuery({
+    queryKey: filmKeys.search("__trending"),
+    queryFn: () => filmsApi.trending(),
+    enabled: !active,
+  });
+
+  const commit = (term: string) => {
+    const t = term.trim();
+    if (!t) return;
     addRecentSearch(t);
-    router.push(titleHref(t.tmdbId, t.mediaType));
-  };
-
-  const runQuery = (q: string) => {
-    setQuery(q);
-    setTab("all");
-    inputRef.current?.focus();
+    setRecents(getRecentSearches());
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 lg:px-6 pt-6 pb-24">
-      <div className="relative mb-6">
-        <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5"
-          style={{ color: "var(--text-faint)" }}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
+      <h1 className="sr-only">Search</h1>
+
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          commit(q);
+        }}
+      >
         <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search films and series…"
-          className="w-full rounded-full pl-11 pr-4 py-3 text-sm focus:outline-none"
-          style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-primary)" }}
-        />
-      </div>
-
-      {/* Default state — anchor engine, browse tiles, then recents */}
-      {!debounced && (
-        <div className="space-y-8">
-          {/* "Show me something like ___" — the anchor engine with per-result
-              "why this matches" + a Save-as-Slate bridge. */}
-          <MoviesLikeSection enableSaveAsSlate />
-
-          <GenreMoodTileGrid onPick={runQuery} />
-
-          {recentSearches.length > 0 && (
-            <Section title="Recent searches">
-              {recentSearches.map((t) => (
-                <TitleRow
-                  key={`${t.mediaType}-${t.tmdbId}`}
-                  t={t}
-                  onOpen={() => open(t)}
-                  onRemove={() => {
-                    removeRecentSearch(t.tmdbId, t.mediaType);
-                    setRecentSearches(getRecentSearches());
-                  }}
-                />
-              ))}
-            </Section>
-          )}
-          {recentlyViewed.length > 0 && (
-            <Section title="Recently viewed">
-              {recentlyViewed.map((t) => (
-                <TitleRow
-                  key={`${t.mediaType}-${t.tmdbId}`}
-                  t={t}
-                  onOpen={() => open(t)}
-                  onRemove={() => {
-                    removeRecentlyViewed(t.tmdbId, t.mediaType);
-                    setRecentlyViewed(getRecentlyViewed());
-                  }}
-                />
-              ))}
-            </Section>
-          )}
-          {(orbit.data?.results.length ?? 0) > 0 && (
-            <Section title="Popular in your orbit">
-              {orbit.data!.results.map((t) => (
-                <TitleRow
-                  key={`${t.mediaType}-${t.tmdbId}`}
-                  t={t}
-                  onOpen={() => open(t)}
-                  onSlate={() => setSlateTarget(t)}
-                />
-              ))}
-            </Section>
-          )}
-          {recentSearches.length === 0 &&
-            recentlyViewed.length === 0 &&
-            (orbit.data?.results.length ?? 0) === 0 && (
-              <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-                Start typing to search films and series.
-              </p>
-            )}
-        </div>
-      )}
-
-      {/* Results — tabbed by entity */}
-      {debounced && (
-        <div>
-          {/* Tabs */}
-          <div className="mb-4 flex gap-2">
-            {(["all", "films", "people"] as SearchTab[]).map((tb) => (
-              <Pill
-                key={tb}
-                kind="neutral"
-                size="sm"
-                active={tab === tb}
-                onClick={() => setTab(tb)}
-                className="capitalize"
-              >
-                {tb}
-              </Pill>
-            ))}
-          </div>
-
-          {/* Films + All share the film filter bar */}
-          {(tab === "all" || tab === "films") && (
-            <SearchFilterBar value={filters} onChange={setFilters} />
-          )}
-
-          {/* Films list (All + Films tabs) */}
-          {(tab === "all" || tab === "films") &&
-            (titles.isLoading ? (
-              <RowSkeletons />
-            ) : results.length === 0 ? (
-              <p className="py-6 text-center text-sm" style={{ color: "var(--text-faint)" }}>
-                No films for “{debounced}”.
-              </p>
-            ) : (
-              <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                {results.map((t) => (
-                  <TitleRow
-                    key={`${t.mediaType}-${t.tmdbId}`}
-                    t={t}
-                    onOpen={() => open(t)}
-                    onSlate={() => setSlateTarget(t)}
-                  />
-                ))}
-              </div>
-            ))}
-
-          {/* People (All shows a capped preview; People tab shows all) */}
-          {tab === "all" && (
-            <div className="mt-8">
-              <h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
-                People
-              </h2>
-              <PeopleResults query={debounced} limit={3} />
-            </div>
-          )}
-          {tab === "people" && <PeopleResults query={debounced} />}
-        </div>
-      )}
-
-      {slateTarget && (
-        <AddToSlateSheet
-          open={!!slateTarget}
-          onClose={() => {
-            setSlateTarget(null);
-            qc.invalidateQueries({ queryKey: ["search-titles", debounced] });
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onBlur={() => commit(q)}
+          placeholder="Search films and people"
+          autoComplete="off"
+          className="min-h-[52px] w-full border px-3 text-base outline-none"
+          style={{
+            borderColor: "var(--edge-hot)",
+            background: "var(--soot)",
+            color: "var(--chalk)",
           }}
-          tmdbId={slateTarget.tmdbId}
-          mediaType={slateTarget.mediaType}
-          title={slateTarget.title}
         />
+      </form>
+
+      {active && (
+        <div
+          className="mt-3 flex gap-4 border-b-2"
+          style={{ borderColor: "var(--edge)" }}
+        >
+          {(["films", "people"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className="min-h-[44px] border-b-2 px-1 text-sm font-medium capitalize"
+              style={{
+                borderColor: tab === t ? "var(--edge-hot)" : "transparent",
+                color: tab === t ? "var(--chalk)" : "var(--xerox)",
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       )}
+
+      {active ? (
+        tab === "films" ? (
+          <Results
+            loading={filmsLoading}
+            empty={!films?.results.length}
+            emptyLabel={`No films matching “${debounced}”.`}
+          >
+            <PosterGrid films={films?.results ?? []} onQuickActions={openQuickActions} />
+          </Results>
+        ) : (
+          <Results
+            loading={peopleLoading}
+            empty={!people?.results.length}
+            emptyLabel={`No people matching “${debounced}”.`}
+          >
+            <ul className="mt-3 border-t-2" style={{ borderColor: "var(--edge)" }}>
+              {(people?.results ?? []).map((p) => (
+                <li key={p.tmdbId} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+                  <Link
+                    href={`/person/${p.tmdbId}`}
+                    className="flex min-h-[60px] items-center gap-3 py-2"
+                  >
+                    <Image
+                      src={tmdbImage(p.profilePath, "w200")}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="poster h-10 w-10 shrink-0 rounded-full object-cover"
+                      unoptimized
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{p.name}</span>
+                      <span className="meta block truncate">
+                        {[p.department, ...(p.knownFor ?? [])].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Results>
+        )
+      ) : (
+        <div className="mt-6 space-y-8">
+          {recents.length > 0 && (
+            <section>
+              <div className="flex items-baseline justify-between">
+                <h2 className="section-label">Recent searches</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearRecentSearches();
+                    setRecents([]);
+                  }}
+                  className="meta"
+                  style={{ color: "var(--blood-ink)" }}
+                >
+                  clear
+                </button>
+              </div>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {recents.map((r) => (
+                  <li key={r}>
+                    <button
+                      type="button"
+                      onClick={() => setQ(r)}
+                      className="min-h-[40px] border px-3 text-sm"
+                      style={{ borderColor: "var(--edge)", background: "var(--soot)" }}
+                    >
+                      {r}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {(following?.results.length ?? 0) > 0 && (
+            <Shelf
+            onQuickActions={openQuickActions}
+              title="Watched by people you follow"
+              films={following?.results ?? []}
+            />
+          )}
+
+          <Shelf title="Trending this week" films={trending?.results ?? []} onQuickActions={openQuickActions} />
+        </div>
+      )}
+
+      {quickActionsSheet}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Results({
+  loading,
+  empty,
+  emptyLabel,
+  children,
+}: {
+  loading: boolean;
+  empty: boolean;
+  emptyLabel: string;
+  children: React.ReactNode;
+}) {
+  if (loading && empty) return <p className="meta mt-4">Searching…</p>;
+  if (empty)
+    return (
+      <p className="mt-4 text-sm" style={{ color: "var(--xerox)" }}>
+        {emptyLabel}
+      </p>
+    );
+  return <>{children}</>;
+}
+
+function Shelf({
+  title,
+  films,
+  onQuickActions,
+}: {
+  title: string;
+  films: { tmdbId: number; title: string; posterPath: string | null; year: string | null }[];
+  onQuickActions?: (f: FilmCardFilm) => void;
+}) {
+  if (films.length === 0) return null;
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
-        {title}
-      </h2>
-      <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-        {children}
-      </div>
+      <h2 className="section-label">{title}</h2>
+      <ul className="no-scrollbar mt-2 flex gap-3 overflow-x-auto pb-1">
+        {films.map((f) => (
+          <li key={f.tmdbId} className="shrink-0">
+            <FilmCard film={f} width={104} onQuickActions={onQuickActions} />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
-/* Spotify-style compact row: poster · title · meta · action(+Slate / ✓) | X. */
-function TitleRow({
-  t,
-  onOpen,
-  onSlate,
-  onRemove,
+function PosterGrid({
+  films,
+  onQuickActions,
 }: {
-  t: TitleHit;
-  onOpen: () => void;
-  onSlate?: () => void;
-  onRemove?: () => void;
+  films: { tmdbId: number; title: string; posterPath: string | null; year: string | null }[];
+  onQuickActions?: (f: FilmCardFilm) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2">
-      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer">
-        <div className="h-[78px] w-[52px] shrink-0 overflow-hidden rounded-md" style={{ background: "var(--bg-elevated)" }}>
-          {t.posterPath && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={tmdbImage(t.posterPath, "w200")} alt={t.title} className="h-full w-full object-cover" loading="lazy" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>{t.title}</p>
-          <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>{metaLine(t)}</p>
-        </div>
-      </button>
-
-      {onSlate &&
-        (t.inSlate ? (
-          <span
-            aria-label="In a Slate"
-            title="In a Slate"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
-            style={{ color: "var(--cta-primary)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
-        ) : (
-          <button
-            onClick={onSlate}
-            aria-label="Add to Slate"
-            title="Add to Slate"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors hover:opacity-90 cursor-pointer"
-            style={{ border: "1px solid rgba(255,255,255,0.15)", color: "var(--text-muted)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        ))}
-
-      {onRemove && (
-        <button onClick={onRemove} aria-label="Remove" className="shrink-0 px-1 text-sm cursor-pointer" style={{ color: "var(--text-faint)" }}>
-          ✕
-        </button>
-      )}
-    </div>
-  );
-}
-
-function RowSkeletons() {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 py-2">
-          <div className="h-[78px] w-[52px] animate-pulse rounded-md" style={{ background: "var(--bg-card)" }} />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-1/2 animate-pulse rounded" style={{ background: "var(--bg-card)" }} />
-            <div className="h-3 w-1/4 animate-pulse rounded" style={{ background: "var(--bg-card)" }} />
-          </div>
-        </div>
+    <ul className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+      {films.map((f) => (
+        <li key={f.tmdbId} className="w-full">
+          <FilmCard film={f} width={120} onQuickActions={onQuickActions} />
+        </li>
       ))}
-    </div>
-  );
-}
-
-// useSearchParams() needs a Suspense boundary during prerender.
-export default function SearchPage() {
-  return (
-    <Suspense fallback={null}>
-      <SearchPageInner />
-    </Suspense>
+    </ul>
   );
 }

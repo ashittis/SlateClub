@@ -1,63 +1,72 @@
-// Lightweight client-side search memory (localStorage). Used by the search
-// page's empty state — no backend needed. Both lists store title rows so they
-// render with the same poster · title · metadata layout.
+/**
+ * Client-side search memory (localStorage) — no backend, no account state.
+ *
+ * Two separate things, deliberately: the *terms* someone typed, and the *films*
+ * they opened. Recent searches let you repeat a query; recently viewed lets you
+ * get back to a film you didn't act on. The old implementation conflated them
+ * into one list of titles, which meant a typed query was never recoverable.
+ */
 
-export interface TitleHit {
+const TERMS_KEY = "kaset.recentSearchTerms";
+const VIEWED_KEY = "kaset.recentlyViewedFilms";
+const MAX = 8;
+
+export interface ViewedFilm {
   tmdbId: number;
-  mediaType: "movie" | "tv";
   title: string;
   posterPath: string | null;
   year: string | null;
-  numberOfSeasons?: number | null;
-  inSlate?: boolean;
 }
 
-const SEARCHES_KEY = "search.recentSearches";
-const VIEWED_KEY = "search.recentlyViewed";
-const MAX = 8;
-
-function read(key: string): TitleHit[] {
+function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(key) || "[]") as TitleHit[];
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
     return [];
   }
 }
 
-function write(key: string, items: TitleHit[]) {
+function write<T>(key: string, items: T[]) {
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(key, JSON.stringify(items.slice(0, MAX)));
   } catch {
-    /* quota / disabled — ignore */
+    // Quota or private mode — search memory is a nicety, never a failure.
   }
 }
 
-function upsert(key: string, hit: TitleHit) {
-  const next = [
-    hit,
-    ...read(key).filter(
-      (x) => !(x.tmdbId === hit.tmdbId && x.mediaType === hit.mediaType),
-    ),
-  ];
-  write(key, next);
+// ── Search terms ────────────────────────────────────────────────────────────
+
+export function getRecentSearches(): string[] {
+  return read<string>(TERMS_KEY).filter((t) => typeof t === "string" && t.trim());
 }
 
-function drop(key: string, tmdbId: number, mediaType: string) {
-  write(
-    key,
-    read(key).filter((x) => !(x.tmdbId === tmdbId && x.mediaType === mediaType)),
+export function addRecentSearch(term: string) {
+  const t = term.trim();
+  if (!t) return;
+  const existing = getRecentSearches().filter(
+    (x) => x.toLowerCase() !== t.toLowerCase(),
   );
+  write(TERMS_KEY, [t, ...existing]);
 }
 
-// Titles opened from the search results.
-export const getRecentSearches = (): TitleHit[] => read(SEARCHES_KEY);
-export const addRecentSearch = (hit: TitleHit) => upsert(SEARCHES_KEY, hit);
-export const removeRecentSearch = (tmdbId: number, mediaType: string) =>
-  drop(SEARCHES_KEY, tmdbId, mediaType);
+export function clearRecentSearches() {
+  write<string>(TERMS_KEY, []);
+}
 
-// Titles whose detail page was opened anywhere.
-export const getRecentlyViewed = (): TitleHit[] => read(VIEWED_KEY);
-export const addRecentlyViewed = (hit: TitleHit) => upsert(VIEWED_KEY, hit);
-export const removeRecentlyViewed = (tmdbId: number, mediaType: string) =>
-  drop(VIEWED_KEY, tmdbId, mediaType);
+// ── Recently viewed films ───────────────────────────────────────────────────
+
+export function getRecentlyViewed(): ViewedFilm[] {
+  return read<ViewedFilm>(VIEWED_KEY).filter((f) => f && typeof f.tmdbId === "number");
+}
+
+export function addRecentlyViewed(film: ViewedFilm) {
+  const existing = getRecentlyViewed().filter((f) => f.tmdbId !== film.tmdbId);
+  write(VIEWED_KEY, [film, ...existing]);
+}
+
+export function clearRecentlyViewed() {
+  write<ViewedFilm>(VIEWED_KEY, []);
+}

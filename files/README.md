@@ -5,26 +5,31 @@ stays clean. Nothing in this folder is imported by the app.
 
 ```
 files/
-  docs/       reference documentation
-  planning/   early planning / ideation notes (kept for history)
-  assets/     images and HTML previews
+  docs/legacy/  archived SlateClub-era documentation (reference only)
+  planning/     early planning / ideation notes (kept for history)
+  assets/       images and HTML previews
 ```
 
-## docs/
-- **`About.md`** — short product description.
-- **`FEATURES.md`** — features & pages overview.
-- **`Recommendation.md`** — recommendation-engine technical reference.
-- **`RECS_TRAINING_PLAN.md`** — recs & discovery training / external-sources plan.
-- **`slateclubv1.md`** — v1 reference documentation.
+## docs/legacy/ — **not the spec**
+
+This repo was rebased from a previous product called **SlateClub** into **KASET**. Everything
+here describes the old product, whose feature scope is obsolete. Read it for background on why
+something was built the way it was — never as a requirement. If it disagrees with
+[`KASET.md`](../KASET.md), `KASET.md` wins.
+
+- **`SLATECLUB.md`** — the most complete SlateClub reference (stack, pages, API, 69-table data model).
+- **`ARCHITECTURE.md`** — the old recommendation engine, 25-dim taste vector, taste graph, 5-phase build.
+- **`vision.md`** — the old product vision and screen-by-screen UX flow.
+- **`Recommendation.md`**, **`RECS_TRAINING_PLAN.md`** — the retired ML recommendation stack.
+- **`About.md`**, **`FEATURES.md`**, **`slateclubv1.md`** — old product/feature overviews.
 
 ## planning/
 Early ideation notes — `Blend.md`, `DNF.md`, `Next_step.md`, `essence.md`, `gptplan.md`.
-Kept because some code comments still cite them (e.g. "per gptplan").
+Kept for history. `Blend.md` is the closest ancestor of Kaset's Blends.
 
 ## assets/
-- **`SLATECLUBtypolog.png`**, **`slateicon.png`** — brand/typography assets.
-- **`recommendation-and-discovery-engine.html`** — a standalone HTML preview.
+- **`SLATECLUBtypolog.png`**, **`slateicon.png`** — retired SlateClub brand assets.
+- **`recommendation-and-discovery-engine.html`** — a standalone HTML preview of the old engine.
 
 ## Still at the repo root (intentionally)
-`CLAUDE.md`, `vision.md`, and `ARCHITECTURE.md` stay at the root because `CLAUDE.md` links to
-the other two by relative path and they're the canonical project docs.
+`CLAUDE.md` (working rules) and `KASET.md` (the canonical product + architecture doc).

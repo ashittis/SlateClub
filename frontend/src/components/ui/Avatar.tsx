@@ -40,8 +40,8 @@ export default function Avatar({
         width: px,
         height: px,
         fontSize,
-        background: "var(--cta-primary)",
-        color: "var(--bg-screening)",
+        background: "var(--blood)",
+        color: "var(--void)",
       }}
     >
       {avatarUrl ? (

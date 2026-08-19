@@ -1,43 +1,60 @@
-# discovery — browse, search, and the home feed
+# discovery — evidence-first recommendations
 
-Everything a user hits while *looking* for something to watch: the home feed, the
-free-form search box, and the "movies like X" discovery rows. It reads the user's taste
-signals and turns them into browsable rows and results.
+    SEED → INTENTS → EVIDENCE → EXTRACT → RESOLVE → POOL → SCORE → RANK → EVALUATE
+
+Kaset never asks a model what to watch. It asks *people* — on Reddit, in film
+writing — and then uses a model to read what they said (KASET.md §9).
 
 ## Files
-- **`feed.py`** — the home feed. Blends recommendation output, social activity, and
-  session mood into scoped tabs (For You / Browse). Logs impressions so the ranker learns
-  what was actually shown.
-- **`discover.py`** — the discovery rows page: trending, "because you liked…", and
-  onboarding-seeded rows. Uses the `trending` service and the user's onboarding signals.
-- **`search.py`** — unified search across films (TMDB + local), people, and slates.
-  Uses taste vectors to bias film results toward the user's taste, cached via `taste_cache`.
-- **`consensus.py`** — the **Community Intelligence Engine** route: `POST /api/discovery/consensus`.
-  Given a seed film, returns the film community's web-sourced consensus on "what to watch
-  next" (grounded in real mention frequency), re-ranked through the user's Cinema DNA, each
-  with a human "why". Authed. Reads only the cached pool; warms off-response on a miss and
-  serves the essence engine's answer meanwhile.
-- **`community_engine.py`** — the engine itself (offline/warm path): gather corpus (Reddit +
-  Brave web search) → LLM title-extraction per source → resolve to TMDB → weighted-frequency
-  consensus scoring → LLM "why" reasoning → cache in `discovery_cache`. Also grounds the
-  essence engine with the same corpus.
-- **`community_scoring.py`** — pure, unit-testable consensus scoring: source authority
-  weights, cross-source-agreement bonus, `matchScore` %, and the provenance label.
-- **`community_personalize.py`** — request-time re-rank of the shared community pool by the
-  user's 25-dim taste vector + the "most people say X, but for you Y" callout.
-- **`community_warm.py`** — off-response warming (fire-and-forget from the request path,
-  single-flighted per seed; and an awaitable `warm_seed` for the CLI warmer). Opens its own
-  session — never the request's. Batch CLI: `scripts/warm_discovery.py`.
+| File | Stage |
+|---|---|
+| `intents.py` | how we phrase the question, five ways |
+| `evidence/collect.py` | Reddit (primary) + Brave (secondary) → `EvidenceItem`s |
+| `evidence/schema.py` | what evidence and a candidate are |
+| `extract.py` | LLM reads passages → structured title mentions |
+| `resolve.py` | TMDB resolution; **unresolved titles are dropped** |
+| `weights.py` | the scoring dials, env-overridable |
+| `scoring.py` | pure scoring; records every feature |
+| `rank.py` | the community / for-you lenses |
+| `evaluate.py` | LLM picks the final five, constrained to the pool |
+| `pipeline.py` | orchestration + evidence persistence |
+| `routes.py` | `GET /api/discovery/similar/{tmdb_id}?lens=` |
+| `search.py` | film and people search (a separate concern) |
 
-## How it works
-1. `feed.py` asks `features/recommendation` for ranked candidates, mixes in `ActivityEvent`
-   items from people the user follows, and applies the current `SessionMoodBar` filter.
-2. Each shown card is recorded through `shared/services/impressions` (feeds the ML ranker).
-3. `search.py` runs a live TMDB query, upserts hits into the local `Movie` table, and
-   re-orders by cosine similarity to the user's taste vector.
+## The rules
 
-## Talks to
-- shared models: `movie`, `actions`, `social`, `onboarding`, `slates`
-- shared services: `trending`, `impressions`, `geo`, `taste_cache`
-- ml: `embeddings.taste_vector`; features/recommendation for ranked candidates
-- external: TMDB
+**The LLM never names a film.** In extraction it only reads passages people
+wrote; in evaluation it only ranks a resolved pool. It is never asked "what is
+like X?".
+
+**The constraint is enforced in code.** `evaluate.py` filters its own output
+against the pool's tmdb_id set and discards anything outside it. The promise
+that Kaset never surfaces a hallucinated film does not depend on the model
+obeying an instruction — see `test_evaluator_discards_films_outside_the_pool`.
+
+**Unresolved titles are dropped.** A recommendation we can't link to a real film
+page is worse than no recommendation.
+
+**One pool, two lenses.** Separate candidate generation per lens would let FOR
+YOU drift into a personalisation engine and stop being evidence-first.
+
+**The request path is cache-only.** Collection runs in `scripts/warm_discovery.py`.
+A page never waits on Reddit and never fails because a key is missing.
+
+## Degradation
+
+Everything is availability-gated and degrades independently:
+
+| Missing | Effect |
+|---|---|
+| Reddit key | web-only evidence |
+| Brave key | Reddit-only evidence |
+| LLM key | **no new pools can be built** (extraction needs it); existing pools still rank and serve, with the sources' own quotes shown instead of a generated reason |
+| Nothing warmed | `warm: false` and an honest empty, not a fabricated list |
+
+## Scoring
+
+Weights live in `weights.py`, overridable via `KASET_DISCOVERY_W_*`. They are
+**not** final — every score persists the features that produced it
+(`discovery_evidence`, and `features` on each result) precisely so they can be
+evaluated against real outcomes rather than tuned by intuition.

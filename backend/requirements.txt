@@ -11,20 +11,9 @@ pydantic-settings==2.9.1
 email-validator==2.2.0
 python-multipart==0.0.20
 
-# Phase 3 — ML
-numpy>=1.26.0
-scikit-learn>=1.5.0
-scipy>=1.13.0
-xgboost>=3.0.0
-
-# Phase 4 — Taste Graph
-neo4j>=5.0.0
-networkx>=3.0
-python-louvain>=0.16
-
-# Phase 5 — LLM Layer
-anthropic>=0.90.0
+# Discovery engine — LLM candidate extraction + final evaluation.
+# The client is OpenAI-compatible; point LLM_BASE_URL at another provider to swap.
 openai>=1.50.0
 
-# Cache — shared taste-vector cache (optional; graceful fallback if absent)
+# Warm cache for discovery. Optional — the app degrades to in-process compute.
 redis>=5.0.0,<7.0.0

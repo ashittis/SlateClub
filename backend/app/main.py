@@ -4,24 +4,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import engine, Base
-
-# Import all models so they register with Base.metadata
-from app import models_registry  # noqa: F401
+from app.core.database import engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup (dev only — use Alembic in prod)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Schema comes from Alembic (`alembic upgrade head`), never from create_all
+    # on startup — that used to run here and silently masked a broken migration
+    # chain for months. If a table is missing, the migration is missing.
     yield
     await engine.dispose()
     from app.core.redis_client import close_redis
     await close_redis()
 
 
-app = FastAPI(title="SlateClub API", version="2.0", lifespan=lifespan)
+app = FastAPI(
+    title="Kaset API",
+    version="0.5.0",
+    description="Social film diary and discovery. See KASET.md for the product definition.",
+    lifespan=lifespan,
+)
 
 # CORS
 allowed_origins = [o.strip() for o in settings.FRONTEND_URL.split(",") if o.strip()]
@@ -43,15 +45,17 @@ for router in all_routers:
 
 @app.get("/api/health")
 async def health():
-    from app.core.neo4j_client import neo4j_available
+    """Liveness plus which optional integrations are configured. Everything
+    listed here is optional — the app serves without any of them."""
+    from app.integrations import llm, reddit, websearch
 
-    neo4j_up = await neo4j_available()
     return {
         "status": "ok",
-        "phase": 2,
-        "stack": "python-fastapi",
-        "services": {
-            # Neo4j is optional — taste-graph features degrade gracefully when down.
-            "neo4j": "up" if neo4j_up else "down",
+        "app": "kaset",
+        "integrations": {
+            "tmdb": bool(settings.TMDB_API_KEY),
+            "llm": llm.is_available(),
+            "reddit": reddit.is_available(),
+            "websearch": websearch.is_available(),
         },
     }

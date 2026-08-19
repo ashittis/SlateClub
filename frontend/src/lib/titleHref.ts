@@ -1,13 +1,13 @@
-import type { MediaType } from "@/types/movie";
-
 /**
- * The detail-page href for any title. Series live at /series/{id}, films at
- * /film/{id}. Anything without an explicit tv media_type is treated as a film
- * (back-compat with every existing movie link).
+ * The detail-page href for a film.
+ *
+ * Kaset is films only, so this no longer branches on media type. The optional
+ * second parameter is accepted and ignored so the profile surfaces still
+ * compile until Phase 5 rebuilds them; prefer `filmHref` from `lib/api/films`,
+ * which also builds the readable slug.
+ *
+ * @deprecated Use `filmHref` from `@/lib/api/films`.
  */
-export function titleHref(
-  tmdbId: number,
-  mediaType?: MediaType | string | null,
-): string {
-  return mediaType === "tv" ? `/series/${tmdbId}` : `/film/${tmdbId}`;
+export function titleHref(tmdbId: number, _legacyMediaType?: string | null): string {
+  return `/film/${tmdbId}`;
 }

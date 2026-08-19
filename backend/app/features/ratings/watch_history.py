@@ -8,7 +8,6 @@ from app.core.database import get_db
 from app.shared.models.actions import WatchHistory
 from app.shared.models.movie import Movie
 from app.shared.models.user import User
-from app.shared.services.watch_signals import record_watch_signals
 
 router = APIRouter(prefix="/api/watch-history", tags=["watch-history"])
 
@@ -69,10 +68,6 @@ async def mark_watched(
         db.add(entry)
 
     await db.flush()
-
-    # Graph hydration + bandit reward + taste-vector invalidation.
-    # See services/watch_signals.py.
-    await record_watch_signals(db, user, movie_obj, body.completion_pct)
 
     return entry
 

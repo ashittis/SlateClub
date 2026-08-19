@@ -41,21 +41,21 @@ export default function NotificationItem({ n, onRead }: Props) {
     const inner = (
       <div
         className="flex items-center gap-3 rounded-xl p-3"
-        style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.05)" }}
+        style={{ background: "var(--soot)", border: "1px solid var(--edge)" }}
       >
         <Avatar actor={actor} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+          <p className="text-sm" style={{ color: "var(--chalk)" }}>
             ✓ {actor?.name ?? "Someone"} is in your orbit
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--faint)" }}>
             {timeAgo(n.createdAt)}
           </p>
         </div>
       </div>
     );
     return actor ? (
-      <Link href={`/profile/${actor.username}`} className="block">{inner}</Link>
+      <Link href={`/passport/${actor.username}`} className="block">{inner}</Link>
     ) : (
       inner
     );
@@ -64,14 +64,14 @@ export default function NotificationItem({ n, onRead }: Props) {
     return (
       <div
         className="flex items-center gap-3 rounded-xl p-3 opacity-70"
-        style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.05)" }}
+        style={{ background: "var(--soot)", border: "1px solid var(--edge)" }}
       >
         <Avatar actor={actor} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--xerox)" }}>
             You declined {actor?.name ?? "the"} orbit request
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--faint)" }}>
             {timeAgo(n.createdAt)}
           </p>
         </div>
@@ -83,16 +83,16 @@ export default function NotificationItem({ n, onRead }: Props) {
       <div
         className="flex items-center gap-3 rounded-xl p-3"
         style={{
-          background: unread ? "rgba(255, 138, 0, 0.08)" : "var(--bg-card)",
-          border: unread ? "1px solid rgba(255, 138, 0, 0.25)" : "1px solid rgba(255,255,255,0.05)",
+          background: unread ? "rgba(255, 138, 0, 0.08)" : "var(--soot)",
+          border: unread ? "1px solid rgba(255, 138, 0, 0.25)" : "1px solid var(--edge)",
         }}
       >
         <Avatar actor={actor} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+          <p className="text-sm" style={{ color: "var(--chalk)" }}>
             {actor?.name ?? "Someone"} wants to be in your orbit
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--faint)" }}>
             {timeAgo(n.createdAt)}
           </p>
         </div>
@@ -100,16 +100,16 @@ export default function NotificationItem({ n, onRead }: Props) {
           <button
             onClick={() => respond.mutate("accept")}
             disabled={respond.isPending}
-            className="rounded-full px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-            style={{ background: "var(--cta-gradient)" }}
+            className="min-h-[36px] border px-3 text-xs font-semibold disabled:opacity-60"
+            style={{ borderColor: "var(--blood)", background: "var(--blood)", color: "var(--chalk)" }}
           >
             Accept
           </button>
           <button
             onClick={() => respond.mutate("decline")}
             disabled={respond.isPending}
-            className="rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-            style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
+            className="min-h-[36px] border px-3 text-xs font-medium disabled:opacity-60"
+            style={{ background: "var(--soot)", color: "var(--xerox)" }}
           >
             Decline
           </button>
@@ -122,17 +122,17 @@ export default function NotificationItem({ n, onRead }: Props) {
     <div
       className="flex items-start gap-3 rounded-xl p-3"
       style={{
-        background: unread ? "rgba(255, 138, 0, 0.08)" : "var(--bg-card)",
+        background: unread ? "rgba(255, 138, 0, 0.08)" : "var(--soot)",
         border: unread
           ? "1px solid rgba(255, 138, 0, 0.25)"
-          : "1px solid rgba(255,255,255,0.05)",
+          : "1px solid var(--edge)",
       }}
     >
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
         style={{
-          background: "var(--bg-elevated)",
-          color: "var(--text-muted)",
+          background: "var(--soot)",
+          color: "var(--xerox)",
         }}
       >
         {actor?.avatarUrl ? (
@@ -147,17 +147,17 @@ export default function NotificationItem({ n, onRead }: Props) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+        <p className="text-sm" style={{ color: "var(--chalk)" }}>
           {text}
         </p>
-        <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
+        <p className="text-xs mt-0.5" style={{ color: "var(--faint)" }}>
           {timeAgo(n.createdAt)}
         </p>
       </div>
       {unread && (
         <span
           className="w-2 h-2 rounded-full mt-2"
-          style={{ background: "var(--cta-primary)" }}
+          style={{ background: "var(--blood)" }}
         />
       )}
     </div>
@@ -217,7 +217,7 @@ function renderHref(n: Notification): string | null {
   switch (n.kind) {
     case "follow":
     case "orbit_accepted":
-      return actor ? `/profile/${actor.username}` : null;
+      return actor ? `/passport/${actor.username}` : null;
     case "film_recommend":
       return "/messages";
     case "dm_reaction":
@@ -265,7 +265,7 @@ function Avatar({ actor }: { actor: Actor | null }) {
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-      style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
+      style={{ background: "var(--soot)", color: "var(--xerox)" }}
     >
       {actor?.avatarUrl ? (
         /* eslint-disable-next-line @next/next/no-img-element */

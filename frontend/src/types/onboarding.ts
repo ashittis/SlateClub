@@ -1,56 +1,50 @@
-// ─── Languages ─────────────────────────────────────────────
+/**
+ * Onboarding option lists.
+ *
+ * The per-language `color` field is gone — it belonged to SlateClub's pill
+ * taxonomy, which a paper UI doesn't use. Selection is now shown by inverting
+ * the tile, so the list needs no palette.
+ */
 
 export interface LanguageOption {
   code: string;
   label: string;
-  color: string; // tailwind bg class
+  /** Endonym — shown under the English label, in monospace. */
+  native: string;
 }
 
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { code: "hi", label: "Hindi", color: "bg-red-500" },
-  { code: "en", label: "English", color: "bg-orange-500" },
-  { code: "pa", label: "Punjabi", color: "bg-purple-600" },
-  { code: "ta", label: "Tamil", color: "bg-amber-500" },
-  { code: "te", label: "Telugu", color: "bg-green-500" },
-  { code: "ml", label: "Malayalam", color: "bg-teal-500" },
-  { code: "mr", label: "Marathi", color: "bg-amber-700" },
-  { code: "gu", label: "Gujarati", color: "bg-pink-500" },
-  { code: "bn", label: "Bengali", color: "bg-blue-500" },
-  { code: "kn", label: "Kannada", color: "bg-red-600" },
-  { code: "ko", label: "Korean", color: "bg-indigo-500" },
-  { code: "ja", label: "Japanese", color: "bg-rose-600" },
-  { code: "fr", label: "French", color: "bg-sky-500" },
-  { code: "es", label: "Spanish", color: "bg-yellow-500" },
+  { code: "en", label: "English", native: "English" },
+  { code: "hi", label: "Hindi", native: "हिन्दी" },
+  { code: "ta", label: "Tamil", native: "தமிழ்" },
+  { code: "te", label: "Telugu", native: "తెలుగు" },
+  { code: "ml", label: "Malayalam", native: "മലയാളം" },
+  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ" },
+  { code: "mr", label: "Marathi", native: "मराठी" },
+  { code: "bn", label: "Bengali", native: "বাংলা" },
+  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ" },
+  { code: "gu", label: "Gujarati", native: "ગુજરાતી" },
+  { code: "ko", label: "Korean", native: "한국어" },
+  { code: "ja", label: "Japanese", native: "日本語" },
+  { code: "zh", label: "Chinese", native: "中文" },
+  { code: "fr", label: "French", native: "Français" },
+  { code: "es", label: "Spanish", native: "Español" },
+  { code: "it", label: "Italian", native: "Italiano" },
+  { code: "de", label: "German", native: "Deutsch" },
+  { code: "fa", label: "Persian", native: "فارسی" },
 ];
 
-// ─── People ────────────────────────────────────────────────
+/** Streaming services offered in the optional preferences step. */
+export const PLATFORM_OPTIONS = [
+  { key: "netflix", label: "Netflix" },
+  { key: "prime", label: "Prime Video" },
+  { key: "mubi", label: "MUBI" },
+  { key: "criterion", label: "Criterion" },
+  { key: "hotstar", label: "JioHotstar" },
+  { key: "appletv", label: "Apple TV+" },
+  { key: "max", label: "Max" },
+  { key: "sonyliv", label: "SonyLIV" },
+] as const;
 
-export interface OnboardingPerson {
-  tmdbId: number;
-  name: string;
-  profilePath: string | null;
-  knownFor: string;
-  popularity: number;
-}
-
-// ─── Movies ────────────────────────────────────────────────
-
-export interface OnboardingMovie {
-  tmdbId: number;
-  title: string;
-  posterPath: string | null;
-  releaseDate: string | null;
-  voteAverage: number;
-}
-
-// ─── Status ────────────────────────────────────────────────
-
-export interface OnboardingStatus {
-  languagesCompleted: boolean;
-  languageCount: number;
-  peopleCompleted: boolean;
-  peopleCount: number;
-  moviesCompleted: boolean;
-  movieCount: number;
-  onboarded: boolean;
-}
+/** Decade start years offered in the optional preferences step. */
+export const DECADE_OPTIONS = [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020] as const;

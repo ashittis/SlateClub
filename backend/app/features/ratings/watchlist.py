@@ -1,6 +1,15 @@
+"""The default watchlist — films the user means to watch.
+
+One implicit list per user. Named collections are a separate concept and arrive
+with the watchlists slice in Phase 9.
+
+Logging a film removes it from here: watching is terminal for "to watch". That
+rule lives in `diary_service`, not in this file.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -8,101 +17,81 @@ from app.core.database import get_db
 from app.shared.models.actions import WatchlistItem
 from app.shared.models.movie import Movie
 from app.shared.models.user import User
-from app.shared.services.taste_cache import invalidate_user_taste_vector
+from app.shared.services.films import film_payload
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
 
-# ── Schemas ──────────────────────────────────────────────────
-
-class WatchlistAdd(BaseModel):
+class AddBody(BaseModel):
     movie_id: str = Field(..., alias="movieId")
+    note: str | None = None
 
-    class Config:
-        populate_by_name = True
-
-
-class WatchlistResponse(BaseModel):
-    id: str
-    user_id: str
-    movie_id: str
-
-    class Config:
-        from_attributes = True
+    model_config = {"populate_by_name": True}
 
 
-class WatchlistWithMovie(WatchlistResponse):
-    movie: dict | None = None
-
-
-# ── Routes ───────────────────────────────────────────────────
-
-@router.post("/", response_model=WatchlistResponse)
-async def add_to_watchlist(
-    body: WatchlistAdd,
+@router.post("")
+async def add(
+    body: AddBody,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    movie = await db.execute(select(Movie).where(Movie.id == body.movie_id))
-    if not movie.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Movie not found in database")
+    movie = (
+        await db.execute(select(Movie).where(Movie.id == body.movie_id))
+    ).scalar_one_or_none()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Film not found")
 
-    existing = await db.execute(
-        select(WatchlistItem).where(
-            WatchlistItem.user_id == user.id, WatchlistItem.movie_id == body.movie_id
+    existing = (
+        await db.execute(
+            select(WatchlistItem).where(
+                WatchlistItem.user_id == user.id, WatchlistItem.movie_id == movie.id
+            )
         )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Already in watchlist")
-
-    item = WatchlistItem(user_id=user.id, movie_id=body.movie_id)
-    db.add(item)
+    ).scalar_one_or_none()
+    if existing:
+        if body.note is not None:
+            existing.note = body.note
+    else:
+        db.add(WatchlistItem(user_id=user.id, movie_id=movie.id, note=body.note))
     await db.flush()
-    await invalidate_user_taste_vector(user.id)
-    return item
+    return {"ok": True}
 
 
-@router.get("/", response_model=list[WatchlistWithMovie])
-async def get_watchlist(
+@router.get("")
+async def my_watchlist(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(WatchlistItem, Movie)
-        .join(Movie, WatchlistItem.movie_id == Movie.id)
-        .where(WatchlistItem.user_id == user.id)
-        .order_by(WatchlistItem.created_at.desc())
-    )
-    rows = result.all()
-    return [
-        WatchlistWithMovie(
-            id=w.id,
-            user_id=w.user_id,
-            movie_id=w.movie_id,
-            movie={
-                "id": m.id,
-                "tmdb_id": m.tmdb_id,
-                "title": m.title,
-                "poster_path": m.poster_path,
-                "release_date": m.release_date,
-            },
+    """The caller's watchlist, most recently added first."""
+    rows = (
+        await db.execute(
+            select(WatchlistItem, Movie)
+            .join(Movie, WatchlistItem.movie_id == Movie.id)
+            .where(WatchlistItem.user_id == user.id)
+            .order_by(WatchlistItem.created_at.desc())
         )
+    ).all()
+    return [
+        {**film_payload(m), "note": w.note, "addedAt": w.created_at.isoformat()}
         for w, m in rows
     ]
 
 
 @router.delete("/{movie_id}")
-async def remove_from_watchlist(
+async def remove(
     movie_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        delete(WatchlistItem).where(
-            WatchlistItem.user_id == user.id, WatchlistItem.movie_id == movie_id
+    row = (
+        await db.execute(
+            select(WatchlistItem).where(
+                WatchlistItem.user_id == user.id, WatchlistItem.movie_id == movie_id
+            )
         )
-    )
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Not in watchlist")
-    await invalidate_user_taste_vector(user.id)
+    ).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Not on your watchlist")
+    await db.delete(row)
+    await db.flush()
     return {"ok": True}

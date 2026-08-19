@@ -1,53 +1,55 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSocialStore } from "../../stores/socialStore";
-import { apiFetch } from "../../lib/api";
+import { socialApi, socialKeys } from "@/lib/api/social";
+import { passportKeys } from "@/lib/api/passport";
 
-interface Props {
+/**
+ * Follow / unfollow.
+ *
+ * The control that makes the activity feed mean anything — without it the
+ * backend's follow graph has no way in. One-directional: following someone
+ * needs no approval from them, so this is a single toggle rather than a
+ * request-and-accept dance.
+ */
+export default function FollowButton({
+  userId,
+  username,
+}: {
   userId: string;
-  initialFollowing?: boolean;
-}
-
-export default function FollowButton({ userId, initialFollowing }: Props) {
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
-  const { followUser, unfollowUser } = useSocialStore();
+  username: string;
+}) {
   const queryClient = useQueryClient();
 
-  const { data } = useQuery({
-    queryKey: ["follow-check", userId],
-    queryFn: () => apiFetch<{ isFollowing: boolean }>(`/api/follows/${userId}/check`),
-    initialData: initialFollowing != null ? { isFollowing: initialFollowing } : undefined,
+  const { data, isLoading } = useQuery({
+    queryKey: socialKeys.isFollowing(userId),
+    queryFn: () => socialApi.isFollowing(userId),
   });
 
-  const isFollowing = optimistic ?? data?.isFollowing ?? false;
+  const following = data?.following ?? false;
 
-  const handleToggle = async () => {
-    const newState = !isFollowing;
-    setOptimistic(newState);
-    try {
-      if (newState) {
-        await followUser(userId);
-      } else {
-        await unfollowUser(userId);
-      }
-      queryClient.invalidateQueries({ queryKey: ["follow-check", userId] });
-    } catch {
-      setOptimistic(null);
-    }
+  const toggle = async () => {
+    if (following) await socialApi.unfollow(userId);
+    else await socialApi.follow(userId);
+    queryClient.invalidateQueries({ queryKey: socialKeys.isFollowing(userId) });
+    // The passport shows follower counts, so it goes stale too.
+    queryClient.invalidateQueries({ queryKey: passportKeys.user(username) });
   };
 
   return (
     <button
-      onClick={handleToggle}
-      className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-        isFollowing
-          ? "bg-accent-green text-bg-primary hover:bg-accent-green/90"
-          : "border border-glass-15 text-glass-55 hover:border-glass-40"
-      }`}
+      type="button"
+      onClick={toggle}
+      disabled={isLoading}
+      aria-pressed={following}
+      className="min-h-[44px] border px-4 text-sm font-semibold disabled:opacity-50"
+      style={{
+        borderColor: following ? "var(--edge)" : "var(--blood)",
+        background: following ? "var(--soot)" : "var(--blood)",
+        color: following ? "var(--chalk)" : "var(--soot)",
+      }}
     >
-      {isFollowing ? "Following" : "Follow"}
+      {following ? "Following" : "Follow"}
     </button>
   );
 }

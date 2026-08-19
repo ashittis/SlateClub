@@ -1,117 +1,275 @@
 @import "tailwindcss";
 
 /*
-  SlateClub design tokens — cinema-grade dark.
-  Pill taxonomy is a silent grammar: every chip's colour
-  tells the user its category without a label.
+  KASET design tokens — Y2K zine / glitch-core.
+
+  The canvas is newsprint black with torn-paper fragments, not a dark theme.
+  Colour is a *system the content drives*: each genre carries its own duotone
+  (see lib/genre-duotone.ts), so a thriller and a comedy do not look alike.
+
+  THE RULE THAT KEEPS THIS READABLE: texture never sits under body text.
+  Grain and halftone belong to imagery and display type ≥18px. Anything
+  smaller sits on flat --void or --soot and clears 4.5:1.
+
+  Colour is defined here and mirrored in lib/design-tokens.ts. Nowhere else.
 */
 :root {
-  /* Surfaces */
-  --bg-screening: #0A0A0B;
-  --bg-card: #111114;
-  --bg-elevated: #1A1A1F;
-  --bg-overlay: rgba(10, 10, 11, 0.72);
+  /* ── Canvas ─────────────────────────────────────────────────────────────
+     Not #000. A violet-brown cast reads as over-inked newsprint rather than
+     a dark-mode toggle. */
+  --void: #14121A;
+  --soot: #2A2733;        /* raised surface: cards, panels, wells */
+  --bleach: #EDE7DB;      /* torn-paper fragments; inverted blocks */
 
-  /* Text */
-  --text-primary: #FAFAF7;
-  --text-muted: #9A9AA0;
-  --text-faint: #6A6A70;
+  /* ── Ink ─────────────────────────────────────────────────────────────── */
+  --chalk: #F5F2EC;       /* primary text on void — 15.8:1 */
+  --xerox: #A9A3B4;       /* secondary text on void — 7.2:1, photocopy dropout */
+  --faint: #8D8799;       /* tertiary — 5.4:1, still readable */
 
-  /* Pill taxonomy — categorical colour grammar */
-  --pill-mood: #E0A050;        /* amber */
-  --pill-genre: #5CA572;       /* green */
-  --pill-language: #B8956A;    /* tan */
-  --pill-platform: #8B6FB5;    /* purple */
-  --pill-era: #6E5BA8;         /* violet */
-  --pill-neutral: #3A3A42;     /* graphite */
+  /* ── Accents ────────────────────────────────────────────────────────────
+     One filled accent per screen. If two things are --blood, one is wrong. */
+  /* Two reds, because a fill and a text colour have different jobs. Light text
+     on a bright red fails AA, and a red dark enough to carry it is too dark to
+     read as text on black. Splitting them is the honest fix. */
+  --blood: #C41230;       /* FILL: primary action, REC. chalk on it = 5.4:1 */
+  --blood-hot: #D41634;   /* fill hover — still carries chalk at 4.7:1 */
+  --blood-ink: #FF6B7D;   /* TEXT: accent copy on void = 6.8:1 */
 
-  /* Warm gradient system — orange → red → coal (brand palette) */
-  --grad-amber: #FF9408;
-  --grad-rust: #CA3F16;
-  --grad-crimson: #95122C;
-  --grad-coal: #100C08;
+  --acid: #C8FF2E;        /* highlight, saved, "new" — 15.7:1 on void */
+  --cobalt: #5C78FF;      /* links — 4.9:1 on void */
+  --magenta: #FF3D8B;     /* drama duotone, match reveals — 5.6:1 */
 
-  /* Action / nav */
-  --cta-primary: #FF7A00;      /* warm orange primary */
-  --cta-primary-hover: #FF9800;
-  --cta-gradient: linear-gradient(95deg, #FF4D00 0%, #FF9800 100%);
-  --cta-glow: 0 0 40px rgba(255, 120, 0, 0.28);
-  --nav-active: #C4716E;       /* coral (warm-adjacent) */
-  --signal-warning: #E0A050;
-  --signal-error: #C4716E;
+  /* ── Structure ──────────────────────────────────────────────────────────
+     Hard 2px borders, never shadows. Zine edges are cut, not blurred. */
+  --edge: #575167;        /* resting divider on void */
+  --edge-hot: #F5F2EC;    /* active/focused border */
 
-  /* Legacy aliases — kept while we migrate */
-  --background: var(--bg-screening);
-  --foreground: var(--text-primary);
+  --signal-error: #FF6B7D;
+  --signal-ok: #C8FF2E;
+
+  /* Fonts (bound in app/layout.tsx) */
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-mono-stack);
+  --font-display: var(--font-shoulders);
+  --font-marker: var(--font-marker-stack);
 }
 
 @theme inline {
-  --color-background: var(--bg-screening);
-  --color-foreground: var(--text-primary);
-  --color-bg-screening: var(--bg-screening);
-  --color-bg-card: var(--bg-card);
-  --color-bg-elevated: var(--bg-elevated);
-  --color-text-primary: var(--text-primary);
-  --color-text-muted: var(--text-muted);
-  --color-text-faint: var(--text-faint);
-  --color-pill-mood: var(--pill-mood);
-  --color-pill-genre: var(--pill-genre);
-  --color-pill-language: var(--pill-language);
-  --color-pill-platform: var(--pill-platform);
-  --color-pill-era: var(--pill-era);
-  --color-pill-neutral: var(--pill-neutral);
-  --color-cta: var(--cta-primary);
-  --color-cta-hover: var(--cta-primary-hover);
-  --color-nav-active: var(--nav-active);
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-inter);
+  --color-void: var(--void);
+  --color-soot: var(--soot);
+  --color-bleach: var(--bleach);
+  --color-chalk: var(--chalk);
+  --color-xerox: var(--xerox);
+  --color-faint: var(--faint);
+  --color-blood: var(--blood);
+  --color-blood-hot: var(--blood-hot);
+  --color-blood-ink: var(--blood-ink);
+  --color-acid: var(--acid);
+  --color-cobalt: var(--cobalt);
+  --color-magenta: var(--magenta);
+  --color-edge: var(--edge);
+  --color-edge-hot: var(--edge-hot);
+
+  --color-background: var(--void);
+  --color-foreground: var(--chalk);
+
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-mono-stack);
+  --font-display: var(--font-shoulders);
+  --font-marker: var(--font-marker-stack);
+}
+
+html {
+  background: var(--void);
+  color-scheme: dark;
 }
 
 body {
-  background: var(--bg-screening);
-  color: var(--text-primary);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background: var(--void);
+  color: var(--chalk);
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, .display {
-  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+/* ── Display type ─────────────────────────────────────────────────────────
+   Oversized, condensed, tight, upper. Allowed to crop against an image or
+   overlap it — that is the point. Body type never does. */
+.display {
+  font-family: var(--font-shoulders), var(--font-grotesk), system-ui, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
   letter-spacing: -0.01em;
+  line-height: 0.86;
 }
 
-/* Hide scrollbar for horizontal rails */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+h1, h2, h3 {
+  font-family: var(--font-shoulders), var(--font-grotesk), system-ui, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.92;
 }
 
-/* Ambient backdrop — fixed under the hero stack */
-.ambient-backdrop {
+/* Metadata is always monospace — it reads as camcorder timecode. */
+.meta {
+  font-family: var(--font-mono-stack), ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--xerox);
+  font-variant-numeric: tabular-nums;
+}
+
+.section-label {
+  font-family: var(--font-mono-stack), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--xerox);
+}
+
+/* Handwritten annotation. Captions and empty states only — never a label,
+   a button, or metadata. It stops being a gesture the moment it's a system. */
+.marker {
+  font-family: var(--font-marker-stack), var(--font-grotesk), cursive;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: var(--acid);
+  transform: rotate(-1.2deg);
+}
+
+.prose-link {
+  color: var(--cobalt);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 2px;
+}
+.prose-link:hover { color: var(--acid); }
+
+/* ── Texture ──────────────────────────────────────────────────────────────
+   One fixed grain layer for the whole app (components/texture/Grain.tsx).
+   Never re-instantiated per component. */
+.grain-layer {
   position: fixed;
   inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  transition: background 1200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Film grain — fixed filmic overlay, non-interactive */
-.film-grain {
-  position: fixed;
-  inset: 0;
+  z-index: 100;
   pointer-events: none;
   mix-blend-mode: overlay;
-  z-index: 60;
+  opacity: 0.42;
 }
 
-/* Continue Watching bar clearance — reserve bottom space only while the
-   bar is shown, so page content never hides behind it. */
-body[data-cw-active="true"] main {
-  padding-bottom: 8.5rem;
+/* Newspaper dot screen. Hero blocks, loading, empty states — over imagery
+   and large type, never under body copy. */
+.halftone {
+  background-image: radial-gradient(
+    var(--halftone-dot, rgba(245, 242, 236, 0.34)) 1px,
+    transparent 1.4px
+  );
+  background-size: 4px 4px;
 }
-@media (min-width: 1024px) {
-  body[data-cw-active="true"] main {
-    padding-bottom: 5rem;
+.halftone-coarse { background-size: 7px 7px; }
+
+/* CRT scanlines. Only inside VHS chrome — this one is loud. */
+.scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.32) 0px,
+    rgba(0, 0, 0, 0.32) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Duotone. Pure CSS: desaturate the image, then wash it in the genre hue.
+   `--duo-a` is set per-instance from lib/genre-duotone.ts. */
+.duotone {
+  position: relative;
+  isolation: isolate;
+}
+.duotone > img,
+.duotone > picture > img {
+  filter: grayscale(1) contrast(1.28) brightness(0.92);
+}
+.duotone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--duo-a, var(--blood));
+  mix-blend-mode: color;
+  pointer-events: none;
+}
+.duotone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--duo-b, var(--void));
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  pointer-events: none;
+}
+/* Where blend modes are unavailable the wash would render as a flat block
+   covering the image, so drop it entirely and keep the greyscale. */
+@supports not (mix-blend-mode: color) {
+  .duotone::after,
+  .duotone::before { display: none; }
+}
+
+/* Posters keep their true colour — they are the content. A hard edge and a
+   touch of grain is all the treatment they get. */
+.poster {
+  border: 2px solid var(--edge);
+  background: var(--soot);
+  display: block;
+}
+
+/* Torn-paper fragment: an inverted block, slightly rotated, ragged bottom. */
+.torn {
+  background: var(--bleach);
+  color: var(--void);
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 94%, 92% 100%, 78% 95%, 61% 100%,
+    44% 96%, 27% 100%, 12% 95%, 0% 99%
+  );
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+::selection {
+  background: var(--acid);
+  color: var(--void);
+}
+
+:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 2px;
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   Glitch belongs to two events only: the log capture and a blend match.
+   It is never ambient — constant distortion just reads as a broken app. */
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.rec-dot { animation: rec-pulse 1.4s steps(2, end) infinite; }
+
+@keyframes tracking-drift {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.tracking-bar { animation: tracking-drift 6s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+  /* Keep the REC dot legible rather than frozen mid-blink. */
+  .rec-dot { opacity: 1; }
+  .tracking-bar { display: none; }
 }

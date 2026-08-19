@@ -1,83 +1,88 @@
-# SlateClub
+# KASET
 
-"Spotify × Letterboxd for movies" — a unified cinema platform for discovering, tracking, reviewing, and discussing films. Core differentiator: a proprietary mood-aware taste engine that recommends by tone, pacing, and storytelling style, not genre.
+A social film diary and discovery platform — *log the films you watch, discover what's next, see what your friends watch, build and share a cinematic identity.*
 
-For the full product vision and screen-by-screen UX flow, read [vision.md](vision.md).
-For the recommendation engine, taste graph, system design, and data flow, read [ARCHITECTURE.md](ARCHITECTURE.md).
+**Read [KASET.md](KASET.md) before any task.** It is the single source of truth for the product definition, the twenty V1 systems, the design system, the data model, and the discovery engine.
+
+> This repo was rebased from a previous product called SlateClub. Those docs are archived in [files/docs/legacy/](files/docs/legacy/) **for reference only** — they are not the spec, and their feature scope is obsolete. If legacy docs and `KASET.md` disagree, `KASET.md` wins.
 
 ## Working rules (read before every task)
 
-1. **UI/UX first.** Design the experience before writing the code. For any feature, start from how it looks and feels — what the user sees, taps, hears, anticipates. Code serves the experience, not the other way around.
-2. **Mobile + Web parity, device-independent.** Every feature ships for both surfaces and must feel native on each. `vision.md` separates Mobile vs Web for every page — match that convention. Touch targets ≥ 44px, no hover-only affordances, no mouse-only interactions.
-3. **No stock SVG animations or generic graphics.** Use modern, performant motion — GSAP for choreographed/timeline animations, Framer Motion for component-level transitions and gestures (already a dep). Prefer CSS transforms + opacity for cheap motion; reach for canvas/WebGL when bubble-constellation/poster-fan needs it. No Lottie filler, no clip-art SVG icon packs — use Lucide or hand-crafted icons that fit the cinema-dark aesthetic.
-4. **Spotify-style, UI-oriented app.** Bias every decision toward visual polish, motion, and discovery feel. Cinema-dark palette (deep blacks, selective coral/green/amber accents). Cards as the primary unit; posters treated as album art. Pill chips colour-coded by category (mood=amber, genre=green, language=tan, platform=purple, era=violet). Bubble constellations over grids where mood-native. See `vision.md` "Visual Language & Design System" for the full taxonomy.
-5. **Small files, modular, production-oriented.** Treat ~1500 lines as the absolute ceiling for any single file; aim well below that. If a module is approaching the limit, split by responsibility (one schema per file, one pipeline stage per file, one route group per file). No god-files. No 3000-line "everything that touches movies" modules. Code should read like a layered system, not a brain dump.
+1. **Serve the loop.** Every feature must strengthen `onboard → discover → watch → log → rate → review → share → follow/DM → discover again`. If it doesn't, it isn't part of Kaset V1. Don't reintroduce removed systems (tribes, circles, chapters, festivals, watch parties, AMAs, critics, Match Cut, taste drift, the ML rec stack) — see `KASET.md` §2.
+2. **UI/UX first.** Design the experience before writing the code — what the user sees, taps, and anticipates. Code serves the experience.
+3. **Mobile + web parity.** Both surfaces ship together and must feel native on each. Touch targets ≥44px, no hover-only affordances, no mouse-only interactions. If you can't draw it on a phone, it isn't ready.
+4. **Early-2000s web, not costume.** Paper-toned surfaces, 1px hairline rules instead of shadows, dense information, strong typography, grotesk + monospace split, subtle cassette/tape detailing. Modern enough to use daily. No gimmicky fake-retro, no stock SVG animations, no Lottie filler, no clip-art icon packs. Tokens only — never inline a hex.
+5. **Evidence over invention.** Discovery is evidence-first. Never ask an LLM to name films; give it a resolved, evidence-backed pool and have it rank. Constrain its output in code, not in the prompt.
+6. **Small files, modular, production-oriented.** ~1500 lines is the absolute ceiling; aim well below. Split by responsibility — one schema per file, one pipeline stage per file, one route group per file. No god-files.
 
 ## Stack
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 16.2.3 (App Router, Turbopack) · React 19 · TypeScript · Tailwind v4 · Framer Motion · Zustand · TanStack Query · GSAP (add when first needed) |
+| Frontend | Next.js 16.3.1 (App Router, Turbopack) · React 19 · TypeScript · Tailwind v4 (CSS-first, no config file) · Framer Motion · Zustand · TanStack Query · GSAP |
 | Backend | Python 3.12 · FastAPI · async SQLAlchemy 2.0 · asyncpg · Alembic |
-| Database | PostgreSQL 17 (running on **port 5433**, database `slateclub`) |
-| ML | NumPy · scikit-learn · SciPy · XGBoost (4-stage rec pipeline: candidates → filter → rank → contextualize) |
-| Optional | Neo4j (taste graph) · Anthropic Claude / Gemini (tone-tag extraction) |
-| External | TMDB API (catalog, posters, search) |
+| Database | PostgreSQL 17 (port **5432**, database `kaset`) |
+| External | TMDB · Reddit · Brave Search · an LLM provider |
+| Optional | Redis (warm cache; degrades gracefully) |
+
+No ML libraries, no graph database, no vector store. Kaset's intelligence comes from external evidence, not a trained model.
 
 ## Project roots
 
-- [backend/](backend/) — FastAPI app, organised as **vertical feature slices** (see [app/README.md](backend/app/README.md)). Each feature lives in `app/features/<slice>/` with its own routes + owned models/services (discovery, recommendation, match_cut, community, onboarding, movies, ratings, users, …). Heavily-shared tables/logic live in `app/shared/{models,services}/`; infra in `app/core/`; the recommendation engine in `app/ml/`; external API clients in `app/integrations/`. `app/routes/__init__.py` is just the router registry; `app/models_registry.py` imports every model for `Base.metadata`. Migrations in `alembic/versions/`. **Every folder has a `README.md`** explaining its job in plain terms.
-- [frontend/](frontend/) — Next.js App Router (see [src/README.md](frontend/src/README.md)). `app/` folders map to URLs so they can't be feature-reorganised; the feature grouping lives in `src/components/<feature>/` (each with a `README.md`). Route groups: `(auth)`, `(main)`, and an 8-step `onboarding/` flow. Shared client helpers in `src/lib/`.
-- [files/](files/) — reference docs, planning notes, and assets that used to clutter the repo root (see [files/README.md](files/README.md)). Canonical docs `vision.md` and `ARCHITECTURE.md` stay at the root.
-- [figma-screens/](figma-screens/) — PNG design references (home, taste-engine, discovery). No code.
+- [backend/](backend/) — FastAPI, organised as vertical feature slices. Each system lives in `app/features/<slice>/` with its own routes and owned models/services. Truly shared tables in `app/shared/models/`, cross-cutting logic in `app/shared/services/`, infra in `app/core/`, all external I/O in `app/integrations/`. `app/routes/__init__.py` is only a router registry; `app/models_registry.py` imports every model for `Base.metadata`.
+- [frontend/](frontend/) — Next.js App Router. `app/` folders map to URLs; the feature grouping lives in `src/components/<feature>/`. Route groups: `(auth)`, `(main)`, plus a 5-step `onboarding/` flow. API access goes through `src/lib/api/` domain modules.
+- [files/](files/) — reference docs and assets. `files/docs/legacy/` holds the archived SlateClub-era documentation.
+
+Every folder has a `README.md` explaining its job in plain terms.
 
 ## Run commands
 
-**Backend** (cmd.exe, port 8000):
-```cmd
-cd backend
-.venv\Scripts\activate.bat
+**Backend** (port 8000):
+```bash
+cd backend && source .venv/bin/activate   # Windows: .venv\Scripts\activate.bat
 uvicorn app.main:app --reload --port 8000
 ```
-PowerShell users: `.venv\Scripts\Activate.ps1` instead.
 
-**Frontend** (cmd.exe or PowerShell, port 3000):
-```cmd
-cd frontend
-npm run dev
+**Frontend** (port 3000):
+```bash
+cd frontend && npm run dev
 ```
-The `dev` script already passes `--max-old-space-size=8192` to Node so Turbopack doesn't OOM on first compile.
+The `dev` script passes `--max-old-space-size=8192` so Turbopack doesn't OOM on first compile.
 
-- App → http://localhost:3000
-- API docs → http://localhost:8000/docs
-- Health → http://localhost:8000/api/health
+- App → http://localhost:3000 · API docs → http://localhost:8000/docs · Health → http://localhost:8000/api/health
+
+**Database:** `createdb kaset` then `alembic upgrade head`. Alembic owns the schema outright — the app does **not** run `create_all` on startup (that masked a broken migration chain for months). Ongoing changes use Alembic normally (`alembic revision --autogenerate -m "..."` → `alembic upgrade head`); `alembic check` reports drift.
 
 ## Environment
 
-- `backend/.env` — `DATABASE_URL` points at `localhost:5433` (PG17), TMDB key already set, JWT secrets are dev-only placeholders.
-- `frontend/.env.local` — `NEXT_PUBLIC_API_URL=http://localhost:8000`.
-- Optional, add to `backend/.env` when you need them: `NEO4J_*` and `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`.
+- `backend/.env` — `DATABASE_URL` (localhost:5432/kaset), `JWT_SECRET`/`JWT_REFRESH_SECRET`, `TMDB_API_KEY`, `FRONTEND_URL`. Discovery-only and optional: `REDDIT_*`, `BRAVE_SEARCH_API_KEY`, `LLM_API_KEY`/`LLM_MODEL`, `REDIS_URL`. See `backend/.env.example`.
+- `frontend/.env.local` — `NEXT_PUBLIC_API_URL=http://localhost:8000`
 
-## Schema bootstrap (one-time, already done)
-
-The first migration `0001_onboarding_signals` assumes base tables (`users`, `movies`, etc.) exist. Migrations 0001–0018 only add new feature tables. So the bootstrap order is:
-1. `python bootstrap_db.py` — runs `Base.metadata.create_all` to create the base schema from SQLAlchemy models.
-2. `alembic stamp head` — marks all migrations as applied without re-running.
-
-For ongoing dev: write new migrations as normal (`alembic revision -m "..."` then `alembic upgrade head`). `main.py` also calls `create_all` on startup, so model-only changes appear automatically — but use Alembic for anything that needs a data migration or careful column change.
-
-## Phased build status
-
-`ARCHITECTURE.md` describes a 5-phase build. The codebase is currently around **Phase 4** (taste graph wired, 18 migrations applied, 51 tables, full route surface) with Phase 5 LLM layer scaffolded. Treat new feature work as additive — extend the existing route/service/model trio rather than introducing parallel structures.
+Every external service is availability-gated. The app must run without Redis, Reddit, Brave, or an LLM key.
 
 ## Conventions
 
-- **Imports:** use absolute `app.*` imports (e.g. `from app.shared.models.movie import Movie`), never relative.
-- **Routes:** add to the owning `backend/app/features/<slice>/` (a `routes.py`, or a named route file for multi-route slices), then register its router in `app/routes/__init__.py`'s `all_routers` list.
-- **Models:** put a feature-only table in its slice (`app/features/<slice>/models.py` or `.../models/`); put a broadly-shared table in `app/shared/models/`. Either way, add its module to `app/models_registry.py` so `Base.metadata` (and Alembic) picks it up.
-- **Services:** cross-cutting logic goes in `app/shared/services/`; feature-only logic stays in the slice. Keep route files thin.
-- **Docs:** when you add or meaningfully change a folder, update its `README.md`.
-- **Frontend pages:** add under `frontend/src/app/(main)/<slug>/page.tsx`. Use route groups, not directories, for shared layouts.
-- **Animations:** Framer Motion for component enter/exit, gesture, layout. GSAP for choreography that spans multiple elements or needs a timeline (taste-engine constellation, hero card fan, onboarding reveals).
-- **Colours:** stick to the existing palette tokens. New accents only with reason — coral = action, green = positive/CTA, amber = mood, purple = platform, violet = era, tan = language.
-- **Don't add a feature without designing the mobile version of it too.** If you can't draw it on a phone, it's not ready.
+- **Imports:** absolute `app.*` only (e.g. `from app.shared.models.movie import Movie`), never relative.
+- **Routes:** add to the owning `app/features/<slice>/`, then register the router in `app/routes/__init__.py`. Keep route files thin — logic belongs in a service.
+- **Models:** feature-only tables live in the slice; genuinely shared tables in `app/shared/models/`. Either way, add the module to `app/models_registry.py` so Alembic sees it.
+- **Schema:** all columns `snake_case`. FKs to `users.id`/`movies.id` cascade, except the two deliberate `SET NULL`s (`diary_entries.review_id`, `reviews.diary_entry_id`).
+- **Writes:** `diary_service` is the single writer for diary + review + watch_history + ratings. No route touches those tables directly.
+- **External I/O:** only inside `app/integrations/`. No frontend route calls an external API.
+- **Frontend API calls:** through `src/lib/api/` domain modules. Never inline an endpoint string in a component.
+- **Frontend pages:** `src/app/(main)/<slug>/page.tsx`. Route groups, not directories, for shared layouts.
+- **Navigation:** exactly four primary items — Home, Search, Your Library, Create. `src/lib/nav.ts` is the single source of truth. Profile is reached via the avatar; Messages are global but never a fifth item.
+- **Animation:** Framer Motion for component enter/exit, gesture, layout. GSAP for multi-element timelines. Honour `prefers-reduced-motion`.
+- **Colours:** tokens from `globals.css` / `lib/design-tokens.ts`. Never inline a hex.
+- **Docs:** update a folder's `README.md` in the same change that alters the folder.
+- **Naming:** the product is always **KASET**.
+
+## Phase gate
+
+The rebase runs in 10 phases (`KASET.md` §12). No phase begins until the previous one is coherent. Every phase ends with:
+
+```bash
+cd frontend && npm run typecheck && npm run build
+cd backend  && python -c "import app.main"
+```
+
+plus manual verification of the routes it touched, a mobile check at 390×844, and updated READMEs.

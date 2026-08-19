@@ -56,7 +56,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between mb-5">
         <h1
           className="display text-2xl lg:text-3xl font-bold tracking-tight"
-          style={{ color: "var(--text-primary)" }}
+          style={{ color: "var(--chalk)" }}
         >
           Notifications
         </h1>
@@ -64,7 +64,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => readAll.mutate()}
             className="text-xs font-medium"
-            style={{ color: "var(--cta-primary)" }}
+            style={{ color: "var(--blood-ink)" }}
           >
             Mark all read
           </button>
@@ -72,7 +72,7 @@ export default function NotificationsPage() {
       </div>
 
       {list.isLoading && (
-        <p className="text-sm" style={{ color: "var(--text-faint)" }}>
+        <p className="text-sm" style={{ color: "var(--faint)" }}>
           Loading…
         </p>
       )}
@@ -80,9 +80,9 @@ export default function NotificationsPage() {
         <p
           className="text-sm rounded-xl p-6 text-center"
           style={{
-            color: "var(--text-faint)",
-            background: "var(--bg-card)",
-            border: "1px dashed rgba(255,255,255,0.06)",
+            color: "var(--faint)",
+            background: "var(--soot)",
+            border: "1px dashed var(--edge)",
           }}
         >
           You&apos;re all caught up.
@@ -102,7 +102,7 @@ export default function NotificationsPage() {
             <section key={group.label}>
               <h2
                 className="text-xs uppercase tracking-wider mb-2"
-                style={{ color: "var(--text-faint)" }}
+                style={{ color: "var(--faint)" }}
               >
                 {group.label}
               </h2>

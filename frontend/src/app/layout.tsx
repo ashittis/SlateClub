@@ -1,65 +1,99 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-import { Inter } from "next/font/google";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAuthStore } from "@/stores/authStore";
-import FilmGrain from "@/components/ui/FilmGrain";
+import type { Metadata, Viewport } from "next";
+import { Archivo, Big_Shoulders, JetBrains_Mono, Permanent_Marker } from "next/font/google";
+import Providers from "./providers";
+import { Grain } from "@/components/texture";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+/*
+  A server component on purpose — see providers.tsx. Keep it that way; making
+  this "use client" again would drop every tag below.
+
+  Four faces, four jobs — the split is the identity:
+    display   Big Shoulders   oversized condensed caps, allowed to crop
+    UI        Archivo         readable at 13-15px over texture
+    metadata  JetBrains Mono  reads as camcorder timecode
+    marker    Permanent Marker  handwritten annotations, used sparingly
+
+  Grain mounts here so the whole app shares ONE noise layer rather than one
+  per component.
+*/
+const grotesk = Archivo({
+  variable: "--font-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-function AuthBootstrap({ children }: { children: React.ReactNode }) {
-  const fetchUser = useAuthStore((s) => s.fetchUser);
-  const ran = useRef(false);
+const display = Big_Shoulders({
+  variable: "--font-shoulders",
+  subsets: ["latin"],
+  weight: ["600", "700", "800", "900"],
+  display: "swap",
+  // Next has no metric overrides for this family, so name the fallback
+  // explicitly — otherwise the swap shifts layout on first paint.
+  fallback: ["Arial Narrow", "Helvetica Neue", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
 
-  useEffect(() => {
-    if (!ran.current) {
-      ran.current = true;
-      fetchUser();
-    }
-  }, [fetchUser]);
+// Annotations only. Loaded at one weight because it should never be a system.
+const marker = Permanent_Marker({
+  variable: "--font-marker-stack",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  fallback: ["Comic Sans MS", "cursive"],
+  adjustFontFallback: false,
+});
 
-  return <>{children}</>;
-}
+const mono = JetBrains_Mono({
+  variable: "--font-mono-stack",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      gcTime: 1000 * 60 * 30, // keep inactive/in-flight queries alive across navigation
-      retry: 1,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-    },
+const DESCRIPTION =
+  "Log the films you watch. Discover what's next. See what your friends watch. Build your cinematic identity.";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: {
+    default: "Kaset — your film diary",
+    template: "%s · Kaset",
   },
-});
+  description: DESCRIPTION,
+  applicationName: "Kaset",
+  openGraph: {
+    title: "Kaset — your film diary",
+    description: DESCRIPTION,
+    siteName: "Kaset",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kaset — your film diary",
+    description: DESCRIPTION,
+  },
+  icons: { icon: "/icon.svg" },
+};
+
+export const viewport: Viewport = {
+  // Mirrors --void in globals.css.
+  themeColor: "#14121A",
+  width: "device-width",
+  initialScale: 1,
+  // Dense information UI — but never trap pinch-zoom.
+  maximumScale: 5,
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} h-full antialiased dark`}
-    >
-      <head>
-        <title>SlateClub</title>
-        <meta name="description" content="Find your next film. Find your people." />
-      </head>
-      <body
-        className="min-h-full flex flex-col"
-        style={{ background: "var(--bg-screening)", color: "var(--text-primary)" }}
-      >
-        <QueryClientProvider client={queryClient}>
-          <AuthBootstrap>{children}</AuthBootstrap>
-        </QueryClientProvider>
-        <FilmGrain opacity={0.03} />
+    <html lang="en" className={`${grotesk.variable} ${display.variable} ${marker.variable} ${mono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">
+        <Providers>{children}</Providers>
+        <Grain />
       </body>
     </html>
   );

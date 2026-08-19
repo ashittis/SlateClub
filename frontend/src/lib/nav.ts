@@ -1,37 +1,36 @@
-import type { ReactNode } from "react";
+/*
+  Primary navigation — the single source of truth for the desktop rail and the
+  mobile bottom bar. Both surfaces render the SAME four items, in the same
+  order, because they are the same mental model (KASET.md §7).
+
+  Nothing else belongs here. Profile is reached through the avatar; Messages
+  and Notifications live in the top bar. If you are tempted to add a fifth
+  item, the feature probably belongs inside one of these four.
+*/
 
 export interface NavItem {
   label: string;
   href: string;
+  /** Matches this item when the pathname starts with any of these. */
+  match: string[];
 }
 
-/*
-  Single source of truth for primary nav. Used by the desktop LeftRail
-  and the mobile bottom-tab bar.
-*/
-// Discover was absorbed into Home (the essence answer + theatres/OTT + hidden
-// gems all live there now), so it's no longer a destination. Search is a rail
-// destination on desktop (the top bar keeps the live search input too).
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/home" },
-  { label: "Search", href: "/search" },
-  { label: "Slates", href: "/slates" },
-  { label: "Match Cut", href: "/match-cut" },
-  { label: "Community", href: "/community" },
-  { label: "Releases", href: "/releases" },
+  { label: "Home", href: "/home", match: ["/home"] },
+  { label: "Search", href: "/search", match: ["/search"] },
+  { label: "Your Library", href: "/library", match: ["/library"] },
+  { label: "Create", href: "/create", match: ["/create"] },
 ];
 
-/*
-  Mobile-only condensed nav (5 slots). The freed Discover slot goes to Search —
-  "I know what I want" deserves a door that isn't a poster wall. (Desktop keeps
-  its search bar in the top nav.)
-*/
-export const MOBILE_NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/home" },
-  { label: "Search", href: "/search" },
-  { label: "Slates", href: "/slates" },
-  { label: "Community", href: "/community" },
-  { label: "Profile", href: "/profile" },
-];
+/** Secondary destinations — reachable, but never primary nav. */
+export const SECONDARY = {
+  messages: "/messages",
+  notifications: "/notifications",
+  activity: "/activity",
+  profile: "/passport",
+  settings: "/settings",
+} as const;
 
-export type NavIconRenderer = (item: NavItem) => ReactNode;
+export function isNavActive(item: NavItem, pathname: string): boolean {
+  return item.match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
+}

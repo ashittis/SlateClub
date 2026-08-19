@@ -1,19 +1,32 @@
-# onboarding — the first-run taste calibration
+# onboarding — five steps, structured facts only
 
-The multi-step flow that seeds a brand-new user's taste: languages, favourite people,
-favourite movies, mood, platforms, and origin. Its output is the cold-start signal the
-recommendation engine reads before the user has rated anything.
+    languages → favourite films → favourite cast/crew → preferences → ready
 
-## Files
-- **`routes.py`** — endpoints for each onboarding step; validates and stores the choices,
-  searching TMDB for people/films the user picks.
+The purpose is cold-start personalisation and nothing else (KASET.md §8). Every
+step writes plain rows that later systems read directly. Nothing here is
+inferred, scored, or embedded.
 
-## How it works
-1. Each step writes to a table in `shared/models/onboarding` (`LanguageSelection`,
-   `FavoritePerson`, `FavoriteMovie`, `OnboardingSignals`).
-2. `discovery` and `recommendation` read these signals to build a first feed for users who
-   have no ratings yet.
+## Endpoints
+- `POST /languages` — replace the language set
+- `GET  /films/search` · `POST /films` — favourite films (max 8, order preserved)
+- `GET  /people/search` · `POST /people` — favourite cast/crew (max 8)
+- `POST /preferences` — platforms, decades, theatre preference (all optional)
+- `POST /complete` — flip `users.onboarded`
+- `GET  /status` — everything chosen so far, so the client can resume mid-flow
 
-## Talks to
-- shared models: `onboarding`, `user`
-- external: TMDB (searching people/films during the flow)
+## Rules
+- **Only step 1 is required.** Films, people and preferences are each skippable,
+  and `/complete` is deliberately unguarded — a user who skipped everything still
+  gets into the app.
+- **Every setter replaces the whole set**, so re-submitting is idempotent and the
+  client can post freely on each edit.
+
+## What was removed
+
+SlateClub's 8-step "Tune Your Taste" flow also collected a poster gut test,
+three mood sliders and an "origin film" — 13 endpoints in total. Those fed the
+25-dimensional taste vector, which no longer exists. Keeping them would have
+meant asking users questions nothing reads.
+
+`onboarding_signals` became `viewing_preferences` in migration
+`0002_viewing_preferences`, keeping only the fields something consumes.

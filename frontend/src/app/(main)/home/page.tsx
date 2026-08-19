@@ -1,362 +1,214 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch, tmdbImage } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import TasteDriftBanner from "@/components/taste/TasteDriftBanner";
-import HeroFan, { type HeroData } from "@/components/feed/HeroFan";
-import FeedScopeTabs, {
-  type FeedScope,
-} from "@/components/feed/FeedScopeTabs";
-import AmbientBackdrop from "@/components/ui/AmbientBackdrop";
-import ActivityFeed from "@/components/social/ActivityFeed";
-import MovieSearchBar from "@/components/feed/MovieSearchBar";
-import BrowseGrid from "@/components/feed/BrowseGrid";
-import ForYouGrid from "@/components/feed/ForYouGrid";
-import MoviesLikeSection from "@/components/discover/MoviesLikeSection";
-import DiscoverRows from "@/components/discover/DiscoverRows";
-import JumpBackInRow from "@/components/feed/rows/JumpBackInRow";
-import ContinueSlatesRow from "@/components/feed/rows/ContinueSlatesRow";
-import TrendingNearYouRow from "@/components/feed/rows/TrendingNearYouRow";
-import NewUserPrompt from "@/components/feed/NewUserPrompt";
-import type { ActivityEvent } from "@/types/social";
+import { tmdbImage } from "@/lib/api/client";
+import { diaryApi, diaryKeys, describeVenue, formatViewingDate } from "@/lib/api/diary";
+import { activityApi, activityKeys, describeActivity } from "@/lib/api/activity";
+import { filmHref, filmKeys, filmsApi } from "@/lib/api/films";
+import { libraryApi, libraryKeys } from "@/lib/api/library";
+import StarRating from "@/components/ratings/StarRating";
+import FilmCard from "@/components/film/FilmCard";
+import { useQuickActions } from "@/components/film/useQuickActions";
 
-interface TwinNowItem {
-  tmdbId: number;
-  title: string;
-  posterPath: string | null;
-  watchedBy: { username: string; name: string; avatarUrl: string | null };
-  watchedAt: string;
-}
-
+/**
+ * Home.
+ *
+ * SlateClub's home was an eight-section dashboard fed by the ML stack. Kaset's
+ * rule is that **every section must earn its place** (KASET.md §8) — so each one
+ * here renders only when it has something to say. A new account sees a greeting,
+ * a way into search, and the log action; nothing else, rather than a screen of
+ * empty shelves.
+ *
+ * Order follows the loop: what you were doing → what your people are doing →
+ * what to watch next.
+ */
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuthStore();
-  const [scope, setScope] = useState<FeedScope>("network");
+  const user = useAuthStore((s) => s.user);
+  const { open: openQuickActions, sheet } = useQuickActions();
+  const firstName = user?.name?.split(" ")[0];
 
-  const heroQuery = useQuery<HeroData>({
-    queryKey: ["hero-feed"],
-    queryFn: () => apiFetch("/api/feed/hero"),
-    enabled: !!user,
-    // Advancing the hero is an explicit invalidate; don't reshuffle the pick
-    // just because the tab regained focus.
-    refetchOnWindowFocus: false,
+  const { data: diary } = useQuery({
+    queryKey: diaryKeys.year(),
+    queryFn: () => diaryApi.list(),
   });
 
-  const activityQuery = useQuery<{ events: ActivityEvent[] }>({
-    queryKey: ["activity-feed", scope],
-    queryFn: () => apiFetch(`/api/activity/feed?scope=${scope}`),
-    enabled: !!user,
-    staleTime: 0,
-    refetchInterval: 30_000,
+  const { data: activity } = useQuery({
+    queryKey: activityKeys.feed("network"),
+    queryFn: () => activityApi.feed("network", 8),
   });
 
-  const twinsQuery = useQuery<{ items: TwinNowItem[] }>({
-    queryKey: ["twins-now"],
-    queryFn: () => apiFetch("/api/feed/twins-now"),
-    enabled: !!user,
-    staleTime: 0,
-    refetchInterval: 60_000,
+  const { data: watchlist } = useQuery({
+    queryKey: libraryKeys.watchlist(),
+    queryFn: () => libraryApi.watchlist(),
   });
 
-  // Cold-start gate: below this many ratings the taste engine can't
-  // personalise, so we surface the "rate a few films" prompt.
-  const ratingsQuery = useQuery<unknown[]>({
-    queryKey: ["me-ratings-count"],
-    queryFn: () => apiFetch("/api/users/me/ratings"),
-    enabled: !!user,
-    staleTime: 5 * 60_000,
+  const { data: trending } = useQuery({
+    queryKey: filmKeys.search("__home_trending"),
+    queryFn: () => filmsApi.trending(),
   });
-  const isColdStart =
-    ratingsQuery.isSuccess && (ratingsQuery.data?.length ?? 0) < 5;
 
-  const heroPosterSrc = heroQuery.data?.hero?.posterPath
-    ? tmdbImage(heroQuery.data.hero.posterPath, "w500")
-    : null;
-
-  if (!user && !authLoading) {
-    // Anonymous landing — fall back to a simple trending grid.
-    return <AnonymousHome />;
-  }
+  const recent = (diary ?? []).slice(0, 6);
+  const events = activity?.events ?? [];
+  const upNext = (watchlist ?? []).slice(0, 8);
 
   return (
-    <>
-      <AmbientBackdrop posterSrc={heroPosterSrc} intensity={0.4} />
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 lg:px-8">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+        </h1>
+        <p className="meta mt-1">
+          {recent.length
+            ? `${diary!.length} ${diary!.length === 1 ? "viewing" : "viewings"} logged`
+            : "Log a film to start your diary"}
+        </p>
+      </header>
 
-      <div className="mx-auto max-w-7xl px-4 lg:px-6 pt-6 pb-24">
-        {/* Always-on search */}
-        <div className="mb-5">
-          <MovieSearchBar />
-        </div>
-
-        {/* Jump back in — in-progress titles lead for returning users
-            (self-hides when nothing is in progress). */}
-        <div className="mb-8 space-y-8">
-          <JumpBackInRow />
-          <ContinueSlatesRow />
-        </div>
-
-        {/* Cold-start prompt — shown until the user has rated enough films. */}
-        {isColdStart && (
-          <div className="mb-8">
-            <NewUserPrompt />
-          </div>
-        )}
-
-        {/* Show me something like ___ — the essence engine, the reason to browse. */}
-        <div className="mb-8">
-          <MoviesLikeSection />
-        </div>
-
-        {user && <TasteDriftBanner />}
-
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
-          <div>
-            {heroQuery.isLoading ? (
-              <div
-                className="h-[520px] rounded-2xl animate-pulse"
-                style={{ background: "var(--bg-card)" }}
-              />
-            ) : heroQuery.data && heroQuery.data.hero ? (
-              // Remount on each refetch so the card always mounts fresh — it
-              // can never wedge on a leftover exit transform if the pick
-              // repeats.
-              <HeroFan key={heroQuery.dataUpdatedAt} data={heroQuery.data} />
-            ) : heroQuery.data ? (
-              <HeroEmpty />
-            ) : null}
-
-            {/* From your orbit — what people you follow are rating and
-                watching. Sits above the personalised feed so social signal
-                leads the page. */}
-            <div className="mt-8 flex items-center justify-between">
-              <FeedScopeTabs value={scope} onChange={setScope} />
-              <Link
-                href="/for-you"
-                className="text-xs font-medium hover:opacity-80"
-                style={{ color: "var(--cta-primary)" }}
-              >
-                Open For You →
-              </Link>
-            </div>
-
-            <div className="mt-4">
-              <h2 className="display mb-3 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                From your orbit
-                <span className="ml-2 text-sm font-normal" style={{ color: "var(--text-faint)" }}>
-                  ratings &amp; activity
-                </span>
-              </h2>
-              {activityQuery.isLoading ? (
-                <p
-                  className="text-sm py-12 text-center"
-                  style={{ color: "var(--text-faint)" }}
-                >
-                  Loading…
-                </p>
-              ) : (
-                <ActivityFeed
-                  events={activityQuery.data?.events ?? []}
-                  emptyText={emptyTextFor(scope)}
-                />
-              )}
-            </div>
-
-            {/* Personalised feed — taste engine picks for this user.
-                Renders nothing if the engine returns empty, so BrowseGrid
-                below always acts as a fallback. */}
-            <div className="mt-8">
-              <ForYouGrid />
-            </div>
-
-            {/* Always-on browseable catalog — clicks land on /film/{tmdbId}
-                where ratings, reviews, slates, and discussion live. */}
-            <div className="mt-2">
-              <BrowseGrid />
-            </div>
-
-            {/* Browse rows absorbed from Discover — theatres/OTT + hidden gems. */}
-            <DiscoverRows />
-
-            {/* Trending near you — full ranked row (promoted from sidebar). */}
-            <div className="mt-8">
-              <TrendingNearYouRow />
-            </div>
-          </div>
-
-          <aside className="hidden lg:block space-y-6">
-            <SidebarModule
-              title="Your twins right now"
-              empty="Quiet for the moment."
-            >
-              {twinsQuery.data?.items.slice(0, 4).map((it) => (
-                <Link
-                  key={it.tmdbId + it.watchedBy.username}
-                  href={`/film/${it.tmdbId}`}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:opacity-90"
-                  style={{ background: "var(--bg-elevated)" }}
-                >
-                  {it.posterPath ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={tmdbImage(it.posterPath, "w200")}
-                      alt={it.title}
-                      className="w-9 h-12 rounded object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-9 h-12 rounded"
-                      style={{ background: "var(--bg-card)" }}
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p
-                      className="text-sm font-medium truncate"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {it.title}
-                    </p>
-                    <p
-                      className="text-xs truncate"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {it.watchedBy.name}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </SidebarModule>
-          </aside>
-        </div>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <Link
+          href="/search"
+          className="flex min-h-[48px] flex-1 items-center justify-center border px-4 text-sm font-semibold"
+          style={{
+            borderColor: "var(--blood)",
+            background: "var(--blood)",
+            color: "var(--chalk)",
+          }}
+        >
+          Find a film to log
+        </Link>
+        <Link
+          href="/library"
+          className="flex min-h-[48px] items-center justify-center border px-4 text-sm font-medium"
+          style={{ borderColor: "var(--edge)", background: "var(--soot)" }}
+        >
+          Your Library
+        </Link>
       </div>
-    </>
-  );
-}
 
-function HeroEmpty() {
-  return (
-    <div
-      className="flex flex-col items-center justify-center text-center rounded-2xl px-6 py-16"
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <p
-        className="display text-xl font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        You&apos;re all caught up
-      </p>
-      <p className="mt-2 text-sm max-w-xs" style={{ color: "var(--text-muted)" }}>
-        No fresh picks right now. Rate a few more films to keep the taste engine
-        learning.
-      </p>
-      <Link
-        href="/search"
-        className="mt-5 text-sm font-medium hover:opacity-80"
-        style={{ color: "var(--cta-primary)" }}
-      >
-        Explore the catalog →
-      </Link>
+      {/* What you were doing. */}
+      {recent.length > 0 && (
+        <Section title="Your recent viewings" href="/library">
+          <ul className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+            {recent.map((e) => (
+              <li
+                key={e.entryId}
+                className="flex items-center gap-3 border-b-2 py-2"
+                style={{ borderColor: "var(--edge)" }}
+              >
+                <Link href={filmHref(e)} className="shrink-0">
+                  <Image
+                    src={tmdbImage(e.posterPath, "w200")}
+                    alt=""
+                    width={32}
+                    height={48}
+                    className="poster object-cover"
+                    unoptimized
+                  />
+                </Link>
+                <Link href={filmHref(e)} className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{e.title}</span>
+                  <span className="meta block">
+                    {formatViewingDate(e.watchedOn)} · {describeVenue(e)}
+                  </span>
+                </Link>
+                {e.rating ? <StarRating value={e.rating} readonly size="sm" /> : null}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* What your people are doing. */}
+      {events.length > 0 && (
+        <Section title="From people you follow" href="/activity">
+          <ul className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+            {events.slice(0, 6).map((e) => (
+              <li
+                key={e.id}
+                className="flex items-center gap-2 border-b-2 py-2 text-sm"
+                style={{ borderColor: "var(--edge)" }}
+              >
+                <Link
+                  href={`/passport/${e.user.username}`}
+                  className="shrink-0 font-medium"
+                >
+                  {e.user.name}
+                </Link>
+                <span className="shrink-0" style={{ color: "var(--xerox)" }}>
+                  {describeActivity(e)}
+                </span>
+                <Link
+                  href={`/film/${e.movie.tmdbId}`}
+                  className="min-w-0 flex-1 truncate font-medium"
+                >
+                  {e.movie.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* What to watch next — your own list first, then something new. */}
+      {upNext.length > 0 && (
+        <Section title="Up next on your watchlist" href="/library">
+          <PosterRail films={upNext} saved onQuickActions={openQuickActions} />
+        </Section>
+      )}
+
+      {(trending?.results.length ?? 0) > 0 && (
+        <Section title="Trending this week" href="/search">
+          <PosterRail films={trending!.results.slice(0, 12)} onQuickActions={openQuickActions} />
+        </Section>
+      )}
+
+      {sheet}
     </div>
   );
 }
 
-function SidebarModule({
+function Section({
   title,
-  empty,
+  href,
   children,
 }: {
   title: string;
-  empty: string;
+  href: string;
   children: React.ReactNode;
 }) {
-  const isEmpty =
-    !children ||
-    (Array.isArray(children) && children.filter(Boolean).length === 0);
   return (
-    <section
-      className="rounded-2xl p-4"
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <h3
-        className="display text-sm font-semibold mb-3"
-        style={{ color: "var(--text-primary)" }}
-      >
-        {title}
-      </h3>
-      <div className="space-y-2">
-        {isEmpty ? (
-          <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-            {empty}
-          </p>
-        ) : (
-          children
-        )}
+    <section className="mt-7">
+      <div className="flex items-baseline justify-between">
+        <h2 className="section-label">{title}</h2>
+        <Link href={href} className="meta" style={{ color: "var(--blood-ink)" }}>
+          see all
+        </Link>
       </div>
+      <div className="mt-2">{children}</div>
     </section>
   );
 }
 
-function emptyTextFor(scope: FeedScope): string {
-  switch (scope) {
-    case "network":
-      return "Follow people to see what they're watching.";
-    case "artists":
-      return "Follow artists to see their activity here.";
-    case "world":
-      return "The world is quiet. Check back soon.";
-    default:
-      return "Nothing here yet.";
-  }
-}
-
-function AnonymousHome() {
-  const { data } = useQuery<{ results: { id: number; title: string; poster_path: string | null }[] }>({
-    queryKey: ["trending"],
-    queryFn: () => apiFetch("/api/movies/trending"),
-  });
+function PosterRail({
+  films,
+  saved = false,
+  onQuickActions,
+}: {
+  films: { tmdbId: number; title: string; posterPath: string | null; year: string | null }[];
+  /** These already live on the watchlist, so the bookmark starts filled. */
+  saved?: boolean;
+  onQuickActions?: (f: { tmdbId: number; title: string; posterPath: string | null; year?: string | null }) => void;
+}) {
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-6 pb-24">
-      <h1
-        className="display text-2xl font-bold tracking-tight mb-4"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Trending Now
-      </h1>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {data?.results.map((m) => (
-          <Link
-            key={m.id}
-            href={`/film/${m.id}`}
-            className="group flex flex-col gap-2"
-          >
-            <div
-              className="relative aspect-[2/3] overflow-hidden rounded-lg"
-              style={{ background: "var(--bg-elevated)" }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={tmdbImage(m.poster_path, "w300")}
-                alt={m.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-              />
-            </div>
-            <h3
-              className="truncate text-sm font-medium"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {m.title}
-            </h3>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <ul className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+      {films.map((f) => (
+        <li key={f.tmdbId} className="shrink-0">
+          <FilmCard film={f} width={96} saved={saved} onQuickActions={onQuickActions} />
+        </li>
+      ))}
+    </ul>
   );
 }

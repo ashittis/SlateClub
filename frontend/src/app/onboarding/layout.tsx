@@ -1,76 +1,45 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import OnboardingProgress from "../../components/onboarding/OnboardingProgress";
-import AmbientGlow from "../../components/ui/AmbientGlow";
-import Logo from "../../components/brand/Logo";
+import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
+import { Wordmark } from "@/components/brand/Logo";
+import { ONBOARDING_STEPS } from "@/lib/api/onboarding";
 
-const STEP_MAP: Record<string, number> = {
-  "/onboarding/welcome": 1,
-  "/onboarding/languages": 2,
-  "/onboarding/posters": 3,
-  "/onboarding/mood": 4,
-  "/onboarding/platforms": 5,
-  "/onboarding/people": 6,
-  "/onboarding/ready": 7,
-  // Legacy paths — keep routing but map to nearest valid step
-  "/onboarding/origin": 6,
-  "/onboarding/movies": 6,
-};
-
-const STEP_LABELS: Record<number, string> = {
-  1: "Welcome",
-  2: "Languages",
-  3: "Favourites",
-  4: "Taste",
-  5: "Platforms",
-  6: "Artists",
-  7: "Ready",
-};
-
-const TOTAL_STEPS = 7;
-
+/**
+ * Onboarding chrome. Steps come from `ONBOARDING_STEPS`, so the flow's length
+ * and order are defined in exactly one place — SlateClub kept a separate
+ * hand-maintained step map here, and it drifted out of sync with the routes.
+ */
 export default function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const currentStep = STEP_MAP[pathname] ?? 1;
-  const showHeader = pathname !== "/onboarding/welcome" && pathname !== "/onboarding/ready";
+  const index = ONBOARDING_STEPS.findIndex((s) => pathname.startsWith(s.href));
+  const step = index === -1 ? 1 : index + 1;
+  const label = ONBOARDING_STEPS[Math.max(index, 0)]?.label ?? "";
 
   return (
     <div
-      className="relative min-h-dvh flex flex-col"
-      style={{
-        background: "var(--bg-screening)",
-        color: "var(--text-primary)",
-      }}
+      className="flex min-h-dvh flex-col"
+      style={{ background: "var(--void)", color: "var(--chalk)" }}
     >
-      <AmbientGlow intensity="low" focusY={12} className="opacity-70" />
-
-      <div className="relative z-10 flex flex-1 flex-col">
-      {showHeader && (
-        <header className="shrink-0 px-5 pt-5 pb-3 lg:px-10 lg:pt-8">
-          <div className="mx-auto w-full max-w-3xl">
-            <div className="flex items-center justify-between mb-4">
-              <span style={{ color: "var(--text-primary)" }} aria-label="SlateClub">
-                <Logo size={36} />
-              </span>
-              <span
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: "var(--text-faint)" }}
-              >
-                {STEP_LABELS[currentStep]}
-              </span>
-            </div>
-            <OnboardingProgress currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+      <header className="shrink-0 px-5 pb-3 pt-5 lg:px-10 lg:pt-8">
+        <div className="mx-auto w-full max-w-2xl">
+          <div className="mb-3 flex items-center justify-between">
+            <span aria-label="Kaset" style={{ color: "var(--chalk)" }}>
+              <Wordmark size={20} />
+            </span>
+            <span className="section-label">
+              {label} · {step} of {ONBOARDING_STEPS.length}
+            </span>
           </div>
-        </header>
-      )}
+          <OnboardingProgress currentStep={step} totalSteps={ONBOARDING_STEPS.length} />
+        </div>
+      </header>
 
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
-      </div>
+      <main className="flex flex-1 flex-col">{children}</main>
     </div>
   );
 }

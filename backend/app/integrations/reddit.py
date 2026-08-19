@@ -32,7 +32,7 @@ _API_BASE = "https://oauth.reddit.com"
 # (1 req/s). The gate is process-global, so raising --concurrency speeds up the
 # LLM/DB side while Reddit stays pinned.
 _MIN_INTERVAL = 1.0
-_DEFAULT_UA = settings.REDDIT_USER_AGENT or "slateclub/1.0"
+_DEFAULT_UA = settings.REDDIT_USER_AGENT or "kaset/1.0"
 
 # Comparison sentences are the signal we want ("similar to…", "fans of…").
 _COMPARISON = re.compile(
@@ -226,7 +226,7 @@ async def recommendation_corpus(
     *,
     threads: int = 6,
     comments_per: int = 30,
-) -> list[str]:
+) -> list[dict]:
     """Raw text from Reddit "movies like X" discussions — submission bodies +
     top comments — for the discovery engine's LLM title-extraction pass.
 
@@ -234,6 +234,11 @@ async def recommendation_corpus(
     for the identity extractor), this returns the *fuller* text because the
     downstream LLM needs whole comments to read WHICH films get recommended and
     WHY. Returns [] when Reddit is unconfigured or off-topic.
+
+    Each item is {"subreddit", "text", "permalink"}. The subreddit matters: it
+    is what lets discovery scoring tell r/TrueFilm agreeing with r/horror apart
+    from one thread repeating itself. Returning bare strings threw that away and
+    made cross-source agreement a constant.
 
     Offline only — never call from the request path (Reddit's rate gate is
     process-global and this issues several requests per seed)."""
@@ -266,18 +271,32 @@ async def recommendation_corpus(
         if len(submissions) >= threads:
             break
 
-    texts: list[str] = []
+    out: list[dict] = []
     for sub in submissions[:threads]:
+        subreddit = sub.get("subreddit") or "reddit"
+        permalink = sub.get("permalink")
+        url = f"https://reddit.com{permalink}" if permalink else None
+
         title_txt = sub.get("title") or ""
         selftext = sub.get("selftext") or ""
         header = f"THREAD: {title_txt}\n{selftext}".strip()
         if header:
-            texts.append(header[:_MAX_CHARS])
+            out.append({
+                "subreddit": subreddit,
+                "text": header[:_MAX_CHARS],
+                "permalink": url,
+            })
+
         art_id = sub.get("id")
         if art_id:
-            bodies = await _comments(art_id, limit=comments_per)
-            texts.extend(b for b in bodies if b and len(b) >= 20)
-    return texts
+            for body in await _comments(art_id, limit=comments_per):
+                if body and len(body) >= 20:
+                    out.append({
+                        "subreddit": subreddit,
+                        "text": body,
+                        "permalink": url,
+                    })
+    return out
 
 
 async def discussion_text(title: str, year: str | None, language: str | None) -> str:

@@ -36,9 +36,13 @@ const STEP = 0.25;
 const STAR_BOX = 24; // viewBox units per star cell
 const STAR_OUTER = 11; // star tip radius
 const STAR_INNER = 5.4; // fuller "proper" star (ratio ~0.49)
-const GRADIENT_LEFT = "#FF9408";
-const GRADIENT_RIGHT = "#95122C";
-const STAR_EMPTY = "rgba(255,255,255,0.16)";
+// Paper palette: a filled star is oxide red, an empty one is a hairline rule.
+// The two-stop gradient survives from SlateClub but now runs within one hue, so
+// a half-filled star still reads as one mark rather than two colours.
+const GRADIENT_LEFT = "var(--blood-hot)";
+const GRADIENT_RIGHT = "var(--blood)";
+const STAR_EMPTY = "var(--soot)";
+const STAR_STROKE = "var(--edge)";
 
 /** Build a clean 5-point star path centred at (cx, cy). */
 function starPath(cx: number, cy = 12, outer = STAR_OUTER, inner = STAR_INNER): string {
@@ -287,15 +291,11 @@ export default function StarRating({
               className="mc-star"
               style={{ transformBox: "fill-box", transformOrigin: "center" }}
             >
-              {/* Muted empty base */}
-              <path d={d} fill={STAR_EMPTY} />
-              {/* Shared-gradient fill, revealed left→right by the clip, warm glow */}
-              <path
-                d={d}
-                fill={`url(#${gradId})`}
-                clipPath={`url(#${clipId})`}
-                style={{ filter: "drop-shadow(0 0 2px rgba(255,148,8,0.6))" }}
-              />
+              {/* Empty base — outlined, since a pale fill alone would vanish on paper */}
+              <path d={d} fill={STAR_EMPTY} stroke={STAR_STROKE} strokeWidth={0.75} />
+              {/* Shared-gradient fill, revealed left→right by the clip. No
+                  glow — structure in this system comes from hard edges. */}
+              <path d={d} fill={`url(#${gradId})`} clipPath={`url(#${clipId})`} />
             </g>
           );
         })}

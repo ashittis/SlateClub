@@ -1,9 +1,12 @@
-# Ratings components — the signature star widget
+# ratings — the star control
 
-This folder holds SlateClub's star-rating control, used everywhere a title (or season) can be scored. It supports quarter-star precision and an animated, gradient fill that reads as a premium, tactile rating gesture.
+- **`StarRating.tsx`** — quarter-star precision, drag and keyboard support,
+  `role="slider"`. Used anywhere a film is scored: the film page, the log sheet,
+  the diary, the Passport.
 
-## Components
-- **`StarRating.tsx`** — a 5-star rating from 0 to 5 in quarter-star steps. Drag, tap, or use arrow keys to set a value; tapping the current value clears it. A shared amber→crimson gradient fills left-to-right across all five stars, and rating up triggers a staggered "pop." Has a `readonly` mode for display and four sizes (`sm`–`xl`).
+On paper a filled star is oxide red (`--tape`) and an empty one is an outlined
+hairline — a pale fill alone disappears against `--paper`. At `size="xl"` each
+star is ≥44px so the quarter-zones stay tappable.
 
-## Notes
-The fill is a single SVG gradient revealed by a clip rect that GSAP animates (fast while dragging, a smooth flow when committed) — React never fights GSAP for the width. Fully accessible: `role="slider"` with `aria-valuenow`/`aria-valuetext` and keyboard support. Honours `prefers-reduced-motion` (snaps instead of animating). Touch-first: the `xl` size keeps each star ≥44px so quarter-zones stay tappable, and `touchAction: none` prevents scroll-hijacking during a drag. Pure UI — the parent decides what to do with `onChange`.
+A rating is an *opinion*, and setting one never creates a diary entry. Logging a
+viewing is a separate, deliberate act — see `components/log/`.

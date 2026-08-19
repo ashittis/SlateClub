@@ -59,10 +59,10 @@ export default function SignupPage() {
         <h1
           className="auth-reveal text-4xl font-bold sm:text-5xl"
           style={{
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
+            fontFamily: "var(--font-shoulders), system-ui, sans-serif",
             letterSpacing: "-0.03em",
             lineHeight: 0.92,
-            color: "var(--text-primary)",
+            color: "var(--chalk)",
           }}
         >
           Track.
@@ -71,7 +71,7 @@ export default function SignupPage() {
           <br />
           Remember.
         </h1>
-        <p className="auth-reveal text-sm" style={{ color: "var(--text-muted)" }}>
+        <p className="auth-reveal text-sm" style={{ color: "var(--xerox)" }}>
           The home for people who love movies.
         </p>
       </div>
@@ -83,7 +83,7 @@ export default function SignupPage() {
             style={{
               background: "rgba(196,113,110,0.12)",
               border: "1px solid rgba(196,113,110,0.3)",
-              color: "#E79A97",
+              color: "var(--signal-error)",
             }}
           >
             {error}
@@ -98,20 +98,20 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-2 h-14 w-full rounded-full text-base font-semibold transition active:scale-[0.99] disabled:opacity-60"
+          className="mt-2 min-h-[52px] w-full border text-base font-semibold transition disabled:opacity-40"
           style={{
-            background: "linear-gradient(95deg, #FF4D00 0%, #FF9800 100%)",
-            boxShadow: "0 0 40px rgba(255,120,0,0.28)",
-            color: "#ffffff",
+            background: "var(--blood)",
+            borderColor: "var(--blood)",
+            color: "var(--chalk)",
           }}
         >
           {submitting ? "Creating account…" : "Create Account"}
         </button>
       </form>
 
-      <p className="auth-reveal text-sm" style={{ color: "var(--text-muted)" }}>
+      <p className="auth-reveal text-sm" style={{ color: "var(--xerox)" }}>
         Already have an account?{" "}
-        <Link href="/login" className="font-medium" style={{ color: "var(--cta-primary)" }}>
+        <Link href="/login" className="font-medium" style={{ color: "var(--blood-ink)" }}>
           Sign in
         </Link>
       </p>

@@ -14,7 +14,7 @@ export default function RootPage() {
     if (!user) {
       router.replace("/login");
     } else if (!user.onboarded) {
-      router.replace("/onboarding/welcome");
+      router.replace("/onboarding/languages");
     } else {
       router.replace("/home");
     }
@@ -25,8 +25,8 @@ export default function RootPage() {
       <div
         className="h-8 w-8 animate-spin rounded-full border-2"
         style={{
-          borderColor: "var(--bg-elevated)",
-          borderTopColor: "var(--cta-primary)",
+          borderColor: "var(--soot)",
+          borderTopColor: "var(--blood)",
         }}
       />
     </div>

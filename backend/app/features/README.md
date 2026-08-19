@@ -1,26 +1,24 @@
-# features — the vertical slices
+# features — one folder per user-facing system
 
-One folder per user-facing feature. Each slice owns its API routes and the models/services
-only it uses; anything shared lives in `app/shared`, `app/core`, `app/ml`, or
-`app/integrations`. Open any slice's own README for detail.
+A slice owns its routes and the tables only it touches. Tables used by many
+slices live in `app/shared/models/`. Register every router in
+`app/routes/__init__.py` and every model module in `app/models_registry.py`.
 
-| Slice | What it is |
-|---|---|
-| `auth` | signup / login / JWT sessions |
-| `users` | profiles + the follow/orbit social graph |
-| `movies` | film & series detail (+ the shared movie-fetch helpers) |
-| `ratings` | rate / watchlist / diary / reviews / DNF / wrapped |
-| `discovery` | home feed, search, discovery rows |
-| `recommendation` | the taste-engine API (recs, taste identity, tribes, anchors) |
-| `match_cut` | taste-blend matching game |
-| `community` | posts, hot takes, polls, circles, chapters, festivals, DMs, chat |
-| `onboarding` | first-run taste calibration |
-| `artists` | filmmaker/actor pages, AMAs |
-| `releases` | release calendar, cultural context, theatres |
-| `watch_parties` | synchronised group viewings |
-| `slates` | curated film collections |
-| `notifications` | the alert inbox (writer is `shared/services/notify`) |
-| `activity` | the friends' activity feed |
-| `imports` | import history from external services |
+| Slice | What it does | Status |
+|---|---|---|
+| `auth` | signup, login, refresh, logout, JWT-in-cookie sessions | stable |
+| `onboarding` | five steps of cold-start taste signal | stable |
+| `films` | search, browse, detail, the viewer's relationship to a film | stable |
+| `diary` | one row per viewing — the centre of the product | stable |
+| `ratings` | current opinion, and the default watchlist | stable |
+| `reviews` | writing, bound to the viewing that prompted it | stable |
+| `passport` | cinematic identity: profile, stats, favourites | stable |
+| `social` | follows, activity, direct messages | stable |
+| `users` | people search and account preferences | stable |
+| `discovery` | search now; the evidence engine in Phase 8 | in progress |
+| `notifications` | read side; the writer is `shared/services/notify` | stable |
+| `imports` | Letterboxd CSV → real diary entries | stable |
 
-Each slice's router is registered in [`../routes/__init__.py`](../routes/__init__.py).
+Removed in the rebase: recommendation, artists, releases, watch_parties,
+match_cut, slates, movies (→ `films`), community (→ `social`), and activity
+(→ `social`). See `KASET.md` §2. Watchlists and blends return in Phase 9.

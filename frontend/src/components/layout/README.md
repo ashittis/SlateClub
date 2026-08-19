@@ -1,19 +1,16 @@
-# layout components — app chrome
+# layout — the app shell
 
-The persistent navigation shell that wraps the `(main)` route group.
+The persistent frame around every signed-in page.
 
-## Components
-- **`LeftRail.tsx`** — the desktop Spotify-style rail (hidden below `lg`): logo, `+ Create`,
-  primary nav (from `@/lib/nav`), a divider, then library shortcuts (your Slates + Circles).
-- **`TopNav.tsx`** — the desktop top bar, offset right of the rail: persistent search input +
-  right cluster (messages, notifications, avatar dropdown). Primary nav moved to the rail.
-- **`CreateMenu.tsx`** — the global `+` create menu (rail button or mobile FAB): Slate,
-  Collaborative Slate, Match Cut, AI Slate (Beta), New Post. Wires to existing creation surfaces.
-- **`ContinueWatchingBar.tsx`** — persistent bottom "resume" bar derived from
-  `/api/users/me/watching`; collapses to nothing when idle. Toggles `[data-cw-active]` on `body`
-  so `globals.css` reserves matching bottom padding.
-- **`navIcons.tsx`** — shared nav icon map keyed by href, used by both the rail and mobile tabs.
+- **`LeftRail.tsx`** — desktop navigation. The four primary items, active one
+  marked with a solid left bar (a rule, not a glow — this is a paper UI).
+- **`MobileTabBar.tsx`** — the same four items as a bottom bar. Not a reduced
+  version of the rail; the same mental model on a phone.
+- **`TopNav.tsx`** — the secondary destinations that must be reachable from
+  anywhere: Messages, Notifications, and the avatar (the only route to the
+  Passport).
+- **`navIcons.tsx`** — hand-drawn 1.5px geometry, `currentColor`. No icon pack.
 
-## Notes
-- Rendered by `(main)/layout.tsx` (rail + top bar on desktop, bottom-tab bar + create FAB on
-  mobile). Touch targets ≥44px; no hover-only affordances so it works on mobile.
+Both nav surfaces read `lib/nav.ts`. There are exactly four primary items —
+Home, Search, Your Library, Create. If you want to add a fifth, the feature
+almost certainly belongs inside one of the four.

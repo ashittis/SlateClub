@@ -1,15 +1,8 @@
-# brand
+# brand — the Kaset mark
 
-Brand identity primitives shared across the app.
+- **`Logo.tsx`** — a cassette shell: two hubs in a rounded case, drawn in
+  `currentColor` so it inherits ink. Also exports `Wordmark` (mark + KASET).
 
-- **`Logo.tsx`** — the SlateClub circular badge ("SLATECLUB · SLATECLUB" stamp
-  with two coral sparkles). Inline SVG so the ring text inherits `currentColor`
-  (set it via the parent's text color) and the sparkles use the `--cta-primary`
-  token. Scale with the `size` prop. Used in the top nav, auth shell, onboarding
-  header, and the onboarding "ready" hero.
-
-The same artwork also lives as static assets for non-component use:
-- `public/logo-badge.svg` — standalone file (e.g. share images, external embeds).
-- `app/icon.svg` — browser-tab favicon (theme-aware fill, hard-coded colors).
-
-When updating the mark, keep all three in sync.
+The same mark exists in three places and they must not drift: this component,
+`app/icon.svg` (the favicon), and `public/logo-badge.svg`. Change one, change
+all three.

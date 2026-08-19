@@ -27,7 +27,7 @@ export default function AuthField({
       <label
         htmlFor={id}
         className="block text-xs font-medium uppercase tracking-wider"
-        style={{ color: "var(--text-faint)" }}
+        style={{ color: "var(--faint)" }}
       >
         {label}
       </label>
@@ -40,8 +40,8 @@ export default function AuthField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border-b border-white/15 bg-transparent py-2 text-base outline-none transition-colors placeholder:text-white/25 focus:border-[var(--cta-primary)]"
-        style={{ color: "var(--text-primary)" }}
+        className="min-h-[48px] w-full border-b-2 bg-transparent py-2 text-base outline-none transition-colors placeholder:text-[var(--faint)] focus:border-[var(--blood)]"
+        style={{ borderColor: "var(--edge)", color: "var(--chalk)" }}
       />
     </div>
   );

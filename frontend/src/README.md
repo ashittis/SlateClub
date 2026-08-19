@@ -1,33 +1,30 @@
-# frontend/src — structure map
+# src — the Kaset frontend
 
-Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind v4 · Framer Motion ·
-GSAP · Zustand · TanStack Query. A cinema-dark, motion-heavy "Spotify × Letterboxd" UI.
+Next.js App Router. Folders under `app/` map to URLs; the feature grouping
+lives in `components/<feature>/`. Read `KASET.md` at the repo root first.
 
 ```
-src/
-  app/          ← routes (folder path = URL; cannot be reorganised into feature folders)
-    (auth)/       login, signup
-    (main)/       home, discover, film/[slug], slates, circles, community, tribe,
-                  artists, festivals, releases, parties, profile, search, settings, …
-    onboarding/   the 8-step first-run flow
-  components/   ← reusable UI, ALREADY organised by feature (see each folder's README)
-  lib/          ← shared client helpers (api client, hooks, formatters, design tokens)
+app/
+  layout.tsx      SERVER component — owns metadata/OG/favicon. Keep it server-side.
+  providers.tsx   the client boundary (QueryClient + auth bootstrap)
+  globals.css     the design tokens. The only place colour is defined.
+  (auth)/         login · signup
+  onboarding/     the cold-start flow
+  (main)/         the signed-in app
+components/       one folder per feature, each with a README
+lib/
+  api/            typed domain modules — the ONLY way to reach the backend
+  nav.ts          the four primary items, for both surfaces
+  design-tokens.ts  TS mirror of globals.css, for JS/SVG/canvas only
+stores/           Zustand: auth · onboarding
 ```
 
-## Why `app/` isn't a feature-folder tree
-In the App Router, a folder's path **is** its URL and `(auth)`/`(main)` are route groups.
-Moving a `page.tsx` changes or breaks its route, so pages stay where routing needs them.
-The feature grouping the backend uses lives here in **`components/`** instead — each feature
-area (discover, feed, film, match-cut, community, taste-engine, onboarding, slates, …) is its
-own folder with a README describing its components.
-
-## Where things live
-- **A page** → `app/(main)/<route>/page.tsx`, composed from `components/<feature>/*`.
-- **A reusable piece of UI** → `components/<feature>/` (or `components/ui/` for primitives).
-- **Data fetching / shared logic** → `lib/` (see [`lib/README.md`](lib/README.md)).
-
-## Conventions
-- Framer Motion for component enter/exit, gesture, and layout; GSAP for choreographed,
-  timeline-based motion (hero poster fan, taste-engine constellation, onboarding reveals).
-- Colour-coded pill chips: mood=amber, genre=green, language=tan, platform=purple, era=violet.
-- Mobile + web parity: touch targets ≥44px, no hover-only affordances.
+## Rules
+- Never inline an endpoint string in a component. Add it to a `lib/api/` module.
+- Never inline a hex. Use the CSS variables or Tailwind classes.
+- `app/layout.tsx` must stay a server component — making it `"use client"`
+  silently forfeits every OG, Twitter and manifest tag.
+- Mobile and desktop ship together. Touch targets ≥44px, no hover-only
+  affordances. Check at 390×844 before calling anything done.
+- Framer Motion for component enter/exit and gestures; GSAP only for real
+  multi-element timelines. Honour `prefers-reduced-motion`.

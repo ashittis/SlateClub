@@ -1,141 +1,93 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { apiFetch, tmdbImage } from "@/lib/api";
+import Image from "next/image";
+import StepShell from "@/components/onboarding/StepShell";
+import NextButton from "@/components/onboarding/NextButton";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import Logo from "@/components/brand/Logo";
+import { useAuthStore } from "@/stores/authStore";
+import { tmdbImage } from "@/lib/api/client";
 
-interface SamplePoster {
-  tmdbId: number;
-  posterPath: string | null;
-  title: string;
-}
-
-interface Summary {
-  matchedFilmCount: number;
-  twinsWatchingCount: number;
-  samplePosters: SamplePoster[];
-}
-
-export default function ReadyPage() {
+/**
+ * Step 5 — confirm and enter.
+ *
+ * Reflects back what the user actually gave us. Onboarding is a trade: they
+ * spent a minute, so the payoff should be visible before they're dropped into
+ * an empty app.
+ */
+export default function ReadyStep() {
   const router = useRouter();
-  const { setStep } = useOnboardingStore();
+  const [pending, setPending] = useState(false);
+  const { languages, films, people, hydrate, complete } = useOnboardingStore();
+  const fetchUser = useAuthStore((s) => s.fetchUser);
 
   useEffect(() => {
-    setStep(8);
-  }, [setStep]);
+    hydrate();
+  }, [hydrate]);
 
-  const { data, isLoading } = useQuery<Summary>({
-    queryKey: ["onboarding-summary"],
-    queryFn: () => apiFetch("/api/onboarding/summary"),
-    staleTime: Infinity,
-  });
+  const enter = async () => {
+    setPending(true);
+    try {
+      await complete();
+      // Refresh the session so `onboarded` is current before we navigate.
+      await fetchUser();
+      router.replace("/home");
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
-    <div
-      className="min-h-dvh flex flex-col items-center justify-center px-6 text-center"
-      style={{ background: "var(--bg-screening)" }}
+    <StepShell
+      title="You're set"
+      subtitle="Here's what Kaset knows so far. You can change any of it in Settings."
+      footer={<NextButton onClick={enter} pending={pending} label="Start logging" />}
     >
-      {/* Logo pulse */}
-      <motion.div
-        initial={{ scale: 0.94, opacity: 0 }}
-        animate={{ scale: [0.94, 1.04, 1], opacity: 1 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-        className="mb-12"
-        style={{ color: "var(--text-primary)" }}
-      >
-        <Logo size={112} />
-      </motion.div>
+      <dl className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+        <Row label="Languages">
+          {languages.length ? languages.join(", ").toUpperCase() : "—"}
+        </Row>
+        <Row label="Favourite films">{films.length || "—"}</Row>
+        <Row label="Cast & crew">{people.length || "—"}</Row>
+      </dl>
 
-      {isLoading || !data ? (
-        <motion.div
-          className="w-8 h-8 border-2 rounded-full"
-          style={{
-            borderColor: "var(--cta-primary)",
-            borderTopColor: "transparent",
-          }}
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-        />
-      ) : (
-        <>
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.7 }}
-            className="display text-3xl lg:text-5xl font-bold leading-tight max-w-xl"
-            style={{ color: "var(--text-primary)" }}
-          >
-            We found you{" "}
-            <span style={{ color: "var(--cta-primary)" }}>
-              {data.matchedFilmCount} films
-            </span>
-            .
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.0, duration: 0.6 }}
-            className="mt-4 text-base"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Your twins are already watching {data.twinsWatchingCount} of them.
-          </motion.p>
-
-          {data.samplePosters.length > 0 && (
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.12, delayChildren: 1.4 } },
-              }}
-              className="mt-10 flex gap-3 justify-center"
-            >
-              {data.samplePosters.slice(0, 4).map((p) =>
-                p.posterPath ? (
-                  <motion.div
-                    key={p.tmdbId}
-                    variants={{
-                      hidden: { opacity: 0, y: 16 },
-                      visible: { opacity: 1, y: 0 },
-                    }}
-                    className="w-16 h-24 sm:w-20 sm:h-30 rounded-lg overflow-hidden ring-1 ring-white/10"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={tmdbImage(p.posterPath, "w200")}
-                      alt={p.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </motion.div>
-                ) : null,
-              )}
-            </motion.div>
-          )}
-
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2.0, duration: 0.6 }}
-            onClick={() => router.push("/home")}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            className="mt-12 px-10 py-3.5 rounded-full text-sm font-semibold"
-            style={{
-              background: "var(--cta-gradient)",
-              color: "var(--bg-screening)",
-              boxShadow: "0 16px 40px -12px rgba(255, 138, 0, 0.55)",
-            }}
-          >
-            Enter SlateClub →
-          </motion.button>
-        </>
+      {films.length > 0 && (
+        <ul className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {films.map((f) => (
+            <li key={f.tmdbId}>
+              <Image
+                src={tmdbImage(f.posterPath, "w200")}
+                alt={f.title}
+                width={100}
+                height={150}
+                className="poster w-full object-cover"
+                unoptimized
+              />
+            </li>
+          ))}
+        </ul>
       )}
+
+      <p className="meta mt-6">
+        Next: search a film and log it. That&apos;s the whole idea.
+      </p>
+    </StepShell>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div
+      className="flex items-baseline justify-between border-b-2 py-3"
+      style={{ borderColor: "var(--edge)" }}
+    >
+      <dt className="text-sm" style={{ color: "var(--xerox)" }}>
+        {label}
+      </dt>
+      <dd className="meta" style={{ color: "var(--chalk)" }}>
+        {children}
+      </dd>
     </div>
   );
 }

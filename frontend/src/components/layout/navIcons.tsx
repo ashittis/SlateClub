@@ -1,57 +1,82 @@
-import type { ReactNode } from "react";
-
 /*
-  Single source of truth for primary-nav icons, keyed by href.
-  Used by the desktop LeftRail and the mobile bottom-tab bar so both
-  surfaces stay visually in sync.
+  Primary-nav icons. Hand-drawn geometry, 1.5px strokes, no icon pack.
+
+  They read as drafting marks rather than app-store glyphs, which is what the
+  early-2000s/cassette direction wants. `currentColor` throughout so the active
+  state is a single colour swap at the call site.
 */
 
-const c = "h-5 w-5";
+type IconProps = { className?: string };
 
-export const NAV_ICONS: Record<string, ReactNode> = {
-  "/home": (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={c}>
-      <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 11-1.06 1.06l-.16-.16V20a1.5 1.5 0 01-1.5 1.5h-3a1.5 1.5 0 01-1.5-1.5v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V20A1.5 1.5 0 018 21.5H5A1.5 1.5 0 013.5 20v-6.57l-.16.16a.75.75 0 11-1.06-1.06l8.69-8.69z" />
-    </svg>
-  ),
-  "/search": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={c}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-    </svg>
-  ),
-  "/slates": (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={c}>
-      <path
-        fillRule="evenodd"
-        d="M2.25 4.125A2.625 2.625 0 014.875 1.5h6.75a2.625 2.625 0 012.625 2.625v6.75A2.625 2.625 0 0111.625 13.5h-6.75A2.625 2.625 0 012.25 10.875v-6.75zm12 0A2.625 2.625 0 0116.875 1.5h2.25A2.625 2.625 0 0121.75 4.125v2.25A2.625 2.625 0 0119.125 9h-2.25A2.625 2.625 0 0114.25 6.375v-2.25zm0 8.25A2.625 2.625 0 0116.875 9.75h2.25a2.625 2.625 0 012.625 2.625v6.75a2.625 2.625 0 01-2.625 2.625h-2.25a2.625 2.625 0 01-2.625-2.625v-6.75zM2.25 16.875a2.625 2.625 0 012.625-2.625h6.75a2.625 2.625 0 012.625 2.625v3a2.625 2.625 0 01-2.625 2.625h-6.75a2.625 2.625 0 01-2.625-2.625v-3z"
-        clipRule="evenodd"
-      />
-    </svg>
-  ),
-  "/match-cut": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={c}>
-      <circle cx="9" cy="12" r="6.25" />
-      <circle cx="15" cy="12" r="6.25" />
-    </svg>
-  ),
-  "/community": (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={c}>
-      <path d="M12 2.25a6.75 6.75 0 00-6.75 6.75v.75a8.22 8.22 0 01-2.12 5.52.75.75 0 00.3 1.21c1.54.56 3.16.99 4.83 1.24a3.75 3.75 0 007.48 0c1.67-.25 3.29-.68 4.83-1.24a.75.75 0 00.3-1.21 8.22 8.22 0 01-2.12-5.52V9A6.75 6.75 0 0012 2.25z" />
-    </svg>
-  ),
-  "/releases": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={c}>
-      <rect x="3.25" y="4.75" width="17.5" height="16" rx="2" />
-      <path strokeLinecap="round" d="M3.5 9.25h17M8 2.75v3.5M16 2.75v3.5" />
-    </svg>
-  ),
-  "/profile": (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={c}>
-      <path
-        fillRule="evenodd"
-        d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
-        clipRule="evenodd"
-      />
-    </svg>
-  ),
+const base = {
+  width: 20,
+  height: 20,
+  viewBox: "0 0 20 20",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
 };
+
+export function HomeIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3 8.5 10 3l7 5.5V16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5Z" />
+      <path d="M8 17v-5h4v5" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="9" cy="9" r="5.5" />
+      <path d="m13.5 13.5 3.5 3.5" />
+    </svg>
+  );
+}
+
+/** Tape spines on a shelf — the library as a row of cassettes. */
+export function LibraryIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3.5 4v12M7.5 4v12M11.5 4v12" />
+      <path d="M14.6 4.6l2.9 11.2" />
+    </svg>
+  );
+}
+
+export function CreateIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="1.5" />
+      <path d="M10 6.75v6.5M6.75 10h6.5" />
+    </svg>
+  );
+}
+
+export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
+  "/home": HomeIcon,
+  "/search": SearchIcon,
+  "/library": LibraryIcon,
+  "/create": CreateIcon,
+};
+
+export function MessagesIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3.5 5.5a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H8l-3.5 3v-3h-0a1 1 0 0 1-1-1Z" />
+    </svg>
+  );
+}
+
+export function BellIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M6 8a4 4 0 0 1 8 0c0 3 .9 4.4 1.5 5H4.5C5.1 12.4 6 11 6 8Z" />
+      <path d="M8.5 15.5a1.6 1.6 0 0 0 3 0" />
+    </svg>
+  );
+}
