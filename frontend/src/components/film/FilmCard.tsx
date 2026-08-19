@@ -41,6 +41,8 @@ export default function FilmCard({
   saved = false,
   onQuickActions,
   priority = false,
+  caption,
+  footer,
 }: {
   film: FilmCardFilm;
   /** Rendered poster width in px; height follows the 2:3 poster ratio. */
@@ -50,6 +52,17 @@ export default function FilmCard({
   /** Opens the quick-actions sheet. Omit to disable long-press entirely. */
   onQuickActions?: (film: FilmCardFilm) => void;
   priority?: boolean;
+  /**
+   * Replaces the default title/year lines. Pass `null` to show the poster
+   * alone — in a friend-activity row the poster *is* the identification, and
+   * repeating the title under every one turns the row into a wall of text.
+   */
+  caption?: React.ReactNode | null;
+  /**
+   * Rendered flush against the poster's bottom edge, inside the card's border.
+   * Built for the attribution bar on the home feed (who watched this).
+   */
+  footer?: React.ReactNode;
 }) {
   const queryClient = useQueryClient();
   const [bookmarked, setBookmarked] = useState(saved);
@@ -95,62 +108,78 @@ export default function FilmCard({
   };
 
   return (
-    <div className="relative" style={{ width }}>
-      <Link
-        href={filmHref(film)}
-        className="block"
-        onPointerDown={startPress}
-        onPointerUp={endPress}
-        onPointerLeave={endPress}
-        onContextMenu={(e) => {
-          // Long-press raises the OS menu on touch; ours replaces it.
-          if (onQuickActions) e.preventDefault();
-        }}
-        onClick={(e) => {
-          if (longFired.current) e.preventDefault();
-        }}
-      >
-        <Image
-          src={tmdbImage(film.posterPath, "w300")}
-          alt={film.title}
-          width={width}
-          height={height}
-          className="poster w-full object-cover"
-          priority={priority}
-          unoptimized
-        />
-        <span className="mt-1 block truncate text-xs font-medium">{film.title}</span>
-        <span className="meta block">{film.year ?? "—"}</span>
-      </Link>
+    <div style={{ width }}>
+      {/*
+        The overlay controls anchor to THIS box, not the card, so they sit on
+        the artwork itself. They used to be positioned against the outer card,
+        which put the `⋯` on top of the year line rather than on the poster —
+        and left no room for a footer at all.
+      */}
+      <div className="relative">
+        <Link
+          href={filmHref(film)}
+          className="block"
+          onPointerDown={startPress}
+          onPointerUp={endPress}
+          onPointerLeave={endPress}
+          onContextMenu={(e) => {
+            // Long-press raises the OS menu on touch; ours replaces it.
+            if (onQuickActions) e.preventDefault();
+          }}
+          onClick={(e) => {
+            if (longFired.current) e.preventDefault();
+          }}
+        >
+          <Image
+            src={tmdbImage(film.posterPath, "w300")}
+            alt={film.title}
+            width={width}
+            height={height}
+            className="poster w-full object-cover"
+            priority={priority}
+            unoptimized
+          />
+        </Link>
 
-      <button
-        type="button"
-        onClick={toggleBookmark}
-        aria-pressed={bookmarked}
-        aria-label={bookmarked ? `Remove ${film.title} from watchlist` : `Add ${film.title} to watchlist`}
-        className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center transition-opacity"
-        style={{
-          background: bookmarked ? "var(--acid)" : "rgba(20,18,26,0.72)",
-          color: bookmarked ? "var(--void)" : "var(--chalk)",
-        }}
-      >
-        <BookmarkMark filled={bookmarked} />
-      </button>
-
-      {onQuickActions && (
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            onQuickActions(film);
+          onClick={toggleBookmark}
+          aria-pressed={bookmarked}
+          aria-label={bookmarked ? `Remove ${film.title} from watchlist` : `Add ${film.title} to watchlist`}
+          className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center transition-opacity"
+          style={{
+            background: bookmarked ? "var(--acid)" : "rgba(20,18,26,0.72)",
+            color: bookmarked ? "var(--void)" : "var(--chalk)",
           }}
-          aria-label={`More actions for ${film.title}`}
-          className="absolute bottom-0 left-0 flex h-9 w-9 items-center justify-center"
-          style={{ background: "rgba(20,18,26,0.72)", color: "var(--chalk)" }}
-          // The poster's own bottom edge; the title sits below it.
         >
-          <span className="text-base leading-none" aria-hidden>⋯</span>
+          <BookmarkMark filled={bookmarked} />
         </button>
+
+        {onQuickActions && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onQuickActions(film);
+            }}
+            aria-label={`More actions for ${film.title}`}
+            className="absolute bottom-0 left-0 flex h-9 w-9 items-center justify-center"
+            style={{ background: "rgba(20,18,26,0.72)", color: "var(--chalk)" }}
+          >
+            <span className="text-base leading-none" aria-hidden>⋯</span>
+          </button>
+        )}
+      </div>
+
+      {footer}
+
+      {caption === undefined ? (
+        <Link href={filmHref(film)} className="block">
+          <span className="mt-1 block truncate text-xs font-medium">{film.title}</span>
+          <span className="meta block">{film.year ?? "—"}</span>
+        </Link>
+      ) : (
+        caption
       )}
     </div>
   );

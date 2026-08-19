@@ -4,18 +4,26 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
+type Shape = "square" | "pill";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  /**
+   * `pill` is for shell chrome ONLY — the top bar's Create button and its
+   * search field. Inside the page well, structure comes from hairlines and
+   * square edges; a rounded button down there reads as a different design
+   * system that wandered in. Defaults to `square` on purpose.
+   */
+  shape?: Shape;
 }
 
 /**
  * The shared button.
  *
- * Square, not rounded: structure in Kaset comes from 1px hairlines, and a
- * rounded pill reads as a different design system. Only `primary` is filled —
- * if two buttons on a screen are filled in tape red, one of them is wrong.
+ * Square by default: structure in Kaset comes from hairlines, not radius. Only
+ * `primary` is filled — if two buttons on a screen are filled in tape red, one
+ * of them is wrong.
  *
  * Every size clears 44px in height so a button is tappable wherever it lands.
  */
@@ -50,7 +58,16 @@ const SIZES: Record<Size, string> = {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { variant = "primary", size = "md", className = "", style, children, disabled, ...rest },
+    {
+      variant = "primary",
+      size = "md",
+      shape = "square",
+      className = "",
+      style,
+      children,
+      disabled,
+      ...rest
+    },
     ref,
   ) => (
     <button
@@ -61,6 +78,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "inline-flex items-center justify-center border font-medium",
         "transition-opacity duration-150 hover:opacity-85",
         "disabled:pointer-events-none disabled:opacity-40",
+        shape === "pill" ? "pill" : "",
         SIZES[size],
         className,
       ].join(" ")}

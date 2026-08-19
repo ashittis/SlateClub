@@ -8,6 +8,7 @@ import { tmdbImage } from "@/lib/api/client";
 import { filmHref, filmKeys, filmsApi } from "@/lib/api/films";
 import { libraryKeys } from "@/lib/api/library";
 import { diaryApi, diaryKeys, todayISO } from "@/lib/api/diary";
+import { useLogStore } from "@/stores/logStore";
 import StarRating from "@/components/ratings/StarRating";
 import type { FilmCardFilm } from "./FilmCard";
 
@@ -29,6 +30,7 @@ export default function QuickActions({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const openLog = useLogStore((s) => s.openLog);
   const [pending, setPending] = useState<string | null>(null);
   const [logged, setLogged] = useState(false);
 
@@ -99,11 +101,11 @@ export default function QuickActions({
         aria-modal="true"
         aria-label={`Actions for ${film.title}`}
         onClick={(e) => e.stopPropagation()}
-        className="w-full border-2 sm:max-w-sm"
+        className="w-full border sm:max-w-sm"
         style={{ background: "var(--soot)", borderColor: "var(--edge-hot)" }}
       >
         <header
-          className="flex items-center gap-3 border-b-2 p-3"
+          className="flex items-center gap-3 border-b p-3"
           style={{ borderColor: "var(--edge)" }}
         >
           <Image
@@ -129,7 +131,7 @@ export default function QuickActions({
           </button>
         </header>
 
-        <div className="border-b-2 p-4" style={{ borderColor: "var(--edge)" }}>
+        <div className="border-b p-4" style={{ borderColor: "var(--edge)" }}>
           <p className="section-label mb-2">Rate</p>
           <StarRating
             value={status?.rating ?? 0}
@@ -146,6 +148,24 @@ export default function QuickActions({
             hint={logged ? undefined : "Dated today, no venue"}
             done={logged}
           />
+          {/*
+            The considered log, without leaving the page. This used to say
+            "open the film page" — a navigation, a load, and a scroll to reach
+            a form that is now a dialog we can simply raise from here.
+          */}
+          <Row
+            onClick={() => {
+              onClose();
+              openLog({
+                film,
+                filmId: status?.filmId,
+                isRewatch: status?.seen ?? false,
+                onLogged: refresh,
+              });
+            }}
+            disabled={pending !== null || logged}
+            label="Log with a rating, date, review…"
+          />
           <Row
             onClick={toggleWatchlist}
             disabled={pending !== null}
@@ -159,7 +179,7 @@ export default function QuickActions({
           >
             Open film page
             <span className="meta ml-auto" style={{ color: "var(--blood-ink)" }}>
-              full log, review, share
+              cast, reviews, similar
             </span>
           </Link>
         </div>
@@ -186,7 +206,7 @@ function Row({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex min-h-[52px] items-center border-b-2 px-4 text-left text-sm font-medium disabled:opacity-60"
+      className="flex min-h-[52px] items-center border-b px-4 text-left text-sm font-medium disabled:opacity-60"
       style={{ borderColor: "var(--edge)", color: done ? "var(--acid)" : "var(--chalk)" }}
     >
       {label}

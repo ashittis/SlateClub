@@ -6,18 +6,25 @@ import { NAV_ITEMS, isNavActive } from "@/lib/nav";
 import { NAV_ICONS } from "@/components/layout/navIcons";
 
 /**
- * Mobile bottom bar — the same four items as the rail, from the same source.
+ * Mobile bottom bar — all four primary items, from `lib/nav.ts`.
  *
- * Active state is a full-height bleach block, matching the rail's inversion so
- * the two surfaces teach the same signal. Tabs clear 56px and the bar respects
- * the home-indicator inset.
+ * Desktop splits the four (three inline in the top bar, Create as a button);
+ * mobile keeps them together, because down here the bottom bar *is* the
+ * navigation and a hidden fourth item would simply be lost.
+ *
+ * Active state is a colour lift plus a 2px rule along the top edge of the tab —
+ * the same "underline the live item" signal the top bar uses. It replaced a
+ * full-height inverted block, which at this size read as a pressed button
+ * rather than a location.
+ *
+ * Tabs clear 58px and the bar respects the home-indicator inset.
  */
 export default function MobileTabBar() {
   const pathname = usePathname();
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t-2 lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t lg:hidden"
       style={{
         borderColor: "var(--edge)",
         background: "var(--void)",
@@ -36,14 +43,14 @@ export default function MobileTabBar() {
               aria-current={active ? "page" : undefined}
               className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1"
               style={{
-                background: active ? "var(--bleach)" : "transparent",
-                color: active ? "var(--void)" : "var(--xerox)",
+                color: active ? "var(--chalk)" : "var(--xerox)",
+                boxShadow: active ? "inset 0 2px 0 var(--blood)" : undefined,
               }}
             >
               {Icon ? <Icon /> : null}
               <span
-                className="text-[10px] font-bold uppercase leading-none"
-                style={{ letterSpacing: "0.06em" }}
+                className="text-[10px] font-semibold leading-none"
+                style={{ letterSpacing: "0.01em" }}
               >
                 {item.label === "Your Library" ? "Library" : item.label}
               </span>

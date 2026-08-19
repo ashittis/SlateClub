@@ -83,11 +83,11 @@ export default function PickerSearch<T>({
               Nothing found.
             </p>
           ) : (
-            <ul className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+            <ul className="border-t" style={{ borderColor: "var(--edge)" }}>
               {results.map((item, i) => {
                 const chosen = isChosen(item);
                 return (
-                  <li key={i} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+                  <li key={i} className="border-b" style={{ borderColor: "var(--edge)" }}>
                     <button
                       type="button"
                       onClick={() => !chosen && onPick(item)}

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
+import Page from "@/components/layout/Page";
 import { searchApi, searchKeys } from "@/lib/api/search";
-import { filmHref, filmKeys, filmsApi } from "@/lib/api/films";
+import { filmKeys, filmsApi } from "@/lib/api/films";
 import { addRecentSearch, getRecentSearches, clearRecentSearches } from "@/lib/searchHistory";
 import FilmCard, { type FilmCardFilm } from "@/components/film/FilmCard";
 import { useQuickActions } from "@/components/film/useQuickActions";
@@ -20,15 +22,43 @@ import { useQuickActions } from "@/components/film/useQuickActions";
  *
  * The evidence-backed discovery modules arrive in Phase 8; the shelves here are
  * the honest version of what we can serve today.
+ *
+ * The top bar's field hands its query over through `?q=`, so this page has to
+ * read the URL as well as its own input. `useSearchParams` suspends during
+ * prerender, hence the boundary below.
  */
 export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchBody />
+    </Suspense>
+  );
+}
+
+function SearchBody() {
+  const params = useSearchParams();
   const { open: openQuickActions, sheet: quickActionsSheet } = useQuickActions();
-  const [q, setQ] = useState("");
-  const [debounced, setDebounced] = useState("");
+
+  // Arriving from the top bar, or on a shared/bookmarked result. Only the URL
+  // drives this — typing here deliberately does not rewrite the address bar, or
+  // every keystroke would land in browser history.
+  const urlQuery = params.get("q") ?? "";
+
+  const [q, setQ] = useState(urlQuery);
+  const [debounced, setDebounced] = useState(urlQuery);
   const [tab, setTab] = useState<"films" | "people">("films");
   const [recents, setRecents] = useState<string[]>([]);
 
   useEffect(() => setRecents(getRecentSearches()), []);
+
+  // Adjusted during render, not in an effect: an effect would paint the previous
+  // query for a frame before replacing it, which reads as a flicker on every
+  // search submitted from the bar.
+  const [lastUrlQuery, setLastUrlQuery] = useState(urlQuery);
+  if (urlQuery !== lastUrlQuery) {
+    setLastUrlQuery(urlQuery);
+    if (urlQuery) setQ(urlQuery);
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 250);
@@ -69,7 +99,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
+    <Page>
       <h1 className="sr-only">Search</h1>
 
       <form
@@ -86,7 +116,8 @@ export default function SearchPage() {
           onBlur={() => commit(q)}
           placeholder="Search films and people"
           autoComplete="off"
-          className="min-h-[52px] w-full border px-3 text-base outline-none"
+          autoFocus={!urlQuery}
+          className="pill min-h-[52px] w-full border px-4 text-base outline-none"
           style={{
             borderColor: "var(--edge-hot)",
             background: "var(--soot)",
@@ -97,7 +128,7 @@ export default function SearchPage() {
 
       {active && (
         <div
-          className="mt-3 flex gap-4 border-b-2"
+          className="mt-4 flex gap-4 border-b"
           style={{ borderColor: "var(--edge)" }}
         >
           {(["films", "people"] as const).map((t) => (
@@ -132,12 +163,12 @@ export default function SearchPage() {
             empty={!people?.results.length}
             emptyLabel={`No people matching “${debounced}”.`}
           >
-            <ul className="mt-3 border-t-2" style={{ borderColor: "var(--edge)" }}>
+            <ul className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
               {(people?.results ?? []).map((p) => (
-                <li key={p.tmdbId} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+                <li key={p.tmdbId} className="border-b" style={{ borderColor: "var(--edge)" }}>
                   <Link
                     href={`/person/${p.tmdbId}`}
-                    className="flex min-h-[60px] items-center gap-3 py-2"
+                    className="row-hover flex min-h-[60px] items-center gap-3 px-2 py-2"
                   >
                     <Image
                       src={tmdbImage(p.profilePath, "w200")}
@@ -183,7 +214,7 @@ export default function SearchPage() {
                     <button
                       type="button"
                       onClick={() => setQ(r)}
-                      className="min-h-[40px] border px-3 text-sm"
+                      className="pill min-h-[40px] border px-4 text-sm"
                       style={{ borderColor: "var(--edge)", background: "var(--soot)" }}
                     >
                       {r}
@@ -207,7 +238,7 @@ export default function SearchPage() {
       )}
 
       {quickActionsSheet}
-    </div>
+    </Page>
   );
 }
 

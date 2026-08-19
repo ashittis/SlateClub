@@ -3,15 +3,16 @@
 import { use, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { diaryKeys } from "@/lib/api/diary";
 import { filmKeys, filmsApi, tmdbIdFromSlug } from "@/lib/api/films";
 import { libraryKeys } from "@/lib/api/library";
 import { reviewKeys } from "@/lib/api/reviews";
-import StarRating from "@/components/ratings/StarRating";
-import LogPanel from "@/components/log/LogPanel";
+import { useLogStore } from "@/stores/logStore";
+import Page from "@/components/layout/Page";
+import FilmActionPanel from "@/components/film/FilmActionPanel";
+import FriendsWatched from "@/components/film/FriendsWatched";
 import ViewingHistory from "@/components/film/ViewingHistory";
 import ShareFilmSheet from "@/components/film/ShareFilmSheet";
 import SimilarFilms from "@/components/discover/SimilarFilms";
@@ -20,16 +21,24 @@ import CommunityReviews from "@/components/film/CommunityReviews";
 /**
  * The film page.
  *
- * One rule drives the whole layout: **Log this film** is the primary action
- * (KASET.md §8). Everything else — watchlist, rating, cast, history — arranges
- * itself around that button, and nothing competes with it visually.
+ * Three columns on desktop: the poster, the writing, and everything you can do
+ * about it. Actions used to run down the middle of the page, which meant the
+ * synopsis began below a stack of controls and the cast was four screens from
+ * the top. Moving them into a fixed column gives the content one uninterrupted
+ * read and keeps every action at a known place on the page.
+ *
+ * Below `lg` the three collapse to one, and the primary action pins itself to
+ * the bottom of the viewport — on a phone a sidebar is just more scrolling.
+ *
+ * **Log this film** is still the primary action (KASET.md §8) and is still the
+ * only filled control on the page.
  */
 export default function FilmPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const tmdbId = tmdbIdFromSlug(slug);
   const queryClient = useQueryClient();
-  const [logOpen, setLogOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const openLog = useLogStore((s) => s.openLog);
 
   const { data: film, isLoading } = useQuery({
     queryKey: filmKeys.detail(tmdbId),
@@ -48,24 +57,6 @@ export default function FilmPage({ params }: { params: Promise<{ slug: string }>
     queryClient.invalidateQueries({ queryKey: filmKeys.viewings(tmdbId) });
   };
 
-  /**
-   * Everything a log touches. Wider than `refresh()` because logging writes far
-   * beyond this page: the diary gains a row, a review may have been written,
-   * the rating snapshot lands, and `diary_service` drops the film from the
-   * watchlist server-side. Invalidating only this page's two keys left Home,
-   * the Library and Community reviews serving stale data until a reload.
-   */
-  const refreshAfterLog = () => {
-    refresh();
-    queryClient.invalidateQueries({ queryKey: diaryKeys.all() });
-    queryClient.invalidateQueries({ queryKey: libraryKeys.watchlist() });
-    queryClient.invalidateQueries({ queryKey: libraryKeys.ratings() });
-    queryClient.invalidateQueries({ queryKey: libraryKeys.reviews() });
-    if (status?.filmId) {
-      queryClient.invalidateQueries({ queryKey: reviewKeys.forFilm(status.filmId) });
-    }
-  };
-
   const rate = async (value: number) => {
     await filmsApi.rate(tmdbId, value);
     refresh();
@@ -77,6 +68,37 @@ export default function FilmPage({ params }: { params: Promise<{ slug: string }>
     refresh();
   };
 
+  /**
+   * Everything a log touches — the dialog calls this on success.
+   *
+   * Wider than `refresh()` because logging writes far beyond this page: the
+   * diary gains a row, a review may have been written, the rating snapshot
+   * lands, and `diary_service` drops the film from the watchlist server-side.
+   * Invalidating only this page's two keys left Home, the Library and Community
+   * reviews serving stale data until a reload.
+   */
+  const refreshAfterLog = () => {
+    refresh();
+    queryClient.invalidateQueries({ queryKey: filmKeys.friends(tmdbId) });
+    queryClient.invalidateQueries({ queryKey: diaryKeys.all() });
+    queryClient.invalidateQueries({ queryKey: libraryKeys.watchlist() });
+    queryClient.invalidateQueries({ queryKey: libraryKeys.ratings() });
+    queryClient.invalidateQueries({ queryKey: libraryKeys.reviews() });
+    if (status?.filmId) {
+      queryClient.invalidateQueries({ queryKey: reviewKeys.forFilm(status.filmId) });
+    }
+  };
+
+  const startLog = () => {
+    if (!film) return;
+    openLog({
+      film,
+      filmId: status?.filmId,
+      isRewatch: status?.seen ?? false,
+      onLogged: refreshAfterLog,
+    });
+  };
+
   if (!Number.isFinite(tmdbId)) return <Message>That film link looks wrong.</Message>;
   if (isLoading) return <Message>Loading…</Message>;
   if (!film) return <Message>We couldn&apos;t find that film.</Message>;
@@ -85,182 +107,162 @@ export default function FilmPage({ params }: { params: Promise<{ slug: string }>
   const meta = [film.year, runtime, film.genres.slice(0, 3).join(", ")].filter(Boolean);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
-      <article>
-        <div className="flex gap-4">
+    <Page className="pb-32 lg:pb-20">
+      <div className="grid gap-6 lg:grid-cols-[190px_minmax(0,1fr)_290px] lg:gap-8">
+        {/* ── Poster rail ──────────────────────────────────────────────── */}
+        <div className="flex gap-4 lg:block">
           <Image
             src={tmdbImage(film.posterPath, "w500")}
             alt={film.title}
-            width={140}
-            height={210}
-            className="poster h-auto w-[104px] shrink-0 object-cover sm:w-[140px]"
+            width={190}
+            height={285}
+            className="poster h-auto w-[112px] shrink-0 object-cover sm:w-[150px] lg:w-full"
             priority
             unoptimized
           />
 
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-              {film.title}
-            </h1>
-            <p className="meta mt-1.5">{meta.join(" · ")}</p>
+          {/* On mobile the title sits beside the poster; on desktop it heads
+              the centre column instead. Rendered twice, shown once. */}
+          <div className="min-w-0 flex-1 lg:hidden">
+            <Title film={film} meta={meta} status={status} />
+          </div>
+        </div>
 
-            {film.directors.length > 0 && (
-              <p className="mt-2 text-sm" style={{ color: "var(--xerox)" }}>
-                Directed by{" "}
-                {film.directors.map((d, i) => (
-                  <span key={d.tmdbId}>
-                    {i > 0 && ", "}
-                    <Link href={`/person/${d.tmdbId}`} className="prose-link">
-                      {d.name}
+        {/*
+          ── The writing ────────────────────────────────────────────────
+          `order` puts the action panel directly under the poster on mobile.
+          In source order it is last, because on desktop it is the right-hand
+          column; left alone that also buried "Your friends" below the cast on a
+          phone, which is where the social proof is least likely to be seen.
+        */}
+        <article className="order-2 min-w-0 lg:order-none">
+          <div className="hidden lg:block">
+            <Title film={film} meta={meta} status={status} />
+          </div>
+
+          {film.overview && (
+            <section className="mt-5 lg:mt-6">
+              <h2 className="section-label">Synopsis</h2>
+              <p className="mt-2 text-sm leading-relaxed">{film.overview}</p>
+            </section>
+          )}
+
+          <ViewingHistory tmdbId={tmdbId} />
+
+          <CommunityReviews filmId={status?.filmId} />
+
+          <SimilarFilms tmdbId={tmdbId} />
+
+          {film.cast.length > 0 && (
+            <section className="mt-8">
+              <h2 className="section-label">Cast</h2>
+              <ul className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-1">
+                {film.cast.map((c) => (
+                  <li key={c.tmdbId} className="w-[76px] shrink-0">
+                    <Link href={`/person/${c.tmdbId}`} className="block">
+                      <Image
+                        src={tmdbImage(c.profilePath, "w200")}
+                        alt={c.name}
+                        width={76}
+                        height={100}
+                        className="poster h-[100px] w-full object-cover"
+                        unoptimized
+                      />
+                      <span className="mt-1 block text-xs font-medium leading-tight">
+                        {c.name}
+                      </span>
+                      {c.character && <span className="meta block">{c.character}</span>}
                     </Link>
-                  </span>
+                  </li>
                 ))}
-              </p>
-            )}
+              </ul>
+            </section>
+          )}
+        </article>
 
-            {status && status.logCount > 0 && (
-              <p className="meta mt-3" style={{ color: "var(--acid)" }}>
-                Logged {status.logCount === 1 ? "once" : `${status.logCount} times`}
-              </p>
-            )}
-          </div>
+        {/* ── Actions ──────────────────────────────────────────────────── */}
+        <div className="order-1 lg:order-none lg:sticky lg:top-20 lg:self-start">
+          <FilmActionPanel
+            status={status}
+            onLog={startLog}
+            onRate={rate}
+            onToggleWatchlist={toggleWatchlist}
+            onShare={() => setShareOpen(true)}
+          />
+          <FriendsWatched tmdbId={tmdbId} />
         </div>
+      </div>
 
-        {/*
-          The primary action, and the logging surface itself — they occupy the
-          same slot because they are the same thing in two states. Swapping
-          rather than stacking also keeps the page to exactly one tape-filled
-          control at any moment (components/ui/README.md).
-        */}
-        <div className="mt-5">
-          <AnimatePresence mode="wait" initial={false}>
-            {logOpen ? (
-              <LogPanel
-                key="panel"
-                film={film}
-                filmId={status?.filmId}
-                isRewatchDefault={status?.seen ?? false}
-                onClose={() => setLogOpen(false)}
-                onLogged={refreshAfterLog}
-              />
-            ) : (
-              <motion.button
-                key="trigger"
-                type="button"
-                initial={false}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-                onClick={() => setLogOpen(true)}
-                className="min-h-[52px] w-full border text-base font-semibold"
-                style={{
-                  borderColor: "var(--blood)",
-                  background: "var(--blood)",
-                  color: "var(--chalk)",
-                }}
-              >
-                {status?.seen ? "Log again" : "Log this film"}
-              </motion.button>
-            )}
-          </AnimatePresence>
+      {/*
+        Mobile's primary action. The panel above is reachable by scrolling, but
+        the one thing you came here to do should never require that.
+      */}
+      <div
+        className="fixed bottom-[calc(58px+env(safe-area-inset-bottom))] left-0 right-0 z-30 border-t p-3 lg:hidden"
+        style={{ borderColor: "var(--edge)", background: "var(--void)" }}
+      >
+        <button
+          type="button"
+          onClick={startLog}
+          className="min-h-[52px] w-full border text-base font-semibold"
+          style={{
+            borderColor: "var(--blood)",
+            background: "var(--blood)",
+            color: "var(--chalk)",
+          }}
+        >
+          {status?.seen ? "Log again" : "Log this film"}
+        </button>
+      </div>
 
-          <div className="mt-2 flex items-stretch gap-2">
-            <button
-              type="button"
-              onClick={toggleWatchlist}
-              aria-pressed={status?.inWatchlist ?? false}
-              className="min-h-[48px] flex-1 border text-sm font-medium"
-              style={{
-                borderColor: status?.inWatchlist ? "var(--chalk)" : "var(--edge)",
-                background: status?.inWatchlist ? "var(--chalk)" : "var(--soot)",
-                color: status?.inWatchlist ? "var(--void)" : "var(--chalk)",
-              }}
-            >
-              {status?.inWatchlist ? "On your watchlist" : "Add to watchlist"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="min-h-[48px] border px-4 text-sm font-medium"
-              style={{ borderColor: "var(--edge)", background: "var(--soot)" }}
-            >
-              Share
-            </button>
-          </div>
-        </div>
+      {shareOpen && <ShareFilmSheet film={film} onClose={() => setShareOpen(false)} />}
+    </Page>
+  );
+}
 
-        {/*
-          Your rating — distinct from logging: an opinion, not an event.
+function Title({
+  film,
+  meta,
+  status,
+}: {
+  film: { title: string; directors: { tmdbId: number; name: string }[] };
+  meta: (string | null)[];
+  status: { logCount: number } | undefined;
+}) {
+  return (
+    <>
+      <h1 className="text-2xl sm:text-3xl">{film.title}</h1>
+      <p className="meta mt-2">{meta.join(" · ")}</p>
 
-          Hidden while the panel is open. The panel carries its own star for the
-          viewing being recorded, and two rating controls a few hundred pixels
-          apart, writing to different tables, is a trap. Logging with a rating
-          updates this one anyway (diary_service._set_current_rating), so it
-          would only be a laggy duplicate of the star directly above it.
-        */}
-        {!logOpen && (
-          <section
-            className="mt-5 flex items-center justify-between border-y-2 py-3"
-            style={{ borderColor: "var(--edge)" }}
-          >
-            <span className="section-label">Your rating</span>
-            <StarRating value={status?.rating ?? 0} onChange={rate} size="lg" />
-          </section>
-        )}
-
-        {film.overview && (
-          <section className="mt-5">
-            <h2 className="section-label">Synopsis</h2>
-            <p className="mt-1.5 text-sm leading-relaxed">{film.overview}</p>
-          </section>
-        )}
-
-        <ViewingHistory tmdbId={tmdbId} />
-
-        <CommunityReviews filmId={status?.filmId} />
-
-        <SimilarFilms tmdbId={tmdbId} />
-
-        {film.cast.length > 0 && (
-          <section className="mt-7">
-            <h2 className="section-label">Cast</h2>
-            <ul className="no-scrollbar mt-2 flex gap-3 overflow-x-auto pb-1">
-              {film.cast.map((c) => (
-                <li key={c.tmdbId} className="w-[76px] shrink-0">
-                  <Link href={`/person/${c.tmdbId}`} className="block">
-                    <Image
-                      src={tmdbImage(c.profilePath, "w200")}
-                      alt={c.name}
-                      width={76}
-                      height={100}
-                      className="poster h-[100px] w-full object-cover"
-                      unoptimized
-                    />
-                    <span className="mt-1 block text-xs font-medium leading-tight">
-                      {c.name}
-                    </span>
-                    {c.character && <span className="meta block">{c.character}</span>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </article>
-
-      {shareOpen && (
-        <ShareFilmSheet film={film} onClose={() => setShareOpen(false)} />
+      {film.directors.length > 0 && (
+        <p className="mt-2 text-sm" style={{ color: "var(--xerox)" }}>
+          Directed by{" "}
+          {film.directors.map((d, i) => (
+            <span key={d.tmdbId}>
+              {i > 0 && ", "}
+              <Link href={`/person/${d.tmdbId}`} className="prose-link">
+                {d.name}
+              </Link>
+            </span>
+          ))}
+        </p>
       )}
-    </div>
+
+      {status && status.logCount > 0 && (
+        <p className="meta mt-3" style={{ color: "var(--acid)" }}>
+          Logged {status.logCount === 1 ? "once" : `${status.logCount} times`}
+        </p>
+      )}
+    </>
   );
 }
 
 function Message({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
+    <Page>
       <p className="text-sm" style={{ color: "var(--xerox)" }}>
         {children}
       </p>
-    </div>
+    </Page>
   );
 }

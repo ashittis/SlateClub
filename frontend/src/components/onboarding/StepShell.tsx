@@ -23,7 +23,7 @@ export default function StepShell({
     <div className="flex flex-1 flex-col px-5 pb-6 lg:px-10">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
         <div className="pb-5 pt-4">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight lg:text-3xl">
+          <h1 className="text-2xl lg:text-3xl">
             {title}
           </h1>
           {subtitle && (
@@ -36,7 +36,7 @@ export default function StepShell({
         <div className="flex flex-1 flex-col">{children}</div>
 
         <div
-          className="sticky bottom-0 mt-6 border-t-2 pt-3 pb-[env(safe-area-inset-bottom)] lg:static lg:border-0"
+          className="sticky bottom-0 mt-6 border-t pt-3 pb-[env(safe-area-inset-bottom)] lg:static lg:border-0"
           style={{ borderColor: "var(--edge)", background: "var(--void)" }}
         >
           {footer}

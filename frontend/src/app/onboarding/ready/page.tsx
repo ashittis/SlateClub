@@ -44,7 +44,7 @@ export default function ReadyStep() {
       subtitle="Here's what Kaset knows so far. You can change any of it in Settings."
       footer={<NextButton onClick={enter} pending={pending} label="Start logging" />}
     >
-      <dl className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+      <dl className="border-t" style={{ borderColor: "var(--edge)" }}>
         <Row label="Languages">
           {languages.length ? languages.join(", ").toUpperCase() : "—"}
         </Row>
@@ -79,7 +79,7 @@ export default function ReadyStep() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div
-      className="flex items-baseline justify-between border-b-2 py-3"
+      className="flex items-baseline justify-between border-b py-3"
       style={{ borderColor: "var(--edge)" }}
     >
       <dt className="text-sm" style={{ color: "var(--xerox)" }}>

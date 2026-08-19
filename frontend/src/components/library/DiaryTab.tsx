@@ -45,9 +45,9 @@ export default function DiaryTab() {
           <h3 className="section-label">
             {year} · {entries.length} {entries.length === 1 ? "viewing" : "viewings"}
           </h3>
-          <ul className="mt-2 border-t-2" style={{ borderColor: "var(--edge)" }}>
+          <ul className="mt-2 border-t" style={{ borderColor: "var(--edge)" }}>
             {entries.map((e) => (
-              <li key={e.entryId} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+              <li key={e.entryId} className="border-b" style={{ borderColor: "var(--edge)" }}>
                 <div className="flex items-start gap-3 py-2.5">
                   <Link href={filmHref(e)} className="shrink-0">
                     <Image

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Big_Shoulders, JetBrains_Mono, Permanent_Marker } from "next/font/google";
+import { Archivo, Big_Shoulders, JetBrains_Mono } from "next/font/google";
 import Providers from "./providers";
 import { Grain } from "@/components/texture";
 import "./globals.css";
@@ -8,11 +8,13 @@ import "./globals.css";
   A server component on purpose — see providers.tsx. Keep it that way; making
   this "use client" again would drop every tag below.
 
-  Four faces, four jobs — the split is the identity:
-    display   Big Shoulders   oversized condensed caps, allowed to crop
-    UI        Archivo         readable at 13-15px over texture
-    metadata  JetBrains Mono  reads as camcorder timecode
-    marker    Permanent Marker  handwritten annotations, used sparingly
+  Three faces, three jobs — the grotesk/mono split is the identity:
+    UI        Archivo         headings and body, readable at 13-15px
+    metadata  JetBrains Mono  dates, runtimes, counts — camcorder timecode
+    display   Big Shoulders   oversized condensed caps, HERO SURFACES ONLY
+
+  Permanent Marker is gone. It was loaded for a `.marker` annotation class that
+  no component ever used — a whole font over the wire for nothing.
 
   Grain mounts here so the whole app shares ONE noise layer rather than one
   per component.
@@ -32,16 +34,6 @@ const display = Big_Shoulders({
   // Next has no metric overrides for this family, so name the fallback
   // explicitly — otherwise the swap shifts layout on first paint.
   fallback: ["Arial Narrow", "Helvetica Neue", "system-ui", "sans-serif"],
-  adjustFontFallback: false,
-});
-
-// Annotations only. Loaded at one weight because it should never be a system.
-const marker = Permanent_Marker({
-  variable: "--font-marker-stack",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  fallback: ["Comic Sans MS", "cursive"],
   adjustFontFallback: false,
 });
 
@@ -90,7 +82,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${grotesk.variable} ${display.variable} ${marker.variable} ${mono.variable} h-full antialiased`}>
+    <html lang="en" className={`${grotesk.variable} ${display.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
         <Grain />

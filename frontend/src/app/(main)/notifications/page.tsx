@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import NotificationItem from "@/components/notifications/NotificationItem";
 import type { Notification } from "@/types/notifications";
+import Page from "@/components/layout/Page";
 
 const KIND_GROUPS: Array<{
   label: string;
@@ -52,10 +53,10 @@ export default function NotificationsPage() {
   const unreadCount = items.filter((n) => !n.readAt).length;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 lg:px-6 pt-6 pb-24">
+    <Page width="narrow">
       <div className="flex items-center justify-between mb-5">
         <h1
-          className="display text-2xl lg:text-3xl font-bold tracking-tight"
+          className="text-2xl lg:text-3xl"
           style={{ color: "var(--chalk)" }}
         >
           Notifications
@@ -101,7 +102,7 @@ export default function NotificationsPage() {
           return (
             <section key={group.label}>
               <h2
-                className="text-xs uppercase tracking-wider mb-2"
+                className="text-xs tracking-wider mb-2"
                 style={{ color: "var(--faint)" }}
               >
                 {group.label}
@@ -119,6 +120,6 @@ export default function NotificationsPage() {
           );
         })}
       </div>
-    </div>
+    </Page>
   );
 }

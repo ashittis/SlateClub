@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { filmHref, filmKeys, filmsApi } from "@/lib/api/films";
+import Page from "@/components/layout/Page";
 
 /**
  * A director or actor, and their films.
@@ -25,18 +26,24 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
   });
 
   if (isLoading) {
-    return <p className="mx-auto max-w-3xl px-4 py-16 meta">Loading…</p>;
+    return (
+      <Page>
+        <p className="meta">Loading…</p>
+      </Page>
+    );
   }
   if (!person) {
     return (
-      <p className="mx-auto max-w-3xl px-4 py-16 text-sm" style={{ color: "var(--xerox)" }}>
-        We couldn&apos;t find that person.
-      </p>
+      <Page>
+        <p className="text-sm" style={{ color: "var(--xerox)" }}>
+          We couldn&apos;t find that person.
+        </p>
+      </Page>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
+    <Page>
       <header className="flex gap-4">
         <Image
           src={tmdbImage(person.profilePath, "w200")}
@@ -47,7 +54,7 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
           unoptimized
         />
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight">{person.name}</h1>
+          <h1 className="text-2xl">{person.name}</h1>
           {person.knownFor && <p className="meta mt-1">{person.knownFor}</p>}
           <p className="meta mt-0.5">{person.films.length} films</p>
         </div>
@@ -81,6 +88,6 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
           ))}
         </ul>
       </section>
-    </div>
+    </Page>
   );
 }

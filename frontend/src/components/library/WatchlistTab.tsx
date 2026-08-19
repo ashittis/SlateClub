@@ -33,11 +33,11 @@ export default function WatchlistTab() {
   }
 
   return (
-    <ul className="mt-4 border-t-2" style={{ borderColor: "var(--edge)" }}>
+    <ul className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
       {data.map((f) => (
         <li
           key={f.tmdbId}
-          className="flex items-center gap-3 border-b-2 py-2.5"
+          className="flex items-center gap-3 border-b py-2.5"
           style={{ borderColor: "var(--edge)" }}
         >
           <Link href={filmHref(f)} className="shrink-0">

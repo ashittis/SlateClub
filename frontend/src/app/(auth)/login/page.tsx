@@ -55,7 +55,7 @@ export default function LoginPage() {
     <div ref={root} className="space-y-8">
       <div className="space-y-3">
         <h1
-          className="auth-reveal text-5xl font-bold sm:text-6xl"
+          className="auth-reveal text-5xl sm:text-6xl"
           style={{
             fontFamily: "var(--font-shoulders), system-ui, sans-serif",
             letterSpacing: "-0.03em",

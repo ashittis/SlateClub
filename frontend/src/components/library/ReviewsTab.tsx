@@ -37,7 +37,7 @@ export default function ReviewsTab() {
   return (
     <ul className="mt-4 space-y-4">
       {data.map((r) => (
-        <li key={r.id} className="border-b-2 pb-4" style={{ borderColor: "var(--edge)" }}>
+        <li key={r.id} className="border-b pb-4" style={{ borderColor: "var(--edge)" }}>
           <div className="flex gap-3">
             <Link href={filmHref(r)} className="shrink-0">
               <Image

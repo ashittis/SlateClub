@@ -24,13 +24,13 @@ export default function StatGrid({ stats }: { stats: PassportStats }) {
 
   return (
     <dl
-      className="mt-5 grid grid-cols-4 border-l border-t-2"
+      className="mt-5 grid grid-cols-4 border-l border-t"
       style={{ borderColor: "var(--edge)" }}
     >
       {cells.map((c) => (
         <div
           key={c.label}
-          className="border-b-2 border-r px-2 py-2.5"
+          className="border-b border-r px-2 py-2.5"
           style={{ borderColor: "var(--edge)" }}
         >
           <dd className="text-lg font-bold leading-none tabular-nums">{c.value}</dd>

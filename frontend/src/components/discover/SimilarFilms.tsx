@@ -62,7 +62,7 @@ export default function SimilarFilms({ tmdbId }: { tmdbId: number }) {
       {isLoading && <p className="meta mt-2">Loading…</p>}
 
       {!isLoading && (data?.results.length ?? 0) > 0 && (
-        <ul className="mt-2 border-t-2" style={{ borderColor: "var(--edge)" }}>
+        <ul className="mt-2 border-t" style={{ borderColor: "var(--edge)" }}>
           {data!.results.map((r) => (
             <RecommendationRow key={r.tmdbId} rec={r} />
           ))}
@@ -77,7 +77,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
   const sources = [...new Set(rec.evidence.map((e) => e.sourceName).filter(Boolean))];
 
   return (
-    <li className="border-b-2 py-3" style={{ borderColor: "var(--edge)" }}>
+    <li className="border-b py-3" style={{ borderColor: "var(--edge)" }}>
       <div className="flex gap-3">
         <Link href={filmHref(rec)} className="shrink-0">
           <Image
@@ -122,7 +122,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
           </button>
 
           {open && (
-            <ul className="mt-2 space-y-1.5 border-l-2 pl-3" style={{ borderColor: "var(--edge)" }}>
+            <ul className="mt-2 space-y-1.5 border-l pl-3" style={{ borderColor: "var(--edge)" }}>
               {rec.evidence.map((e, i) => (
                 <li key={i}>
                   <p className="text-sm" style={{ color: "var(--xerox)" }}>

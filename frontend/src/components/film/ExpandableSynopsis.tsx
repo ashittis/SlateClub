@@ -20,7 +20,7 @@ export default function ExpandableSynopsis({ text, clampLines = 4 }: Props) {
   return (
     <div>
       <p
-        className="text-sm leading-relaxed text-glass-55"
+        className="text-sm leading-relaxed"
         style={
           !expanded && isLong
             ? {
@@ -36,8 +36,10 @@ export default function ExpandableSynopsis({ text, clampLines = 4 }: Props) {
       </p>
       {isLong && (
         <button
+          type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-sm font-medium text-accent-green hover:opacity-80"
+          className="mt-1 min-h-[44px] text-sm font-medium hover:opacity-80"
+          style={{ color: "var(--blood-ink)" }}
         >
           {expanded ? "Show less" : "Read more"}
         </button>

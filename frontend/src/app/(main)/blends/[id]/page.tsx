@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { blendsApi, collectionKeys, type BlendEmptyReason } from "@/lib/api/collections";
 import { filmHref } from "@/lib/api/films";
+import Page from "@/components/layout/Page";
 
 /**
  * A Blend — what two people should watch together.
@@ -48,8 +49,8 @@ export default function BlendPage({ params }: { params: Promise<{ id: string }> 
   if (!blend) return <p className="meta px-4 py-16">Blend not found.</p>;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">{blend.title}</h1>
+    <Page>
+      <h1 className="text-2xl">{blend.title}</h1>
 
       <ul className="mt-3 flex flex-wrap items-center gap-2">
         {blend.members.map((m) => (
@@ -121,7 +122,7 @@ export default function BlendPage({ params }: { params: Promise<{ id: string }> 
           </ul>
         )}
       </section>
-    </div>
+    </Page>
   );
 }
 

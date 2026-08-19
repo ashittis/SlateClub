@@ -55,7 +55,7 @@ export default function ThreadPage({
   return (
     <div className="mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-3xl flex-col px-4 lg:px-8">
       <header
-        className="flex shrink-0 items-center gap-2.5 border-b-2 py-3"
+        className="flex shrink-0 items-center gap-2.5 border-b py-3"
         style={{ borderColor: "var(--edge)" }}
       >
         <Link href="/messages" className="meta" style={{ color: "var(--blood-ink)" }}>
@@ -132,7 +132,7 @@ export default function ThreadPage({
           e.preventDefault();
           send();
         }}
-        className="flex shrink-0 gap-2 border-t-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        className="flex shrink-0 gap-2 border-t py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
         style={{ borderColor: "var(--edge)" }}
       >
         <input

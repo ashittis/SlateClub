@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { collectionKeys, watchlistsApi } from "@/lib/api/collections";
 import { filmHref } from "@/lib/api/films";
+import Page from "@/components/layout/Page";
 
 /**
  * A named watchlist.
@@ -66,19 +67,19 @@ export default function WatchlistPage({ params }: { params: Promise<{ id: string
   if (error) {
     const isPrivate = (error instanceof Error ? error.message : "").toLowerCase().includes("private");
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16">
+      <Page>
         <p className="text-sm font-medium">
           {isPrivate ? "This list is private" : "List not found"}
         </p>
-      </div>
+      </Page>
     );
   }
   if (!data) return null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
+    <Page>
       <header>
-        <h1 className="text-2xl font-bold leading-tight tracking-tight">{data.title}</h1>
+        <h1 className="text-2xl">{data.title}</h1>
         {data.description && <p className="mt-1 text-sm">{data.description}</p>}
         <p className="meta mt-1">
           {data.films.length} {data.films.length === 1 ? "film" : "films"}
@@ -107,11 +108,11 @@ export default function WatchlistPage({ params }: { params: Promise<{ id: string
           </Link>
         </div>
       ) : (
-        <ol className="mt-4 border-t-2" style={{ borderColor: "var(--edge)" }}>
+        <ol className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
           {data.films.map((f, i) => (
             <li
               key={f.tmdbId}
-              className="flex items-center gap-3 border-b-2 py-2.5"
+              className="flex items-center gap-3 border-b py-2.5"
               style={{ borderColor: "var(--edge)" }}
             >
               <span className="meta w-5 shrink-0 text-right">{i + 1}</span>
@@ -162,7 +163,7 @@ export default function WatchlistPage({ params }: { params: Promise<{ id: string
           delete this list
         </button>
       )}
-    </div>
+    </Page>
   );
 }
 

@@ -33,11 +33,11 @@ export default function ViewingHistory({ tmdbId }: { tmdbId: number }) {
         Your history · {viewings.length} {viewings.length === 1 ? "viewing" : "viewings"}
       </h2>
 
-      <ul className="mt-2 border-t-2" style={{ borderColor: "var(--edge)" }}>
+      <ul className="mt-2 border-t" style={{ borderColor: "var(--edge)" }}>
         {viewings.map((v) => (
           <li
             key={v.id}
-            className="border-b-2 py-2.5"
+            className="border-b py-2.5"
             style={{ borderColor: "var(--edge)" }}
           >
             <div className="flex items-center gap-3">

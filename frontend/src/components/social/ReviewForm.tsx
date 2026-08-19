@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 import { useSocialStore } from "../../stores/socialStore";
 
 interface Props {
@@ -28,33 +29,39 @@ export default function ReviewForm({ movieId, onSubmitted }: Props) {
   };
 
   return (
-    <div className="space-y-2 rounded-lg bg-glass-6 p-3">
+    <div
+      className="space-y-2 border p-3"
+      style={{ borderColor: "var(--edge)", background: "var(--soot)" }}
+    >
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value.slice(0, 500))}
         placeholder="What did you think?"
         rows={3}
-        className="w-full resize-none rounded bg-glass-8 p-2 text-sm text-text-primary placeholder:text-glass-15 focus:outline-none focus:ring-1 focus:ring-accent-green"
+        aria-label="Your review"
+        className="w-full resize-none border p-2 text-sm outline-none placeholder:text-[var(--faint)]"
+        style={{ borderColor: "var(--edge)", background: "var(--void)", color: "var(--chalk)" }}
       />
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-xs text-glass-40">
+      <div className="flex items-center justify-between gap-3">
+        <label className="meta flex min-h-[44px] items-center gap-2">
           <input
             type="checkbox"
             checked={spoiler}
             onChange={(e) => setSpoiler(e.target.checked)}
-            className="rounded"
           />
           Contains spoilers
         </label>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-subtle">{body.length}/500</span>
-          <button
+        <div className="flex items-center gap-3">
+          <span className="meta">{body.length}/500</span>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
             onClick={handleSubmit}
             disabled={submitting || !body.trim()}
-            className="rounded-lg bg-accent-green px-3 py-1.5 text-xs font-medium text-bg-primary disabled:opacity-50"
           >
-            {submitting ? "Posting..." : "Post Review"}
-          </button>
+            {submitting ? "Posting…" : "Post review"}
+          </Button>
         </div>
       </div>
     </div>

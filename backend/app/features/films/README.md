@@ -20,9 +20,27 @@ first time anyone touches it — Kaset never pre-imports a catalog.
 - `GET /{tmdb_id}` — full detail: overview, genres, directors, cast
 - `GET /{tmdb_id}/status` — watchlist, rating, review, log count, `seen`
 - `GET /{tmdb_id}/viewings` — this viewer's own history, newest first
+- `GET /{tmdb_id}/friends` — people you follow who have **publicly** logged it,
+  one row each (their most recent viewing), newest first
 - `POST`/`DELETE /{tmdb_id}/watchlist` · `POST /{tmdb_id}/rate`
 - `POST`/`DELETE /{tmdb_id}/watching`
 - `GET /people/{person_id}` — a director or actor and their filmography
+
+## `friends.py`
+
+The friends query lives in its own module rather than in `routes.py`, which
+stays thin. Two rules matter there:
+
+**Privacy is enforced in the query, not after it.** A viewing marked private is
+invisible to everyone but its author, so `visibility == "public"` is part of the
+`WHERE` clause — there is no path where a private row is loaded and then relied
+upon to be filtered later.
+
+**One row per person.** Someone who has seen a film four times appears once,
+with their most recent viewing. The reported rating is that entry's own, falling
+back to their standing `Rating` for the film — an entry records what they thought
+that night, the rating row is what they think now, and either beats showing
+nothing.
 
 ## What changed from SlateClub's `movies` slice
 

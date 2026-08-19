@@ -142,30 +142,49 @@ Every external service is gated by an availability check. The app runs without R
 
 ## 6. Design system
 
-Kaset's visual DNA is **early-2000s web**: paper-toned surfaces, hairline rules instead of shadows, dense information, strong typography, and cassette/tape detailing. It should feel modern enough to use daily while carrying genuine early-internet DNA — not a costume, not a gimmick retro pastiche.
+Kaset's visual DNA is **early-2000s web**: hairline rules instead of shadows, dense information, strong typography, and cassette/tape detailing. It should feel modern enough to use daily while carrying genuine early-internet DNA — not a costume, not a gimmick retro pastiche.
+
+The canvas is **over-inked newsprint black**, not a dark-mode toggle: a violet-brown cast rather than `#000`. Posters keep their true colour — they are the content, and they are the only saturated thing on most screens.
 
 **Tokens** live in exactly two places, `frontend/src/app/globals.css` and its TypeScript mirror `frontend/src/lib/design-tokens.ts`. Never inline a hex value.
 
 ```
---paper          #F4F1EA    page base — manila / newsprint
---paper-raised   #FFFFFF    cards, sheets
---paper-sunken   #EAE6DC    wells, inputs, table stripes
---ink            #14120E    primary text
---ink-muted      #5A554A
---ink-faint      #8C8578
---rule           #C9C2B4    1px hairlines — the dominant structural device
---rule-strong    #14120E    section dividers, active tab underline
---tape           #8B2F1D    accent: oxide red (magnetic tape) — primary action
---tape-hover     #A93A24
---deck           #1B4D3E    positive / logged / confirmed
---highlight      #FFE9A8    selection, "new", annotation
---visited        #5B3E8C    visited-link violet, used sparingly
+--void       #14121A    page base — over-inked newsprint
+--soot       #2A2733    raised surface: cards, panels, wells, inputs
+--bleach     #EDE7DB    torn-paper fragments; inverted blocks
+
+--chalk      #F5F2EC    primary text on void — 15.8:1
+--xerox      #A9A3B4    secondary text — 7.2:1, photocopy dropout
+--faint      #8D8799    tertiary — 5.4:1, still readable
+
+--blood      #C41230    FILL: primary action, REC
+--blood-hot  #D41634    fill hover
+--blood-ink  #FF6B7D    TEXT: accent copy on void — 6.8:1
+--acid       #C8FF2E    highlight, saved, "new" — 15.7:1
+--cobalt     #5C78FF    links — 4.9:1
+--magenta    #FF3D8B    drama duotone, match reveals — 5.6:1
+
+--edge       #575167    resting divider
+--edge-hot   #F5F2EC    active / focused border
 ```
 
-**Typography** — a tight grotesk for display and UI, and a **monospace for all metadata**: dates, runtimes, counts, ratings, watch types. That grotesk/mono split is what carries the cassette-label feel without costume.
+Two reds because a fill and a text colour have different jobs: light text on a bright red fails AA, and a red dark enough to carry it is too dark to read as text on black. **One filled accent per screen** — if two things are `--blood`, one of them is wrong.
+
+> **Corrected.** This block previously specified a light paper palette
+> (`--paper`, `--ink`, `--tape`) that the code has never shipped. The tokens
+> above are what `globals.css` actually defines. A spec that names colours the
+> app does not have is worse than no spec, since CLAUDE.md sends people here to
+> look them up.
+
+**Typography** — a tight grotesk for headings and UI, and a **monospace for all metadata**: dates, runtimes, counts, ratings, watch types. That grotesk/mono split is what carries the cassette-label feel without costume.
+
+- **Headings are sentence case, in the grotesk.** `h1`/`h2`/`h3` are wayfinding, read hundreds of times a session. They previously defaulted to oversized condensed *caps*, which meant nothing on a page could be emphasised because everything already was.
+- **The condensed display face is opt-in, for hero surfaces only** — the wordmark, the Passport, Wrapped, the share card, the log confirmation. Reach for `.display` there and nowhere else; an ordinary page heading is a plain `h1`.
+- Metadata stays monospace everywhere. That dense mono read is doing more for the identity than the display face ever did.
 
 **Rules:**
-- Structure with 1px `--rule` borders, not shadows or glows.
+- Structure with 1px `--rule` borders, not shadows or glows. Weight carries meaning: **1px hairlines** for list rows, cards and panels; **2px** reserved for section rules and active state. Using 2px everywhere made every row shout at the same volume as the page.
+- Radius is for **shell chrome only** — the top bar's search field and Create button. Inside the page well, structure comes from hairlines and square edges.
 - Posters are the visual centre. On paper they get a hairline border, never a glow.
 - Density is a feature: compact rows, real tables in the Library, small-caps section headers.
 - Motion is controlled. Framer Motion for component enter/exit and sheets; GSAP only for genuine timelines (Passport share-card reveal, log confirmation). Honour `prefers-reduced-motion`.
@@ -181,12 +200,20 @@ Four concepts. Same mental model on desktop and mobile.
 HOME  ·  SEARCH  ·  YOUR LIBRARY  ·  CREATE
 ```
 
-- **Desktop** — left rail carrying the four, with a Library sub-tree. Top bar carries Messages, Notifications, and the avatar.
-- **Mobile** — bottom bar carrying the four, touch targets ≥44px. Messages and avatar sit in a compact top header.
+- **Desktop** — a single full-width top bar. Wordmark, then Home · Search · Your Library inline, a persistent search field in the centre, then Messages, Notifications, **+ Create**, and the avatar. There is no vertical rail.
+- **Mobile** — bottom bar carrying all four, touch targets ≥44px. Messages, search and the avatar sit in the same top bar, which becomes a compact header.
+- **Create is a button, not a link.** The other three are places you go; Create is a thing you start, and its menu offers Log a film · New watchlist · New blend. On mobile it stays a tab, because down there the bottom bar *is* the navigation.
 - **Profile** is reached only through the avatar. **Messages** are globally accessible but never replace one of the four.
 - Nothing else enters primary navigation. No Community, Discover, Match Cut, Tribe, or Releases.
+- **Active state** is a 2px `--blood` rule along the live item — never an inverted block, which in a horizontal bar reads as a pressed button rather than a location.
 
 `frontend/src/lib/nav.ts` is the single source of truth for both surfaces.
+
+> **Changed from the original spec.** This section previously called for a 240px
+> desktop left rail. It was removed: it spent a sixth of a laptop screen on four
+> words that never change, in a product whose content is posters — which want
+> width. Everything it carried is in the top bar, and nothing became less
+> reachable.
 
 ---
 
@@ -197,12 +224,22 @@ Languages → favourite films → favourite cast/crew → optional viewing prefe
 Purpose is cold-start personalisation, nothing more. Stores structured data only: selected languages, favourite films, favourite people, basic viewing preferences.
 
 ### Film page
-Poster · title · metadata · rating · **Log this film** (primary action) · watchlist · review · *your previous viewing history* · community reviews · discover similar films.
+Three columns on desktop — poster rail · the writing · an action panel — collapsing to one on mobile, where the primary action pins to the bottom of the viewport.
+
+Poster · title · metadata · rating · **Log this film** (primary action) · watchlist · share · *your previous viewing history* · **friends who watched it** · community reviews · discover similar films.
+
+**Friends who watched it** is the strongest signal the page can carry: an aggregate score tells you what strangers thought, this tells you that three people whose taste you chose to follow have already seen it, and what they made of it. Served by `GET /api/films/{tmdb_id}/friends` — public viewings only, one row per person. It renders nothing when nobody you follow has logged the film; an empty panel makes a quiet network feel broken.
 
 ### Logging & the diary
 A user can search a film, open it, and log it with: date, rating, liked, review, rewatch flag, how they watched it, and tags.
 
-Logging happens **inline on the film page** — the primary button expands in place into the log panel, and the film stays on screen. It is not a modal: a viewing is something you did to the film you are looking at, and a scrim over that film breaks the connection. The rating leads, because it is the one field almost everyone sets. The modifiers — liked · rewatch · private · spoilers — are icon toggles, not labelled checkbox rows.
+Logging is **one surface, reachable from anywhere** — the top bar's `+ Create`, a film page, or a poster's long-press. A dialog on desktop with the poster in its own column; a bottom sheet on mobile with the submit pinned above the fold. The film is always in frame: a viewing is something you did to a film you are looking at, and filling in a form about something you can no longer see breaks the connection.
+
+The rating leads, because it is the one field almost everyone sets. The modifiers — liked · rewatch · private · spoilers — are icon toggles, not labelled checkbox rows.
+
+**The fast path is the whole visible form**: rating, date, three modifiers. Venue, review, spoiler and tags sit behind one *Add review, venue, tags* disclosure. All seven fields at once made a two-tap action present itself as paperwork, and people read a form and decide to do it later.
+
+> **Changed from the original spec.** This previously required an *inline panel* on the film page. That could only be opened from a film page, giving the product's single most common action exactly one door — and on a wide screen it rendered as a narrow column with the poster scrolled off above it, the exact disconnection it existed to prevent.
 
 A diary entry contains: **film · date · rating · liked · review · watch type · rewatch status · theatre information · tags · created timestamp.**
 

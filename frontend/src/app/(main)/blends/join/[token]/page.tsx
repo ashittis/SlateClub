@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { blendsApi } from "@/lib/api/collections";
+import Page from "@/components/layout/Page";
 
 /** Joining by link — the token is the whole access model. */
 export default function JoinBlendPage({ params }: { params: Promise<{ token: string }> }) {
@@ -26,7 +27,7 @@ export default function JoinBlendPage({ params }: { params: Promise<{ token: str
   }, [token, router]);
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-16 text-center">
+    <Page width="narrow" className="text-center">
       {error ? (
         <>
           <p className="text-sm font-medium">Couldn&apos;t join that blend</p>
@@ -35,6 +36,6 @@ export default function JoinBlendPage({ params }: { params: Promise<{ token: str
       ) : (
         <p className="meta">Joining…</p>
       )}
-    </div>
+    </Page>
   );
 }

@@ -4,6 +4,7 @@ import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { passportApi, passportKeys } from "@/lib/api/passport";
 import PassportView from "@/components/passport/PassportView";
+import Page from "@/components/layout/Page";
 
 /**
  * Someone else's Passport.
@@ -30,7 +31,7 @@ export default function UserPassportPage({
     const message = error instanceof Error ? error.message : "";
     const isPrivate = message.toLowerCase().includes("private");
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16">
+      <Page width="narrow">
         <p className="text-sm font-medium">
           {isPrivate ? "This passport is private" : "No such passport"}
         </p>
@@ -39,7 +40,7 @@ export default function UserPassportPage({
             ? "Its owner only shares it with people they've chosen."
             : `We couldn't find @${username}.`}
         </p>
-      </div>
+      </Page>
     );
   }
   if (!data) return null;

@@ -85,7 +85,7 @@ export default function ShareFilmSheet({
         style={{ background: "var(--soot)", borderColor: "var(--edge-hot)" }}
       >
         <header
-          className="flex items-start gap-3 border-b-2 p-4"
+          className="flex items-start gap-3 border-b p-4"
           style={{ borderColor: "var(--edge)" }}
         >
           <Image
@@ -98,7 +98,7 @@ export default function ShareFilmSheet({
           />
           <div className="min-w-0 flex-1">
             <p className="section-label">Share</p>
-            <h2 className="truncate text-base font-bold leading-tight">{film.title}</h2>
+            <h2 className="truncate text-base">{film.title}</h2>
           </div>
           <button
             type="button"
@@ -148,9 +148,9 @@ export default function ShareFilmSheet({
               <p className="meta">No one found.</p>
             )}
 
-            <ul className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+            <ul className="border-t" style={{ borderColor: "var(--edge)" }}>
               {people.map((p) => (
-                <li key={p.id} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+                <li key={p.id} className="border-b" style={{ borderColor: "var(--edge)" }}>
                   <button
                     type="button"
                     onClick={() => send(p.id, p.name)}

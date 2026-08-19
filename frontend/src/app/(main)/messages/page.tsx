@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { messageKeys, messagesApi } from "@/lib/api/messages";
+import Page from "@/components/layout/Page";
 
 /**
  * The inbox. One list of threads — SlateClub split DMs and film recommendations
@@ -17,8 +18,8 @@ export default function MessagesPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
+    <Page width="narrow">
+      <h1 className="text-2xl">Messages</h1>
 
       {isLoading && <p className="meta mt-4">Loading…</p>}
 
@@ -35,9 +36,9 @@ export default function MessagesPage() {
       )}
 
       {!!data?.length && (
-        <ul className="mt-4 border-t-2" style={{ borderColor: "var(--edge)" }}>
+        <ul className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
           {data.map((c) => (
-            <li key={c.id} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+            <li key={c.id} className="border-b" style={{ borderColor: "var(--edge)" }}>
               <Link
                 href={`/messages/${c.id}`}
                 className="flex min-h-[64px] items-center gap-3 py-2.5"
@@ -75,6 +76,6 @@ export default function MessagesPage() {
           ))}
         </ul>
       )}
-    </div>
+    </Page>
   );
 }

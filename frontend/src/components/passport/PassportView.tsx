@@ -49,7 +49,7 @@ export default function PassportView({ passport }: { passport: Passport }) {
           unoptimized
         />
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight">
+          <h1 className="text-2xl">
             {passport.name}
           </h1>
           <p className="meta">@{username}</p>
@@ -140,11 +140,11 @@ export default function PassportView({ passport }: { passport: Passport }) {
 
       {(diary?.length ?? 0) > 0 && (
         <Section title="Recent viewings">
-          <ul className="border-t-2" style={{ borderColor: "var(--edge)" }}>
+          <ul className="border-t" style={{ borderColor: "var(--edge)" }}>
             {diary!.map((e) => (
               <li
                 key={e.entryId}
-                className="flex items-center gap-3 border-b-2 py-2"
+                className="flex items-center gap-3 border-b py-2"
                 style={{ borderColor: "var(--edge)" }}
               >
                 <span className="meta w-[88px] shrink-0" style={{ color: "var(--chalk)" }}>
@@ -174,7 +174,7 @@ export default function PassportView({ passport }: { passport: Passport }) {
         <Section title="Reviews">
           <ul className="space-y-4">
             {reviews!.slice(0, 5).map((r) => (
-              <li key={r.reviewId} className="border-b-2 pb-3" style={{ borderColor: "var(--edge)" }}>
+              <li key={r.reviewId} className="border-b pb-3" style={{ borderColor: "var(--edge)" }}>
                 <Link href={filmHref(r)} className="text-sm font-medium">
                   {r.title}
                   {r.year && <span className="meta ml-1.5">{r.year}</span>}

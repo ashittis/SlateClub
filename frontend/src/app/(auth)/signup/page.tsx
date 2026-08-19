@@ -57,7 +57,7 @@ export default function SignupPage() {
     <div ref={root} className="space-y-7">
       <div className="space-y-3">
         <h1
-          className="auth-reveal text-4xl font-bold sm:text-5xl"
+          className="auth-reveal text-4xl sm:text-5xl"
           style={{
             fontFamily: "var(--font-shoulders), system-ui, sans-serif",
             letterSpacing: "-0.03em",

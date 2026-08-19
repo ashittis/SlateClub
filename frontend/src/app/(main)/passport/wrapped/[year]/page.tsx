@@ -9,6 +9,7 @@ import { wrappedApi, wrappedKeys } from "@/lib/api/wrapped";
 import { filmHref } from "@/lib/api/films";
 import { formatViewingDate } from "@/lib/api/diary";
 import ShareCard from "@/components/passport/ShareCard";
+import Page from "@/components/layout/Page";
 
 /**
  * Wrapped — the year, at length.
@@ -32,8 +33,8 @@ export default function WrappedPage({ params }: { params: Promise<{ year: string
 
   if (data.viewings === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">{year}</h1>
+      <Page className="text-center">
+        <h1 className="text-2xl">{year}</h1>
         <p className="meta mt-2">You didn&apos;t log anything in {year}.</p>
         <Link
           href="/search"
@@ -46,15 +47,15 @@ export default function WrappedPage({ params }: { params: Promise<{ year: string
         >
           Log a film
         </Link>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
+    <Page>
       <header>
         <p className="section-label">Wrapped</p>
-        <h1 className="text-4xl font-bold tracking-tight">{year}</h1>
+        <h1 className="text-4xl">{year}</h1>
         <p className="meta mt-1">
           {data.films} films · {data.viewings} viewings · {data.hours} hours
         </p>
@@ -126,6 +127,6 @@ export default function WrappedPage({ params }: { params: Promise<{ year: string
           <Link href="/passport/share" className="prose-link">share page</Link>.
         </p>
       </section>
-    </div>
+    </Page>
   );
 }

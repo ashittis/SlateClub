@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.features.films.friends import friends_who_watched
 from app.integrations import tmdb
 from app.shared.models.actions import (
     CurrentlyWatching,
@@ -205,6 +206,22 @@ async def viewings(
             for e in entries
         ]
     }
+
+
+@router.get("/{tmdb_id}/friends")
+async def friends(
+    tmdb_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The people you follow who have publicly logged this film.
+
+    Social proof from people you actually chose, rather than an aggregate score
+    from strangers — that a friend rated something four stars is the strongest
+    signal Kaset can put on a film page.
+    """
+    film = await get_or_fetch_film(tmdb_id, db)
+    return await friends_who_watched(film.id, user, db)
 
 
 # ── Watchlist (addressed by TMDB id) ─────────────────────────────────────────

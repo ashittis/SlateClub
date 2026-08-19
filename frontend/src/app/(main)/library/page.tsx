@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LibraryTabs from "@/components/library/LibraryTabs";
+import Page from "@/components/layout/Page";
 
 export const metadata: Metadata = { title: "Your Library" };
 
@@ -12,10 +13,10 @@ export const metadata: Metadata = { title: "Your Library" };
  */
 export default function LibraryPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">Your Library</h1>
+    <Page>
+      <h1 className="text-2xl">Your Library</h1>
       <p className="meta mt-1">Everything you&apos;ve watched, rated, and saved</p>
       <LibraryTabs />
-    </div>
+    </Page>
   );
 }

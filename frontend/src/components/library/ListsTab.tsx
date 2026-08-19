@@ -31,9 +31,9 @@ export default function ListsTab() {
   }
 
   return (
-    <ul className="mt-4 border-t-2" style={{ borderColor: "var(--edge)" }}>
+    <ul className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
       {data.map((wl) => (
-        <li key={wl.id} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+        <li key={wl.id} className="border-b" style={{ borderColor: "var(--edge)" }}>
           <Link
             href={`/library/watchlists/${wl.id}`}
             className="flex min-h-[68px] items-center gap-3 py-2.5"

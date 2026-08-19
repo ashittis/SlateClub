@@ -20,6 +20,12 @@ interface StarRatingProps {
   onChange?: (value: number) => void;
   readonly?: boolean;
   size?: StarSize;
+  /**
+   * Put on the focusable row, so a control elsewhere on the page can send focus
+   * here rather than duplicating the rating UI. The film page's action panel
+   * does exactly that.
+   */
+  id?: string;
 }
 
 // star + gap in px. `xl` keeps each star ≥44px so quarter-zones stay
@@ -62,6 +68,7 @@ export default function StarRating({
   onChange,
   readonly = false,
   size = "md",
+  id,
 }: StarRatingProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -243,6 +250,7 @@ export default function StarRating({
   return (
     <div
       ref={rowRef}
+      id={id}
       role={interactive ? "slider" : "img"}
       aria-label={`Rating: ${value} out of ${TOTAL_STARS}`}
       aria-valuemin={0}

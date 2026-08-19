@@ -48,9 +48,9 @@ export default function CommunityReviews({ filmId }: { filmId: string | undefine
       <h2 className="section-label">
         Reviews · {data.length}
       </h2>
-      <ul className="mt-2 border-t-2" style={{ borderColor: "var(--edge)" }}>
+      <ul className="mt-2 border-t" style={{ borderColor: "var(--edge)" }}>
         {data.map((r) => (
-          <li key={r.id} className="border-b-2 py-3" style={{ borderColor: "var(--edge)" }}>
+          <li key={r.id} className="border-b py-3" style={{ borderColor: "var(--edge)" }}>
             <div className="flex items-center gap-2">
               <Link href={`/passport/${r.author.username}`} className="shrink-0">
                 <Image

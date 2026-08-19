@@ -34,7 +34,7 @@ export default function ShareCard({ data }: { data: ShareCardData }) {
       }}
     >
       <header
-        className="flex items-baseline justify-between border-b-2 pb-2"
+        className="flex items-baseline justify-between border-b pb-2"
         style={{ borderColor: "var(--edge)" }}
       >
         <span className="section-label">KASET · {data.label ?? data.year}</span>
@@ -48,13 +48,13 @@ export default function ShareCard({ data }: { data: ShareCardData }) {
       ) : (
         <>
           <dl
-            className="mt-4 grid grid-cols-3 border-l border-t-2"
+            className="mt-4 grid grid-cols-3 border-l border-t"
             style={{ borderColor: "var(--edge)" }}
           >
             {stats.map((s) => (
               <div
                 key={s.label}
-                className="border-b-2 border-r px-2 py-2.5"
+                className="border-b border-r px-2 py-2.5"
                 style={{ borderColor: "var(--edge)" }}
               >
                 <dd className="text-xl font-bold leading-none tabular-nums">{s.value}</dd>
@@ -137,7 +137,7 @@ export default function ShareCard({ data }: { data: ShareCardData }) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div
-      className="flex items-baseline justify-between gap-3 border-b-2 pb-1"
+      className="flex items-baseline justify-between gap-3 border-b pb-1"
       style={{ borderColor: "var(--edge)" }}
     >
       <dt className="section-label shrink-0">{label}</dt>

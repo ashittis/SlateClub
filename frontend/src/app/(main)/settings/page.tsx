@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
+import Page from "@/components/layout/Page";
 
 interface Preferences {
   notifOptOut: string[];
@@ -46,9 +46,9 @@ export default function SettingsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 lg:px-6 pt-6 pb-24">
+    <Page width="narrow">
       <h1
-        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-6"
+        className="text-2xl lg:text-3xl mb-6"
         style={{ color: "var(--chalk)" }}
       >
         Settings
@@ -177,7 +177,7 @@ export default function SettingsPage() {
           Kaset · Log the films you watch.
         </p>
       </Section>
-    </div>
+    </Page>
   );
 }
 
@@ -197,7 +197,7 @@ function Section({
       }}
     >
       <h2
-        className="display text-sm font-semibold uppercase tracking-wider mb-3"
+        className="section-label mb-3"
         style={{ color: "var(--faint)" }}
       >
         {title}
@@ -216,7 +216,7 @@ function Row({
 }) {
   return (
     <div
-      className="flex items-center justify-between py-2 border-b-2 last:border-b-0"
+      className="flex items-center justify-between py-2 border-b last:border-b-0"
       style={{ borderColor: "var(--edge)" }}
     >
       <span className="text-sm" style={{ color: "var(--xerox)" }}>
@@ -240,7 +240,7 @@ function Toggle({
 }) {
   return (
     <div
-      className="flex items-center justify-between py-2 border-b-2 last:border-b-0"
+      className="flex items-center justify-between py-2 border-b last:border-b-0"
       style={{ borderColor: "var(--edge)" }}
     >
       <div>

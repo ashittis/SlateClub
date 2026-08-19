@@ -30,7 +30,7 @@ export default function CreateBlendPage() {
 
   return (
     <form onSubmit={submit} className="mx-auto max-w-xl px-4 pb-16 pt-6 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">New blend</h1>
+      <h1 className="text-2xl">New blend</h1>
       <p className="meta mt-1">
         Combine your taste with someone else&apos;s. You&apos;ll get a link to send them.
       </p>

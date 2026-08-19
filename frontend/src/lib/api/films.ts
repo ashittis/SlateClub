@@ -63,6 +63,24 @@ export interface Viewing {
   reviewId: string | null;
 }
 
+/**
+ * A followed user's viewing of a film, from `/api/films/{id}/friends`.
+ *
+ * `rating` is their diary entry's rating where they set one, otherwise their
+ * standing rating for the film — the endpoint decides which, so the UI does not
+ * have to hold that rule twice.
+ */
+export interface FriendViewing {
+  id: string;
+  name: string;
+  username: string;
+  avatar_url: string | null;
+  rating: number | null;
+  liked: boolean;
+  /** Calendar date, YYYY-MM-DD. */
+  watchedOn: string;
+}
+
 export interface PersonDetail {
   tmdbId: number;
   name: string;
@@ -99,6 +117,10 @@ export const filmsApi = {
   rate: (tmdbId: number, rating: number) =>
     post<{ ok: boolean; rating: number | null }>(`/api/films/${tmdbId}/rate`, { rating }),
 
+  /** People you follow who have publicly logged this film. */
+  friends: (tmdbId: number) =>
+    get<{ friends: FriendViewing[]; total: number }>(`/api/films/${tmdbId}/friends`),
+
   person: (personId: number) => get<PersonDetail>(`/api/films/people/${personId}`),
 };
 
@@ -106,6 +128,7 @@ export const filmKeys = {
   detail: (tmdbId: number) => ["film", tmdbId] as const,
   status: (tmdbId: number) => ["film", tmdbId, "status"] as const,
   viewings: (tmdbId: number) => ["film", tmdbId, "viewings"] as const,
+  friends: (tmdbId: number) => ["film", tmdbId, "friends"] as const,
   search: (q: string) => ["films", "search", q] as const,
   person: (id: number) => ["person", id] as const,
 };

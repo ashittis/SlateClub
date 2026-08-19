@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
+import Page from "@/components/layout/Page";
 
 interface ImportCounts {
   imported: number;
@@ -52,9 +53,9 @@ export default function ImportPage() {
   const ready = ratings || diary || watched || watchlist;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 lg:px-6 pt-6 pb-24">
+    <Page width="narrow">
       <h1
-        className="display text-2xl lg:text-3xl font-bold tracking-tight mb-1"
+        className="text-2xl lg:text-3xl mb-1"
         style={{ color: "var(--chalk)" }}
       >
         Import from Letterboxd
@@ -155,7 +156,7 @@ export default function ImportPage() {
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }
 
@@ -174,7 +175,7 @@ function FileRow({
     <div>
       <label className="block">
         <p
-          className="display text-sm font-semibold"
+          className="text-sm font-semibold"
           style={{ color: "var(--chalk)" }}
         >
           {label}

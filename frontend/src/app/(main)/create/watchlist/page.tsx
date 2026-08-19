@@ -33,7 +33,7 @@ export default function CreateWatchlistPage() {
 
   return (
     <form onSubmit={submit} className="mx-auto max-w-xl px-4 pb-16 pt-6 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">New watchlist</h1>
+      <h1 className="text-2xl">New watchlist</h1>
       <p className="meta mt-1">A collection you curate and order yourself.</p>
 
       <div className="mt-6 space-y-4">

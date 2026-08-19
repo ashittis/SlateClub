@@ -53,7 +53,8 @@ export default function Modal({ isOpen, onClose, children, title }: ModalProps) 
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0"
+            style={{ background: "rgba(10, 9, 13, 0.78)" }}
             onClick={onClose}
             aria-hidden
           />
@@ -67,15 +68,20 @@ export default function Modal({ isOpen, onClose, children, title }: ModalProps) 
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="relative z-10 w-full max-w-lg rounded-xl border border-glass-6 bg-glass-6 shadow-2xl"
+            className="relative z-10 w-full max-w-lg border"
+            style={{ borderColor: "var(--edge-hot)", background: "var(--soot)" }}
           >
             {title && (
-              <div className="flex items-center justify-between border-b-2 border-glass-6 px-6 py-4">
-                <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+              <div
+                className="flex items-center justify-between border-b px-6 py-4"
+                style={{ borderColor: "var(--edge)" }}
+              >
+                <h2 className="text-lg">{title}</h2>
                 <button
                   onClick={onClose}
                   aria-label="Close modal"
-                  className="rounded-md p-1 text-glass-40 transition-colors hover:bg-glass-8 hover:text-text-primary"
+                  className="flex h-11 w-11 items-center justify-center transition-colors hover:text-[var(--chalk)]"
+                  style={{ color: "var(--xerox)" }}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

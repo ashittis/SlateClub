@@ -40,7 +40,11 @@
   --magenta: #FF3D8B;     /* drama duotone, match reveals — 5.6:1 */
 
   /* ── Structure ──────────────────────────────────────────────────────────
-     Hard 2px borders, never shadows. Zine edges are cut, not blurred. */
+     Borders, never shadows — edges are cut, not blurred.
+
+     Weight carries meaning: 1px hairlines for list rows, cards and panels;
+     2px reserved for section rules and the active-state inversion. Using 2px
+     everywhere made every row shout at the same volume as the page itself. */
   --edge: #575167;        /* resting divider on void */
   --edge-hot: #F5F2EC;    /* active/focused border */
 
@@ -51,7 +55,6 @@
   --font-sans: var(--font-grotesk);
   --font-mono: var(--font-mono-stack);
   --font-display: var(--font-shoulders);
-  --font-marker: var(--font-marker-stack);
 }
 
 @theme inline {
@@ -76,7 +79,6 @@
   --font-sans: var(--font-grotesk);
   --font-mono: var(--font-mono-stack);
   --font-display: var(--font-shoulders);
-  --font-marker: var(--font-marker-stack);
 }
 
 html {
@@ -93,23 +95,35 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Headings ─────────────────────────────────────────────────────────────
+   Sentence case, grotesk, tight tracking. Headings are read hundreds of times
+   a session; they are wayfinding, not a statement. Oversized condensed caps on
+   every h2 in the app meant nothing could ever be emphasised, because
+   everything already was.
+
+   The condensed display face is still here — see `.display` — but it is now
+   opt-in, for the handful of surfaces that are genuinely a moment. */
+h1, h2, h3 {
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
 /* ── Display type ─────────────────────────────────────────────────────────
    Oversized, condensed, tight, upper. Allowed to crop against an image or
-   overlap it — that is the point. Body type never does. */
+   overlap it — that is the point. Body type never does.
+
+   OPT-IN ONLY. Hero surfaces: the Passport, Wrapped, the share card, the log
+   confirmation, the wordmark. If you are reaching for it on an ordinary page
+   heading, use a plain h1 — that is what it is for. */
 .display {
   font-family: var(--font-shoulders), var(--font-grotesk), system-ui, sans-serif;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: -0.01em;
   line-height: 0.86;
-}
-
-h1, h2, h3 {
-  font-family: var(--font-shoulders), var(--font-grotesk), system-ui, sans-serif;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.005em;
-  line-height: 0.92;
 }
 
 /* Metadata is always monospace — it reads as camcorder timecode. */
@@ -129,14 +143,23 @@ h1, h2, h3 {
   color: var(--xerox);
 }
 
-/* Handwritten annotation. Captions and empty states only — never a label,
-   a button, or metadata. It stops being a gesture the moment it's a system. */
-.marker {
-  font-family: var(--font-marker-stack), var(--font-grotesk), cursive;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
-  color: var(--acid);
-  transform: rotate(-1.2deg);
+/* ── Shell chrome ─────────────────────────────────────────────────────────
+   The one place Kaset is round. The top bar is a persistent frame around the
+   content, not content itself, so its controls read as chrome — a search field
+   and a Create button, the shapes people already know from every other app.
+   Nothing inside the page well uses this. */
+.pill {
+  border-radius: 9999px;
+}
+
+/* List-row affordance. A row that responds is a row you can act on; a dense
+   list with no hover state reads as a table you can only look at. */
+.row-hover {
+  transition: background-color 120ms ease;
+}
+.row-hover:hover,
+.row-hover:focus-within {
+  background: var(--soot);
 }
 
 .prose-link {
@@ -216,10 +239,11 @@ h1, h2, h3 {
   .duotone::before { display: none; }
 }
 
-/* Posters keep their true colour — they are the content. A hard edge and a
-   touch of grain is all the treatment they get. */
+/* Posters keep their true colour — they are the content. A hairline edge and a
+   touch of grain is all the treatment they get. At 1px the border frames the
+   artwork; at 2px it competed with it. */
 .poster {
-  border: 2px solid var(--edge);
+  border: 1px solid var(--edge);
   background: var(--soot);
   display: block;
 }

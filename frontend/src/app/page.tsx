@@ -23,7 +23,7 @@ export default function RootPage() {
   return (
     <div className="flex flex-1 items-center justify-center">
       <div
-        className="h-8 w-8 animate-spin rounded-full border-2"
+        className="h-8 w-8 animate-spin rounded-full border"
         style={{
           borderColor: "var(--soot)",
           borderTopColor: "var(--blood)",

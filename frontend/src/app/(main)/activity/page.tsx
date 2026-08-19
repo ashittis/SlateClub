@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { tmdbImage } from "@/lib/api/client";
 import { activityApi, activityKeys, describeActivity } from "@/lib/api/activity";
 import { formatViewingDate } from "@/lib/api/diary";
+import Page from "@/components/layout/Page";
 
 /**
  * Activity — what the people you follow have been watching.
@@ -25,11 +26,11 @@ export default function ActivityPage() {
   const events = data?.events ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">Activity</h1>
+    <Page>
+      <h1 className="text-2xl">Activity</h1>
 
       <div
-        className="mt-4 flex gap-1 border-b-2"
+        className="mt-4 flex gap-1 border-b"
         style={{ borderColor: "var(--edge)" }}
       >
         {(["network", "world"] as const).map((s) => (
@@ -69,11 +70,11 @@ export default function ActivityPage() {
       )}
 
       {events.length > 0 && (
-        <ul className="mt-4 border-t-2" style={{ borderColor: "var(--edge)" }}>
+        <ul className="mt-4 border-t" style={{ borderColor: "var(--edge)" }}>
           {events.map((e) => (
             <li
               key={e.id}
-              className="flex items-center gap-3 border-b-2 py-2.5"
+              className="flex items-center gap-3 border-b py-2.5"
               style={{ borderColor: "var(--edge)" }}
             >
               <Link href={`/passport/${e.user.username}`} className="shrink-0">
@@ -115,6 +116,6 @@ export default function ActivityPage() {
           ))}
         </ul>
       )}
-    </div>
+    </Page>
   );
 }

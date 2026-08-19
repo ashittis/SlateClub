@@ -25,7 +25,7 @@ export default function LibraryTabs() {
       <div
         role="tablist"
         aria-label="Library sections"
-        className="no-scrollbar flex gap-1 overflow-x-auto border-b-2"
+        className="no-scrollbar flex gap-1 overflow-x-auto border-b"
         style={{ borderColor: "var(--edge)" }}
       >
         {TABS.map((t) => {

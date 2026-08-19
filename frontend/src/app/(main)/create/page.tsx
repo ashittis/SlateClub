@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Page from "@/components/layout/Page";
 
 export const metadata: Metadata = { title: "Create" };
 
@@ -22,13 +23,13 @@ const OPTIONS = [
 
 export default function CreatePage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">Create</h1>
+    <Page width="narrow">
+      <h1 className="text-2xl">Create</h1>
       <p className="meta mt-1">Start something new</p>
 
-      <ul className="mt-6 border-t-2" style={{ borderColor: "var(--edge)" }}>
+      <ul className="mt-6 border-t" style={{ borderColor: "var(--edge)" }}>
         {OPTIONS.map((o) => (
-          <li key={o.href} className="border-b-2" style={{ borderColor: "var(--edge)" }}>
+          <li key={o.href} className="border-b" style={{ borderColor: "var(--edge)" }}>
             <Link
               href={o.href}
               className="flex min-h-[72px] flex-col justify-center gap-1 py-4"
@@ -43,6 +44,6 @@ export default function CreatePage() {
       </ul>
 
       <p className="meta mt-6">Coming in phase 9</p>
-    </div>
+    </Page>
   );
 }

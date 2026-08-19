@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { wrappedApi, wrappedKeys } from "@/lib/api/wrapped";
 import ShareCard from "@/components/passport/ShareCard";
+import Page from "@/components/layout/Page";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -39,8 +40,8 @@ export default function SharePage() {
   const options = years?.years?.length ? years.years : [now.getFullYear()];
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-5 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight">Share your Passport</h1>
+    <Page width="narrow">
+      <h1 className="text-2xl">Share your Passport</h1>
       <p className="meta mt-1">A month or a year of your cinema life.</p>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -97,6 +98,6 @@ export default function SharePage() {
         </Link>
         .
       </p>
-    </div>
+    </Page>
   );
 }
